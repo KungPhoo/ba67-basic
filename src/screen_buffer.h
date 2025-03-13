@@ -1,0 +1,171 @@
+#pragma once
+#include <string>
+#include <vector>
+#include <iostream>
+#include <array>
+#include <map>
+
+struct ScreenInfo {
+    static const size_t charsX = 40, charsY = 25;
+    static const size_t charPixX = 8/*don't change!*/, charPixY = 8 /*8 or 16*/;
+    static const size_t pixX = charsX * charPixX;
+    static const size_t pixY = charsY * charPixY;
+};
+
+class CharBitmap {
+public:
+    CharBitmap() = default;
+    // each byte is a 8 bit line
+    // construct with either 8 or 16 bytes
+    CharBitmap(std::initializer_list<uint8_t> lst): CharBitmap(lst.begin(), lst.size()) {}
+    CharBitmap(const uint8_t* bytes, size_t count):pixels{} {
+
+        if (ScreenInfo::charPixY == 8) {
+            if (count == 8) {
+                for (size_t i = 0; i < 8; ++i) {
+                    pixels[i] = bytes[i];
+                }
+            }
+        } else {
+            if (count == 8) {
+                for (size_t i = 0; i < 8; ++i) {
+                    pixels[i * 2] = bytes[i];
+                    pixels[i * 2 + 1] = pixels[i * 2];
+                }
+            } else {
+                if (count > ScreenInfo::charPixY) { count = ScreenInfo::charPixY; }
+                for (size_t i = 0; i < count; ++i) {
+                    pixels[i] = bytes[i];
+                }
+                for (size_t i = count; i < ScreenInfo::charPixY; ++i) { pixels[i] = 0; }
+            }
+        }
+    }
+
+
+    // 8xcharPixY pixels, monochrome
+    uint8_t pixels[ScreenInfo::charPixY] = {}; // one byte per line
+};
+
+class ScreenBitmap {
+public:
+    ScreenBitmap() { pixelsRGB.resize(ScreenInfo::pixX * ScreenInfo::pixY); pixelsPal.resize(ScreenInfo::pixX * ScreenInfo::pixY); }
+    // pixels in AABBGGRR little endian format.
+    // 80x25 chars, each 8x16 pixels = 640x400 pixels
+    std::vector<uint32_t> pixelsRGB;
+    std::vector<uint8_t> pixelsPal; // pixel index in colour palette
+    void clear() {
+        for (auto& p : pixelsRGB) { p = 0; }
+        for (auto& p : pixelsPal) { p = 0; }
+    }
+};
+class CharMap {
+public:
+    CharMap();
+    std::array<CharBitmap, 128> ascii;
+    std::map<char32_t, CharBitmap> unicode;
+    CharBitmap& operator[](char32_t c) {
+        if (c < 128) { return ascii[c]; }
+        auto it = unicode.find(c);
+        if (it == unicode.end()) { return unicode[0]; }
+        return it->second;
+    }
+};
+
+
+
+class ScreenBuffer {
+public:
+    ScreenBuffer();
+
+    // zero based cursor position
+    struct Cursor {
+        size_t x, y;
+        bool operator==(const Cursor& c)const { return x == c.x && y == c.y; }
+        bool operator!=(const Cursor& c)const { return x != c.x || y != c.y; }
+    };
+
+    ScreenBitmap screenBitmap;
+    std::array<uint32_t, 16> palette; // AABBGGRR little endian format
+
+    void clear();
+
+    // character size of screen
+    inline size_t getWidth()const { return width; }
+    inline size_t getHeight() const { return height; }
+
+    // at current cursor position
+    void putC(char32_t c);
+    void defineChar(char32_t codePoint, const CharBitmap& bits);
+
+    void deleteChar();
+    void backspaceChar();
+    void insertSpace();
+
+    // Cursor <-> Position
+    Cursor getCursorPos() const;
+    Cursor getCursorAtPos(size_t pos) const;
+    size_t getPosAtCursor(Cursor crsr);
+
+    // these return position in buffer
+    size_t setCursorPos(Cursor crsr);
+    size_t moveCursorPos(int dx, int dy);
+    size_t getStartOfLineAt(Cursor crsr);
+    size_t getEndOfLineAt(Cursor crsr);
+
+    // buffer to print to a console
+    void getPrintBuffer(std::u32string& chars, std::string& colors) const;
+
+    // puffer colour indices per pixel
+    void updateScreenPixelsPalette();
+    // buffer to draw on a bitmap
+    void updateScreenBitmap();
+
+    std::u32string getSelectedText(size_t start, size_t end)const;
+
+    // set the color index [0..15]
+    void setColors(uint8_t text, uint8_t back);
+    void setTextColor(int index);
+    void setBackgroundColor(int index);
+    void setBorderColor(int index) { borderColor = (index & 0x0f); }
+    void inverseColours();
+
+    inline int getTextColor()const { return color & 0x0f; }
+    inline int getBackgroundColor()const { return (color >> 4) & 0x0f; }
+    inline int getBorderColor()const { return borderColor; }
+    void defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xff);
+
+
+
+
+
+private:
+    struct SChar {
+        char32_t ch;
+        uint8_t col;
+    };
+
+    // std::u32string buffer;
+    mutable std::basic_string<SChar> buffer;
+    uint8_t color; // color&0x0f = foreground, color>>4 = background
+    uint8_t borderColor;
+    size_t width = ScreenInfo::charsX, height = ScreenInfo::charsY;
+    size_t cursorPos;
+
+    void dropFirstLine();
+    void manageOverflow();
+
+    // draw character at given character position
+    // colText and colBack are the AABBGGRR values of the pixels.
+    void drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colText, uint8_t colBack);
+
+#ifdef _DEBUG
+    std::string debugBuffer;
+
+    void verifyPosition(size_t p = (size_t)-1);
+#else
+    inline void verifyPosition(size_t) {}
+#endif
+};
+
+// 068,069,440

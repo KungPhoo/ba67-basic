@@ -1,0 +1,8 @@
+bin/
+out/
+3rd-party/
+.vs/
+*.bak
+*.ilk
+*.pdb
+*.aps
