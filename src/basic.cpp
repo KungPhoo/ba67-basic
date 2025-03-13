@@ -690,7 +690,7 @@ Basic::Basic(Os& os, SoundSystem* ss) {
     {"XOR", [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 3); return basic->valueToInt(args[0]) ^ basic->valueToInt(args[3]); }}
         });
 
-#if 1
+#if 0
     printUtf8String("0123456789012345678901234567890123456789\n111111111x111111111x111111111x111111111x\n222222222x222222222x222222222x222222222x");
     printUtf8String("0123456789012345678901234567890123456789\n111111111x111111111x111111111x111111111x\n222222222x222222222x222222222x222222222x");
     size_t p = os.screen.setCursorPos({0, 2});

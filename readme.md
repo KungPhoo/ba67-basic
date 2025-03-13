@@ -7,6 +7,8 @@ that can be used as a daily tool on a personal computer.
 It is inspired by the Commodore BASIC V7 ©1977 from the C128.
 Three times the digit 7 led to it's name BA67.
 
+![screenshot](screenshot.png)
+
 If you're familiar with the C64/C128, you will quickly find
 yourself comfortable with this interpreter. But BASIC is also
 a very easy to learn programming language as well as an
@@ -60,12 +62,16 @@ without introducing complex syntax.
 The very final goal would be to have a standalone hardware,
 that boots to this BASIC.
 
-Graphics and sound should be added.
+It features a screen editor that should behave as the retro
+one does.
+
+Graphics and sound were added.
 
 For the graphics an 40x25 character graphics with 16 colors
-is set. Each character is monochrome. Characters can be
-easily generated with the `CHARDEF` command and supports
-the full unicode range (uses a map internally).
+is set. Each character is monochrome or multicolor.
+Characters can be easily generated with the `CHARDEF`
+command and supports the full unicode range
+(uses a map internally).
 
 For the sound, the ABC music notation is used. For sound
 effects, DrPetter's SFXR is used. See `PLAY` and `SOUND`.
@@ -76,7 +82,7 @@ This interpreter tries to imitate and extend
 COMMODORE's BASIC V7.
 
 The parser is case sensitive, but the line input uppercases
-everything outside of quotes.
+everything outside of quotes for convenience.
 
 Keywords must be separated with spaces, operators or braces.
 The COMMODORE allowed `LETTER=1`, which was interpreted as
@@ -137,12 +143,12 @@ as non-array variables and are treated as separate variables.
 There are built-in variables, that will be updated before
 each statement is evaluated. These are:
 
-|Variable | Value |
-|-----------------|
-|TI       |current system time in 1/60 sec. |
+| Variable  |  Value                           |
+| --------- | -------------------------------- |
+| TI        | current system time in 1/60 sec. |
 
 ## Files
-The class that derives from Os should set the start
+The class that derives from `Os` should set the start
 directory to a location, where BASIC programs are to
 be stored.
 
@@ -433,7 +439,7 @@ these 8 values from the 8 bytes of a monochrome character,
 one value must be greater than $ff.
 
 Example:
-```
+```basic
 10 CHARDEF "$",24,36,32,112,32,98,92,0
 20 READ C$, A,B,C,D,E,F,G,H
 30 CHARDEF C$, A,B,C,D,E,F,G,H
@@ -461,7 +467,7 @@ character height is defined to 16, but you only pass
 See ScreenInfo structure in the code.
 
 **Useage:**
-```
+```basic
 10 CHARDEF "$",24,36,32,112,32,98,92,0
 20 PRINT "$$$$"
 RUN
@@ -561,7 +567,7 @@ any other module.
 
 Example:
 Type this example line by line into the interpreter:
-```
+```basic
 10 M = 1
 20 PRINT "IN MAIN "; M  : REM M=1
 30 MODULE MYMOD
@@ -674,7 +680,7 @@ E, G, A,2 | E, G, B,1/2-A,3/4 | -A,4
 ABC notation allows multiple voices to be written together
 using `V:`.
 
-```
+```basic
 PLAY "V:1; C D E F | G A G F |; V:2; G, A, B, C | D E D C |"
 ```
 #### Editors
@@ -884,7 +890,7 @@ arp_mod      : [-1+1] Change amount (SIGNED)
 volume       : [0 +1] Sound volume
 ```
 **Usage:** SOUND voice, play$
-```
+```basic
 REM play noise wave with default values
 SOUND 1, "wave_type:3"
 ```
@@ -1122,8 +1128,7 @@ But then, also don't wait for their implementation ;)
 - STRING$()
 - CONCAT
 - CATALOG$
-- SPRITE, RSPRITE, RSPRPOS, RSPRCOL, MOVSPR
-- SPRDEF
+- RSPRITE, RSPRPOS, RSPRCOL
 - WINDOW, RWINDOW
 - OPEN AS, GET#, INPUT#, PRINT#, CLOSE
 
