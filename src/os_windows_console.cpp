@@ -125,7 +125,7 @@ bool OsWindowsConsole::init(Basic* basic, SoundSystem* ss) {
         ::SetCurrentDirectoryW(home.c_str());
     }
 
-    SetConsoleSize(screen.getWidth(), screen.getHeight() + 1);
+    SetConsoleSize(screen.width, screen.height + 1);
     // SetConsoleFont(L"Cascadia Mono", 24, true);
     SetConsoleFont(L"Consolas", 24, true);
     // SetConsoleFont(L"Cascadia Code PL", 24, true);
@@ -173,7 +173,7 @@ void OsWindowsConsole::presentScreen() {
     HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
     int ctext = -1, cback = -1;
 
-    size_t cutwidth = screen.getWidth();
+    size_t cutwidth = screen.width;
     int x = 0, y = 0;
     size_t i = 0;
 
@@ -186,7 +186,7 @@ void OsWindowsConsole::presentScreen() {
         if (x == cutwidth) {
             x = 0;
             ++y;
-            if (y > screen.getHeight()) {
+            if (y > screen.height) {
                 break;
             }
             wprintf(L"\n");

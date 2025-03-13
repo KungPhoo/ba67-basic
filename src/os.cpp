@@ -6,7 +6,7 @@
 Os::KeyPress Os::getFromKeyboardBuffer() {
     while (!keyboardBufferHasData()) {
         presentScreen();
-        delay(16);
+        delay(50);
     }
     auto k = keyboardBuffer.back();
     keyboardBuffer.pop_back();
@@ -73,10 +73,10 @@ void Os::delay(int ms) const {
 
 
 // init your operating sepecific data
-bool Os::init(Basic*, SoundSystem* ss) {
+bool Os::init(Basic* basic, SoundSystem* ss) {
     sound = ss;
     sound->os = this;
-    initialized = true;
+    this->basic = basic;
     return true;
 }
 

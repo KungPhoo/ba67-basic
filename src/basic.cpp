@@ -58,13 +58,13 @@ void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
         }
     }
 
-    int screenwidth = int(basic->os->screen.getWidth());
+    int screenwidth = int(basic->os->screen.width);
     while (x > screenwidth) {
         ++y;
         x -= screenwidth;
     }
 
-    if (x < 0 || y<0 || y > basic->os->screen.getHeight()) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+    if (x < 0 || y<0 || y > basic->os->screen.width) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
     ScreenBuffer::Cursor cr;
     cr.x = x;
     cr.y = y;
@@ -100,8 +100,8 @@ void cmdCOLOR(Basic* basic, const std::vector<Basic::Value>& values) {
         auto& v = values[i];
         if (basic->valueIsOperator(v)) { ++ipara; continue; }
         switch (ipara) {
-        case 0: case 6: colorsource = int(Basic::valueToInt(v)); break;
-        case 1: case 5: color = int(Basic::valueToInt(v));          break;
+        case 0: colorsource = int(Basic::valueToInt(v)); break;
+        case 1: color = int(Basic::valueToInt(v));          break;
         case 2: /*optional brightness*/ break;
         default: throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
         }
@@ -116,15 +116,16 @@ void cmdCOLOR(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
-void cmdDEFCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
+void cmdCHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
 
     char32_t codePoint = 0;
     uint64_t bytes8;
-    std::array<uint8_t, 16> bytes;
+    static std::array<uint8_t, 32> bytes;
+    static std::array<uint32_t, 16> dwords;
     size_t iarg = 0;
     for (size_t i = 0; i < values.size(); ++i) {
         if (iarg > 16) { throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT); }
-        auto& v = values[i];
+        const Basic::Value& v = values[i];
         if (basic->valueIsOperator(v)) { continue; }
         if (iarg == 0) {
             std::string s = Basic::valueToString(v);
@@ -135,6 +136,7 @@ void cmdDEFCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
         } else {
             bytes8 = uint64_t(Basic::valueToInt(v));
             bytes[iarg - 1] = (uint8_t(bytes8));
+            dwords[iarg - 1] = (uint32_t(bytes8));
         }
         ++iarg;
     }
@@ -142,15 +144,109 @@ void cmdDEFCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
     if (iarg != 1 + 1 && iarg != 8 + 1 && iarg != 16 + 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
+
+
+    // one 64 bit integer - 8x8 mono
     if (iarg == 1 + 1) {
         for (size_t i = 0; i < 8; ++i) {
             bytes[8 - i] = uint8_t((bytes8 >> (8 * i)) & 0xff);
         }
         iarg = 9;
     }
+
+    if (iarg == 8 + 1 && ScreenInfo::charPixY == 8) {
+        bool isMulti = false;
+        for (size_t i = 0; i < iarg - 1; ++i) {
+            if (dwords[i] > 0xff) { isMulti = true; break; }
+        }
+        if (isMulti) {
+            size_t ib = 0;
+            for (size_t i = 0; i < iarg - 1; ++i) {
+                bytes[ib++] = (dwords[i] & 0xff000000) >> 24;
+                bytes[ib++] = (dwords[i] & 0x00ff0000) >> 16;
+                bytes[ib++] = (dwords[i] & 0x0000ff00) >> 8;
+                bytes[ib++] = (dwords[i] & 0x000000ff) >> 0;
+            }
+            iarg = 33;
+        }
+    }
+
     basic->os->screen.defineChar(codePoint, CharBitmap(&bytes[0], iarg - 1));
 }
 
+void cmdSPRDEF(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() != 3) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    int id = basic->valueToInt(values[0]);
+    if (id<1 || id>basic->os->screen.sprites.size()) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+    std::string str = basic->valueToString(values[2]);
+    if (Unicode::utf8StrLen(str.c_str()) > 6) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+
+    auto& sprite = basic->os->screen.sprites[id];
+    const char* pc = str.c_str();
+    for (size_t i = 0; i < 6; ++i) {
+        char32_t c = Unicode::parseNextUtf8(pc);
+        sprite.charmap[i] = c;
+    }
+    if (Unicode::parseNextUtf8(pc) != 0) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+}
+
+void cmdSPRITE(Basic* basic, const std::vector<Basic::Value>& values) {
+    // `SPRITE nr, on, color, prio, x2, y2`
+    Sprite* sprite = nullptr;
+
+    int ipara = 0;
+    for (size_t i = 0; i < values.size(); ++i) {
+        auto& v = values[i];
+        if (basic->valueIsOperator(v)) { ++ipara; continue; }
+        int64_t iv = Basic::valueToInt(v);
+        switch (ipara) {
+        case 0:
+            if (iv<1 || iv>basic->os->screen.sprites.size()) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+            sprite = &basic->os->screen.sprites[iv];
+            break;
+        case 1:
+            sprite->enabled = (iv != 0);
+            break;
+        case 2:
+            sprite->color = iv & 0x0f;
+            break;
+        case 3: break ; // prio
+        case 4:
+            sprite->stretchX = (iv != 0);
+            break;
+        case 5:
+            sprite->stretchY = (iv != 0);
+            break;
+        default: throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        }
+    }
+}
+
+void cmdMOVSPR(Basic* basic, const std::vector<Basic::Value>& values) {
+    Sprite* sprite = nullptr;
+
+    int ipara = 0;
+    for (size_t i = 0; i < values.size(); ++i) {
+        auto& v = values[i];
+        if (basic->valueIsOperator(v)) { ++ipara; continue; }
+        int64_t iv = Basic::valueToInt(v);
+        switch (ipara) {
+        case 0:
+            if (iv<1 || iv>basic->os->screen.sprites.size()) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+            sprite = &basic->os->screen.sprites[iv];
+            break;
+        case 1:
+            sprite->x = iv;
+            break;
+        case 2:
+            sprite->y = iv;
+            break;
+        default: throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        }
+    }
+}
 
 void cmdEXIT(Basic* basic, const std::vector<Basic::Value>& values) {
     int code = 0;
@@ -212,7 +308,7 @@ void cmdSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     std::string filename = basic->valueToString(values[0]);
     if (basic->fileExists(filename, false)) {
         basic->printUtf8String("FILE EXISTS. OVERWRITE (Y/N)? ");
-        std::string yesno = basic->inputLine();
+        std::string yesno = basic->inputLine(false);
         if (yesno.length() == 0 || Unicode::toUpper(yesno[0]) != u'Y') { return; }
     }
 
@@ -418,6 +514,20 @@ Basic::Value fktRIGHT$(Basic* basic, const std::vector<Basic::Value>& args) {
     return Unicode::substr(str, length - right);
 }
 
+Basic::Value fktLCASE$(Basic* basic, const std::vector<Basic::Value>& args) {
+    if (args.size() != 1) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    return Unicode::toLower(basic->valueToString(args[0]).c_str());
+}
+Basic::Value fktUCASE$(Basic* basic, const std::vector<Basic::Value>& args) {
+    if (args.size() != 1) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    return Unicode::toUpper(basic->valueToString(args[0]).c_str());
+}
+
+
 Basic::Value fktTAB(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -487,6 +597,7 @@ Basic::Basic(Os& os, SoundSystem* ss) {
     moduleListingStack.push_back(modules.begin());
 
     this->os = &os;
+
     os.init(this, ss);
     os.screen.setColors(13, 11);
     os.screen.setBorderColor(13);
@@ -515,7 +626,10 @@ Basic::Basic(Os& os, SoundSystem* ss) {
     {"CHDIR" , cmdCHDIR},
     {"COLOR" , cmdCOLOR},
     {"CATALOG" , cmdCATALOG},
-    {"DEFCHAR" , cmdDEFCHAR},
+    {"CHARDEF" , cmdCHARDEF},
+    {"SPRDEF" , cmdSPRDEF},
+    {"SPRITE" , cmdSPRITE},
+    {"MOVSPR" , cmdMOVSPR},
     {"EXIT"  , cmdEXIT},
     {"FIND"  , cmdFIND},
     {"LOAD"  , cmdLOAD},
@@ -554,6 +668,8 @@ Basic::Basic(Os& os, SoundSystem* ss) {
     {"INT",  [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 1); return basic->valueToInt(args[0]); }},
     {"INSTR",  fktINSTR},
     {"LEFT$",  fktLEFT$},
+    {"LCASE$",  fktLCASE$},
+    {"UCASE$",  fktUCASE$},
     {"LEN",  [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 1); return (int64_t)Unicode::utf8StrLen(basic->valueToString(args[0]).c_str()); }},
     {"LOG",  [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 1); return log(basic->valueToDouble(args[0])); }},
     {"MID$",  fktMID$},
@@ -576,10 +692,9 @@ Basic::Basic(Os& os, SoundSystem* ss) {
 
 #if 1
     printUtf8String("0123456789012345678901234567890123456789\n111111111x111111111x111111111x111111111x\n222222222x222222222x222222222x222222222x");
+    printUtf8String("0123456789012345678901234567890123456789\n111111111x111111111x111111111x111111111x\n222222222x222222222x222222222x222222222x");
     size_t p = os.screen.setCursorPos({0, 2});
-
     size_t p2 = os.screen.getPosAtCursor({0,2});
-
 
     os.screen.setTextColor(1); os.screen.putC('1'); os.presentScreen();
     os.screen.setTextColor(2); os.screen.putC('2'); os.presentScreen();
@@ -668,13 +783,6 @@ int Basic::colorForModule(const std::string& str) const {
 
     return colsToUse[col % colsToUse.size()];
 }
-
-void Basic::debug(const char* c) {
-    //return;
-    printf("%s", c);
-    fflush(stdout);
-}
-
 
 
 // Represent value as string
@@ -1748,7 +1856,7 @@ void Basic::handleINPUT(const std::vector<Token>& tokens) {
             while (badinput) {
                 try {
                     if (firstInput) { printUtf8String("? "); firstInput = false; } else { printUtf8String("?? "); }
-                    std::string s = inputLine();
+                    std::string s = inputLine(false);
                     // printUtf8String("\n");
 
                     switch (valuePostfix(tk)) {
@@ -1828,6 +1936,7 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
 
         printUtf8String(sline);
         handleEscapeKey();
+        os->delay(50);
     }
 }
 
@@ -2336,6 +2445,7 @@ void Basic::printUtf8String(const char* utf8) {
 
 std::string Basic::inputLine(bool allowVertical) {
 
+    isCursorActive = true;
     bool movedVertical = false;
 
     auto typeString = [&](const std::string& s) {
@@ -2440,6 +2550,8 @@ std::string Basic::inputLine(bool allowVertical) {
     for (auto ch : screenchars) {
         Unicode::appendAsUtf8(str, ch);
     }
+
+    isCursorActive = false;
     return str;
 }
 
@@ -2459,9 +2571,12 @@ inline void Basic::dumpVariables() {
     }
 }
 
-void Basic::restoreColorsAndCursor() {
+void Basic::restoreColorsAndCursor(bool resetFont) {
     os->screen.setBackgroundColor(11);
     os->screen.setTextColor(colorForModule(moduleVariableStack.back()->first));
+    if (resetFont) {
+        os->screen.resetCharmap();
+    }
     if (os->screen.getCursorPos().x != 0) {
         printUtf8String("\n");
     }
@@ -2550,7 +2665,8 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
                 continue;
             }
             executeTokens(tokens);
-
+            os->updateKeyboardBuffer();
+            os->presentScreen();
             handleEscapeKey();
         }
 
@@ -2558,16 +2674,11 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
         // dumpVariables();
 
         std::string& line = programCounter().line->second;
-
-        const char* pc = line.c_str();
-        debug(pc);
-        debug("\n");
         int iline = programCounter().line->first;
         if (iline >= 0) {
-            restoreColorsAndCursor();
+            restoreColorsAndCursor(true);
             std::string msg = "?" + errorMessages[e.ID] + " IN " + valueToString(iline);
-            msg += std::string(os->screen.getWidth() - msg.length(), ' ');
-            msg += "\n\b";
+            msg += std::string(os->screen.width - msg.length() - 1, ' ') + "\n";
             printUtf8String(msg);
             if (iline >= 0) {
                 parseInput((std::string("LIST ") + valueToString(iline) + " - " + valueToString(iline)).c_str());
@@ -2615,7 +2726,7 @@ void Basic::runInterpreter() {
                 int64_t number = int64_t(cm.autoNumbering) + cm.lastEnteredLineNumber;
 
                 std::string str = valueToString(number) + " ";
-                if (cm.listing.find(number) == cm.listing.end()) {
+                if (cm.listing.find(int(number)) == cm.listing.end()) {
                     printUtf8String(str);
                 } else {
                     parseInput((std::string("LIST ") + str + " - " + str).c_str());
@@ -2623,8 +2734,8 @@ void Basic::runInterpreter() {
                 }
             }
         } else {
-            restoreColorsAndCursor();
-            printUtf8String("READY." + std::string(os->screen.getWidth() - 7, ' ') + "\n");
+            restoreColorsAndCursor(false);
+            printUtf8String("READY." + std::string(os->screen.width - 7, ' ') + "\n");
 
             // wait for ESC release
             while (os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
@@ -2637,7 +2748,7 @@ void Basic::runInterpreter() {
 
         // std::getline(std::cin, line);
         try {
-            line = inputLine();
+            line = inputLine(true);
         } catch (Error) {
             status = ParseStatus::PS_ERROR;
             continue;
@@ -2725,9 +2836,12 @@ bool Basic::loadProgram(std::string filenameUtf8) {
 
 
     // strip optional utf-8 BOM
-    char bom[4] = {0,0,0,0};
+    uint8_t bom[4] = {0,0,0,0};
     fseek(file, 0, SEEK_SET);
-    if (length > 2 && 3 == fread(bom, 4, 1, file) && bom[0] == 0xfe && bom[1] == 0xbb && bom[2] == 0xbf) {
+    if (length > 2) {
+        auto nr = fread(bom, 3, 1, file);
+    }
+    if (bom[0] == 0xef && bom[1] == 0xbb && bom[2] == 0xbf) {
         fseek(file, 3, SEEK_SET);
         length -= 3;
     } else {

@@ -1,9 +1,11 @@
 #pragma once
 
 #include "os.h"
+#include <mutex>
 
 class OsFPL: public Os {
 public:
+    virtual ~OsFPL();
     bool init(Basic* basic, SoundSystem* sound) override;
     uint64_t tick() const override;
     void delay(int ms)const override;
@@ -17,7 +19,22 @@ public:
 
     void putToKeyboardBuffer(Os::KeyPress key) override;
 
-    bool cursorVisible = true;
-    uint64_t nextShowCursor = 0; // blink time
 
+
+    std::mutex screenLock;
+    bool dirtyFlag = true;
+    std::vector<uint32_t> pixelsVideo;
+    struct Buffered {
+        bool stopThread = false;
+        std::vector<uint8_t> pixelsPal;
+        size_t videoW = 0, videoH = 0;
+
+
+        std::array<uint32_t, 16> palette;
+        uint8_t crsrColor = 1;
+        uint8_t borderColor = 0;
+        ScreenBuffer::Cursor crsrPos;
+        bool isCursorActive;
+        bool imageCreated = false;
+    }buffered = {};
 };

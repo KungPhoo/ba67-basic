@@ -114,8 +114,8 @@ public:
     // utf-8 strings. Directory separator is '/'
     struct FileInfo {
         std::string name;
-        uint64_t filesize;
-        bool isDirectory;
+        uint64_t filesize = 0;
+        bool isDirectory = false;
     };
     virtual std::string getCurrentDirectory();
     virtual bool setCurrentDirectory(const std::string& dir);
@@ -127,7 +127,8 @@ public:
     // --- SOUND SYSTEM ---
     SoundSystem& soundSystem();
 protected:
-    int foregnd, bkgnd;
+    Basic* basic = nullptr;
+    int foregnd = 1, bkgnd = 0;
     std::vector<Os::KeyPress> keyboardBuffer;
     SoundSystem* sound = nullptr;
 private:

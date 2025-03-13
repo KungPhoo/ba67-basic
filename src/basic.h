@@ -260,13 +260,6 @@ public:
     ProgramCounter& programCounter() { return moduleListingStack.back()->second.programCounter; }
 
 
-protected:
-
-
-
-    void debug(const char* c);
-
-
 public:
     // Represent value as string
     static std::string valueToString(const Value& v);
@@ -350,6 +343,7 @@ protected:
     bool insertMode = false; // insert/overwrite Shift+INS
 
 public:
+    bool isCursorActive = true;
 
     void uppercaseProgram(std::string& line);
 
@@ -364,7 +358,7 @@ public:
         PS_EXECUTED,
         PS_PROGRAMMED
     };
-    void restoreColorsAndCursor();
+    void restoreColorsAndCursor(bool resetFont);
     ParseStatus parseInput(const char* pline);
 
     std::string inputLine(bool allowVertical = true);

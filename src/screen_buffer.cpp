@@ -248,7 +248,7 @@ size_t ScreenBuffer::getEndOfLineAt(Cursor crsr) {
     while (pos < buffer.length() && buffer.at(pos).ch != U'\n') {
         ++pos;
     }
-    if (buffer.at(pos).ch != U'\n') { return buffer.length(); }
+    if (pos >= buffer.length() || buffer.at(pos).ch != U'\n') { pos = buffer.length(); }
     verifyPosition(pos);
     return pos;
 }
@@ -288,29 +288,55 @@ void ScreenBuffer::getPrintBuffer(std::u32string& chars, std::string& colors) co
     colors += std::string(fillUp, lastColor);
 }
 
+
 void ScreenBuffer::updateScreenPixelsPalette() {
     static std::u32string chars;
     static std::string colors;
 
     getPrintBuffer(chars, colors);
-    size_t x = 0, y = 0;
-    int32_t ctext = 1, cback = 0;
-    for (size_t ic = 0; ; ++ic) {
-        size_t i = ic; if (ic >= chars.length()) { i = chars.length() - 1; }
-        if (x == getWidth()) {
-            x = 0;
-            ++y;
-            if (y > getHeight()) {
-                break;
-            }
-        }
 
+#pragma omp for
+    for (int i = 0; i < chars.length(); ++i) {
+        size_t x = i % width;
+        size_t y = i / width;
         char32_t unicodeCodepoint = chars[i];
-
         uint8_t color = colors[i];
-        drawCharPal(x, y, unicodeCodepoint, color & 0x0f, (color >> 4) & 0x0f);
-        ++x;
+        drawCharPal(x * ScreenInfo::charPixX, y * ScreenInfo::charPixY, unicodeCodepoint, color & 0x0f, (color >> 4) & 0x0f);
     }
+
+
+    // sprites
+    for (auto& sp : sprites) {
+        if (!sp.enabled) { continue; }
+
+        drawSprPal(sp.x + 0, sp.y, sp.charmap[0], sp.color);
+        drawSprPal(sp.x + 8, sp.y, sp.charmap[1], sp.color);
+        drawSprPal(sp.x + 16, sp.y, sp.charmap[2], sp.color);
+        drawSprPal(sp.x + 0, sp.y + 8, sp.charmap[3], sp.color);
+        drawSprPal(sp.x + 8, sp.y + 8, sp.charmap[4], sp.color);
+        drawSprPal(sp.x + 16, sp.y + 8, sp.charmap[5], sp.color);
+
+    }
+
+
+    // size_t x = 0, y = 0;
+    // int32_t ctext = 1, cback = 0;
+    // for (size_t ic = 0; ; ++ic) {
+    //     size_t i = ic; if (ic >= chars.length()) { i = chars.length() - 1; }
+    //     if (x == width) {
+    //         x = 0;
+    //         ++y;
+    //         if (y > height) {
+    //             break;
+    //         }
+    //     }
+    // 
+    //     char32_t unicodeCodepoint = chars[i];
+    // 
+    //     uint8_t color = colors[i];
+    //     drawCharPal(x, y, unicodeCodepoint, color & 0x0f, (color >> 4) & 0x0f);
+    //     ++x;
+    // }
 }
 
 // update the RGB buffer
@@ -368,6 +394,10 @@ void ScreenBuffer::defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, ui
     palette[index] = r | (g << 8) | (b << 16) | (a << 24);
 }
 
+void ScreenBuffer::resetCharmap(char32_t from, char32_t to) {
+    Font::createCharmap(charMap(), from, to);
+}
+
 #if 0
 void ScreenBuffer::printBuffer() const {
     size_t x = 0, y = 0;
@@ -419,27 +449,79 @@ void ScreenBuffer::manageOverflow() {
     } while (didScroll);
 }
 
-// draw character at given character position
+// draw character pixels at given pixel position
 void ScreenBuffer::drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colIxText, uint8_t colIxBack) {
     const CharBitmap& img = charMap()[ch];
 
-    // Ensure x and y are within bounds of the text grid (80x25)
-    if (x >= 80 || y >= 25) return;
-
     // Calculate starting pixel index in the pixel array
-    size_t pixelX = x * ScreenInfo::charPixX;
-    size_t pixelY = y * ScreenInfo::charPixY;
+    size_t pixelX = x; // * ScreenInfo::charPixX;
+    size_t pixelY = y; // * ScreenInfo::charPixY;
     auto& pixels = screenBitmap.pixelsPal;
-    for (size_t row = 0; row < ScreenInfo::charPixY; ++row) {
-        uint8_t pixelRow = img.pixels[row]; // Each byte represents 8 pixels in a row
-        static_assert(ScreenInfo::charPixX == 8, "the pixel bytes are wrong, otherwise");
-        for (size_t col = 0; col < ScreenInfo::charPixX; ++col) {
-            bool isSet = (pixelRow >> (7 - col)) & 1; // Extract pixel bit
-            size_t pixelIndex = (pixelY + row) * (ScreenInfo::pixX)+(pixelX + col);
-            pixels[pixelIndex] = isSet ? colIxText : colIxBack;
+
+    if (img.isMono) {
+        for (size_t row = 0; row < ScreenInfo::charPixY; ++row) {
+            uint8_t pixelRow = img.monoPixels[row]; // Each byte represents 8 pixels in a row
+            static_assert(ScreenInfo::charPixX == 8, "the pixel bytes are wrong, otherwise");
+            for (size_t col = 0; col < ScreenInfo::charPixX; ++col) {
+                bool isSet = (pixelRow >> (7 - col)) & 1; // Extract pixel bit
+                size_t pixelIndex = (pixelY + row) * (ScreenInfo::pixX)+(pixelX + col);
+                pixels[pixelIndex] = isSet ? colIxText : colIxBack;
+            }
+        }
+    } else {
+        size_t nth = 0;
+        for (size_t row = 0; row < ScreenInfo::charPixY; ++row) {
+            uint8_t pixelRow = img.monoPixels[row]; // Each byte represents 8 pixels in a row
+            static_assert(ScreenInfo::charPixX == 8, "the pixel bytes are wrong, otherwise");
+            for (size_t col = 0; col < ScreenInfo::charPixX; ++col) {
+                size_t pixelIndex = (pixelY + row) * (ScreenInfo::pixX)+(pixelX + col);
+                pixels[pixelIndex] = img.multi(nth++);
+            }
         }
     }
 }
+
+
+
+void ScreenBuffer::drawSprPal(int64_t x, int64_t y, char32_t chimg, int8_t color) {
+    if (chimg == 0) { return; }
+    const CharBitmap& img = charMap()[chimg];
+
+    auto& pixels = screenBitmap.pixelsPal;
+
+    if (img.isMono) {
+        for (int64_t row = 0; row < ScreenInfo::charPixY; ++row) {
+            uint8_t pixelRow = img.monoPixels[row]; // Each byte represents 8 pixels in a row
+            for (int64_t col = 0; col < ScreenInfo::charPixX; ++col) {
+                bool isSet = (pixelRow >> (7 - col)) & 1; // Extract pixel bit
+                if (!isSet) { continue; }
+                int64_t px = x + col;
+                int64_t py = y + row;
+                if (px < 0 || py < 0 || px >= ScreenInfo::pixX || py >= ScreenInfo::pixY) { continue; }
+                size_t pixelIndex = py * ScreenInfo::pixX + px;
+                pixels[pixelIndex] = color;
+            }
+        }
+    } else {
+        size_t nth = 0;
+        for (int64_t row = 0; row < ScreenInfo::charPixY; ++row) {
+            uint8_t pixelRow = img.monoPixels[row]; // Each byte represents 8 pixels in a row
+            static_assert(ScreenInfo::charPixX == 8, "the pixel bytes are wrong, otherwise");
+            for (int64_t col = 0; col < ScreenInfo::charPixX; ++col) {
+                uint8_t pxcol = img.multi(nth++);
+                if (pxcol == color) { continue; }
+
+                int64_t px = x + col;
+                int64_t py = y + row;
+                if (px < 0 || py < 0 || px >= ScreenInfo::pixX || py >= ScreenInfo::pixY) { continue; }
+                size_t pixelIndex = py * ScreenInfo::pixX + px;
+                pixels[pixelIndex] = pxcol;
+            }
+        }
+    }
+}
+
+
 
 #ifdef _DEBUG
 void ScreenBuffer::verifyPosition(size_t p) {

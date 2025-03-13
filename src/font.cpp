@@ -20,7 +20,7 @@
 // v.1.2: unescapeHTML now returns U+FFFD for unresolved numeric entities.
 namespace Font {
 
-    void createCharmap(CharMap& charmap) {
+    void createCharmap(CharMap& charmap, char32_t from, char32_t to) {
 
         std::map<char32_t, CharBitmap> ascii = {
         {0x00, {126,66,66,66,66,66,126,0}},
@@ -2339,11 +2339,15 @@ namespace Font {
 
         for (auto& c : synonyms) {
             if (c.second < 0) { continue; }
-            charmap[c.first] = charmap[c.second];
+            if (c.first >= from && c.first <= to) {
+                charmap[c.first] = charmap[c.second];
+            }
         }
         for (auto& c : substitutes) {
             if (c.second < 0) { continue; }
-            charmap[c.first] = charmap[c.second];
+            if (c.first >= from && c.first <= to) {
+                charmap[c.first] = charmap[c.second];
+            }
         }
     };
 

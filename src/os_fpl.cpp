@@ -3,14 +3,199 @@
 // https://libfpl.org/docs/page_categories.html
 #define FPL_IMPLEMENTATION
 #include "final_platform_layer.h"
-
-
+#include "basic.h"
+#include <thread>
 #include <filesystem>
 
 #ifdef _WIN32
 #include "../resources/resource.h"
 #endif
 
+
+static uint32_t emphasizeRGB(uint32_t color, float facR, float facG, float facB, float facDark) {
+    uint8_t a = (color >> 24) & 0xFF;
+    uint8_t b = (color >> 16) & 0xFF;
+    uint8_t g = (color >> 8) & 0xFF;
+    uint8_t r = (color) & 0xFF;
+
+    // Convert RGB to perceived brightness (luminance)
+    float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+
+    const float brightness = 37.0f; // -200..200
+    const float contrast = 1.5f;  // 0..1
+
+
+    // https://ie.nitk.ac.in/blog/2020/01/19/algorithms-for-adjusting-brightness-and-contrast-of-an-image/
+    auto truncate = [](float f) {if (f > 255.0f) { return 255.0f; } if (f < 0.0f) { return 0.0f; } return f; };
+    float factor = (259.0f * (contrast + 255.0f)) / (255.0f * (259.0f - contrast));
+    float new_r = truncate((((r - 128.0f) * contrast) + 128 + brightness) * facR * facDark);
+    float new_g = truncate((((g - 128.0f) * contrast) + 128 + brightness) * facG * facDark);
+    float new_b = truncate((((b - 128.0f) * contrast) + 128 + brightness) * facB * facDark);
+
+    r = (uint8_t)new_r;
+    g = (uint8_t)new_g;
+    b = (uint8_t)new_b;
+
+    return (a << 24) | (b << 16) | (g << 8) | r;
+}
+
+
+
+void displayUpdateThread(OsFPL* fpl) {
+    bool dirty = true;
+    std::array<std::array<uint32_t, 16>, 6> palettes; // [r,g,b, dark r,g,b]
+    OsFPL::Buffered state;
+    std::vector<uint8_t> pixelsPal; // what's actually drawn
+
+    bool oldCursorVisible = false;
+    uint64_t nextShowCursor = 0; // blink time
+    constexpr size_t srcWidth = ScreenInfo::pixX;  // ScreenBitmap width (80x8)
+    constexpr size_t srcHeight = ScreenInfo::pixY; // ScreenBitmap height (25x16)
+
+    static int passes = 0;
+    bool cursorVisible = true;
+    for (;;) {
+        // == UPDATE STATE ==
+        fpl->screenLock.lock();
+        if (fpl->buffered.stopThread) { fpl->screenLock.unlock(); return; }
+        if (!dirty) { dirty = fpl->dirtyFlag; }
+        if (dirty) {
+            std::swap(state, fpl->buffered);
+            fpl->dirtyFlag = false;
+        }
+        if (state.videoH * state.videoW != fpl->pixelsVideo.size()) {
+            fpl->pixelsVideo.resize(state.videoH * state.videoW);
+            dirty = true;
+        }
+        fpl->screenLock.unlock();
+
+
+        // overwrite cursor box
+        const uint64_t flashSpeed = 1250;
+        uint64_t now = fplMillisecondsQuery();
+
+        cursorVisible = (now % flashSpeed) > (flashSpeed / 2);
+        if (oldCursorVisible != cursorVisible) {
+            oldCursorVisible = cursorVisible;
+            dirty = true;
+        }
+
+        // if (now > nextShowCursor) {
+        //     nextShowCursor = now + flashSpeed;
+        //     cursorVisible = !cursorVisible;
+        //     dirty = true;
+        // }
+
+        if (!dirty) {
+            fplThreadSleep(30);
+            continue;
+        }
+
+
+        // make a deep copy of the pixel buffer - we optionally overwrite the blinking cursor
+        pixelsPal = state.pixelsPal;
+
+        if (pixelsPal.size() != state.pixelsPal.size() || state.isCursorActive) {
+
+            auto crsr = state.crsrPos;
+            if (cursorVisible
+                && crsr.x < ScreenBuffer::width
+                && crsr.y < ScreenBuffer::height) {
+                bool draw = false;
+                for (size_t y = 0; y < ScreenInfo::charPixY; ++y) {
+                    auto* pdest = &pixelsPal[(y + crsr.y * ScreenInfo::charPixY) * srcWidth + crsr.x * ScreenInfo::charPixX];
+                    for (size_t x = 0; x < 8; ++x) {
+                        draw = !draw;
+                        if (draw || y + 1 == ScreenInfo::charPixY) {
+                            *pdest = state.crsrColor;
+                        }
+                        ++pdest;
+                    }
+                    draw = !draw;
+                }
+            }
+        }
+
+        if (state.videoH + state.videoW == 0) { continue; }
+        if (pixelsPal.empty()) { continue; }
+
+
+        // == DRAW ==
+
+        // simulate a CRT TV with a 3x3 pixel matrix
+        for (size_t p = 0; p < 6; ++p) {
+            const float facDark = 0.7f;
+            const float facNeigbour = 0.6f, facNeighbour2 = 0.6f;
+            float r = 1.0f, g = 1.0f, b = 1.0f, darken = 1.0f;
+            if (p == 0 || p == 3) { r = 1.0f;   g = facNeigbour; b = facNeighbour2; }
+            if (p == 1 || p == 4) { r = facNeighbour2;   g = 1.0f;  b = facNeigbour; }
+            if (p == 2 || p == 5) { r = facNeigbour; g = facNeighbour2; b = 1.0f; }
+            //        if (p == 3 || p == 7) { r = g = b = 0.95; }
+            if (p > 2) { darken = facDark; }
+            for (size_t i = 0; i < 16; ++i) {
+                palettes[p][i] = emphasizeRGB(state.palette[i], r, g, b, darken);
+            }
+        }
+
+        // we don't access the RGB buffer - we use the colour indices
+        // screen.updateScreenBitmap();
+
+        // Compute scaling factors
+        float scaleX = static_cast<float>(state.videoW) / srcWidth;
+        float scaleY = static_cast<float>(state.videoH) / srcHeight;
+        float scale = std::max(0.25f, std::min(scaleX, scaleY)); // Keep aspect ratio
+        if (scale > 1.0f) {
+            scale = floorf(scale); // scale to full pixels
+        }
+
+        // Compute offset for centered output
+        size_t scaledWidth = static_cast<size_t>(srcWidth * scale);
+        size_t scaledHeight = static_cast<size_t>(srcHeight * scale);
+        size_t offsetX = (state.videoW - scaledWidth) / 2;
+        size_t offsetY = (state.videoH - scaledHeight) / 2;
+
+        // Nearest-neighbor scaling loop
+        for (int y = 0; y < int(state.videoH); ++y) {
+
+            fpl->screenLock.lock();
+            uint32_t* pdest = &fpl->pixelsVideo[0] + y * state.videoW;
+            fpl->screenLock.unlock();
+
+            size_t srcY = std::min(static_cast<size_t>((y - offsetY) / scale), srcHeight - 1);
+            for (size_t x = 0; x < state.videoW; ++x) {
+                // Map screen coordinates to original ScreenBitmap using nearest-neighbor
+                size_t srcX = std::min(static_cast<size_t>((x - offsetX) / scale), srcWidth - 1);
+
+                // Default background if outside scaled region
+                uint8_t color = state.borderColor; // Transparent or black
+
+                // Only sample from ScreenBitmap if inside scaled bounds
+                if (x >= offsetX && x < offsetX + scaledWidth &&
+                    y >= offsetY && y < offsetY + scaledHeight) {
+                    color = pixelsPal[srcY * srcWidth + srcX];
+                }
+
+                // buffer->pixels[y * buffer->width + x] = color;
+                size_t pal = (x % 3);
+                if ((y % 3) == 2) { pal += 3; } // dark row
+                *pdest++ = palettes[pal][color];
+            }
+        }
+
+        dirty = false;
+        fpl->screenLock.lock();
+        fpl->buffered.imageCreated = true;
+        fpl->screenLock.unlock();
+    }
+}
+
+
+
+OsFPL::~OsFPL() {
+    screenLock.lock();
+    buffered.stopThread = true;
+    screenLock.unlock();
+}
 
 bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     Os::init(basic, sound);
@@ -75,6 +260,9 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
         setCurrentDirectory(home);
     }
 #endif
+
+    std::thread upd(displayUpdateThread, this);
+    upd.detach();
     return true;
 }
 
@@ -94,37 +282,70 @@ size_t OsFPL::getFreeMemoryInBytes() {
 }
 
 
-
-static uint32_t emphasizeRGB(uint32_t color, float facR, float facG, float facB, float facDark) {
-    uint8_t a = (color >> 24) & 0xFF;
-    uint8_t b = (color >> 16) & 0xFF;
-    uint8_t g = (color >> 8) & 0xFF;
-    uint8_t r = (color) & 0xFF;
-
-    // Convert RGB to perceived brightness (luminance)
-    float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
-
-    const float brightness = 37.0f; // -200..200
-    const float contrast = 1.5f;  // 0..1
-
-
-    // https://ie.nitk.ac.in/blog/2020/01/19/algorithms-for-adjusting-brightness-and-contrast-of-an-image/
-    auto truncate = [](float f) {if (f > 255.0f) { return 255.0f; } if (f < 0.0f) { return 0.0f; } return f; };
-    float factor = (259.0f * (contrast + 255.0f)) / (255.0f * (259.0f - contrast));
-    float new_r = truncate((((r - 128.0f) * contrast) + 128 + brightness) * facR * facDark);
-    float new_g = truncate((((g - 128.0f) * contrast) + 128 + brightness) * facG * facDark);
-    float new_b = truncate((((b - 128.0f) * contrast) + 128 + brightness) * facB * facDark);
-
-    r = (uint8_t)new_r;
-    g = (uint8_t)new_g;
-    b = (uint8_t)new_b;
-
-    return (a << 24) | (b << 16) | (g << 8) | r;
-}
-
-
-
 void OsFPL::presentScreen() {
+    updateKeyboardBuffer(); // pump win32 messages
+    static uint64_t nextPresend = 0;
+    uint64_t now = tick();
+    if (nextPresend > now) { return; }
+    nextPresend = now + 50;
+
+    screenLock.lock();
+
+    // window resized?
+    fplWindowSize windowsz{0, 0};
+    fplGetWindowSize(&windowsz);
+    fplVideoBackBuffer* buffer = fplGetVideoBackBuffer();
+    if (buffer != nullptr) {
+        buffered.videoH = buffer->height;
+        buffered.videoW = buffer->width;
+        if (buffer->width != windowsz.width || buffer->height != windowsz.height) {
+            dirtyFlag = true;
+            buffered.imageCreated = false;
+            fplResizeVideoBackBuffer(windowsz.width, windowsz.height);
+            buffer = fplGetVideoBackBuffer();
+        }
+    }
+
+    if (buffered.imageCreated) {
+        buffered.imageCreated = false;
+        if (buffer != nullptr && buffer->pixels != nullptr && buffer->width * buffer->height == pixelsVideo.size()) {
+            memcpy(buffer->pixels, &pixelsVideo[0], sizeof(uint32_t) * pixelsVideo.size());
+        }
+        fplVideoFlip();
+    }
+
+    screen.updateScreenPixelsPalette();
+    if (buffered.pixelsPal.size() == screen.screenBitmap.pixelsPal.size()) {
+        auto* src = &screen.screenBitmap.pixelsPal[0];
+        auto* dst = &buffered.pixelsPal[0];
+        for (size_t i = screen.screenBitmap.pixelsPal.size(); i > 0; --i) {
+            if (*dst != *src) {
+                dirtyFlag = true;
+                *dst = *src;
+            }
+            ++src;
+            ++dst;
+        }
+    } else {
+        dirtyFlag = true;
+        buffered.pixelsPal = screen.screenBitmap.pixelsPal;
+    }
+    buffered.isCursorActive = basic->isCursorActive;
+    buffered.crsrColor = screen.getTextColor();
+    buffered.borderColor = screen.getBorderColor();
+    auto crsr = screen.getCursorPos();
+    if (crsr != buffered.crsrPos) {
+        dirtyFlag = true;
+        buffered.crsrPos = crsr;
+    }
+    buffered.palette = screen.palette;
+
+    screenLock.unlock();
+
+#if 0
+    return;
+
+
     fplWindowSize windowsz{0, 0};
     fplGetWindowSize(&windowsz);
     fplVideoBackBuffer* buffer = fplGetVideoBackBuffer();
@@ -170,7 +391,10 @@ void OsFPL::presentScreen() {
             }
 
             auto crsr = screen.getCursorPos();
-            if (crsr.x < screen.getWidth() && crsr.y < screen.getHeight()) {
+            if (this->cursorVisible
+                && this->basic->isCursorActive
+                && crsr.x < screen.getWidth()
+                && crsr.y < screen.getHeight()) {
                 bool draw = false;
                 for (size_t y = 0; y < ScreenInfo::charPixY; ++y) {
                     auto* pdest = &screen.screenBitmap.pixelsPal[(y + crsr.y * ScreenInfo::charPixY) * srcWidth + crsr.x * ScreenInfo::charPixX];
@@ -230,6 +454,7 @@ void OsFPL::presentScreen() {
 
         fplVideoFlip();
     }
+#endif
 }
 
 void OsFPL::updateKeyboardBuffer() {
@@ -391,5 +616,4 @@ const bool OsFPL::isKeyPressed(uint32_t index, bool withShift, bool withAlt, boo
 
 void OsFPL::putToKeyboardBuffer(Os::KeyPress key) {
     Os::putToKeyboardBuffer(key);
-    nextShowCursor = 0;
 }

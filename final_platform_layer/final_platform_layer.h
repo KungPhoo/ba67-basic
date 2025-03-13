@@ -12123,6 +12123,8 @@ fpl_internal fplKey fpl__Win32TranslateVirtualKey(const fpl__Win32Api* wapi, con
     case VK_F24:
         return fplKey_F24;
 
+    case VK_SCROLL:
+        return fplKey_Scroll;
     case VK_LSHIFT:
         return fplKey_LeftShift;
     case VK_RSHIFT:

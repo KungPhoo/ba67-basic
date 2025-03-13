@@ -64,7 +64,7 @@ Graphics and sound should be added.
 
 For the graphics an 40x25 character graphics with 16 colors
 is set. Each character is monochrome. Characters can be
-easily generated with the `DEFCHAR` command and supports
+easily generated with the `CHARDEF` command and supports
 the full unicode range (uses a map internally).
 
 For the sound, the ABC music notation is used. For sound
@@ -409,7 +409,9 @@ will be ignored.
 **Usage:**
 `CHAR color_source, column, line, text$[, invers]`
 
-### DEFCHAR
+### CHARDEF
+**Monochrome**
+
 Defines the pixels of a character symbol.
 You can define any unicode character with this command.
 Each parameter is a byte (8 bits), that describe the
@@ -417,10 +419,40 @@ horizontal pixels of a line. You must pass 8 lines.
 
 Alternatively, you can pass all 8 bytes as a single number,
 since BA67 supports 64 bit integers.
-So `DEFCHAR "A", $ff22334455667788` is valid.
+So `CHARDEF "A", $ff22334455667788` is valid.
 
 Use the `CHR$()` command, if you want to give the unicode
 code point as a value.
+
+**Multicolor**
+
+If your pixel size ix 8x8 (default) and you pass 8 values
+of 32 bits. They are interpreted as 16 bit color indices.
+So each byte represents 2 pixels. In order to distinguish
+these 8 values from the 8 bytes of a monochrome character,
+one value must be greater than $ff.
+
+Example:
+```
+10 CHARDEF "$",24,36,32,112,32,98,92,0
+20 READ C$, A,B,C,D,E,F,G,H
+30 CHARDEF C$, A,B,C,D,E,F,G,H
+40 PRINT "$$$ ###"
+100 REM MULTICOLOR IMAGE
+110 DATA "#"
+120 DATA $11111144
+130 DATA $11144444
+140 DATA $11144444
+150 DATA $14444444
+160 DATA $14444446
+170 DATA $14446666
+180 DATA $44446666
+190 DATA $44466666
+```
+
+
+`CHARDEF "#", $00, $11, $11, $00,  $11, $22, $22, $11,  $12, $33, $33, $21,  $13, $44, $44, $31,  $14, $55, $55, $41,  $15, $66, $66, $51,  $01, $77, $77, $10,  $00, $18, $81, $00`
+
 
 #### For coders:
 If you reimplement BA67 in your own project and your
@@ -430,7 +462,7 @@ See ScreenInfo structure in the code.
 
 **Useage:**
 ```
-10 DEFCHAR "$",24,36,32,112,32,98,92,0
+10 CHARDEF "$",24,36,32,112,32,98,92,0
 20 PRINT "$$$$"
 RUN
 ```
@@ -492,6 +524,9 @@ well as in file names.
 
 **Usage:** `LOAD "bas*folder/*.bas"`
 
+### MOVSPR
+Moves a sprite to a given screen location.
+`MOVSPR nr, x, y`
 
 ### NEW
 Clears the current program from memory.
@@ -854,6 +889,37 @@ REM play noise wave with default values
 SOUND 1, "wave_type:3"
 ```
 
+### SPRDEF
+Defines a sprite. You have 256 sprites to use. They are
+overlaid over the character graphics and can be moved on
+a per pixel basis.
+
+In order to define a sprite, first you define characters.
+Then you assign the character images to a sprite number.
+A sprite consists of 3x2 character images.
+You can select any color index to be transparent with the
+3rd parameter. If you ommit it, the sprite will not be
+transparent.
+
+`SPRDEF nr, chars$`
+
+
+### SPRITE
+Changes the visibility and characteristics of a sprite.
+The `on` parameter enables 1 or disables 0 the sprite.
+
+If the bitmap is monochrome, the `color` sets the color
+of the sprite. If it's a multicolor sprite, this sets
+the transparent color index 1..16.
+
+The `prio` parameter is currently not used.
+
+The flags `x2` and `y2` enable 1 or disable 0 the scaling
+of the sprite to twice it's size.
+`SPRITE nr, on, color, prio, x2, y2`
+
+Sprites can be moved with `MOVSPR`.
+
 ### STOP
 Stops the program, is if the escape key was pressed with the
 `?BREAK IN linenumber` message.
@@ -929,6 +995,11 @@ that no match was found.
 Returns the integer portion of a number.
 
 **Usage:** `INT(expr)`
+
+### LCASE$
+Converts the string to lower case.
+
+**Usage:** `LCASE$(s$)`
 
 ### LEFT$
 Returns the leftmost `n` characters of a string. A character
@@ -1017,6 +1088,11 @@ Moves the cursor to a specified column in `PRINT`.
 Returns the tangent of an angle in radians.
 
 **Usage:** `TAN(expr)`
+
+### UCASE$
+Converts the string to upper case.
+
+**Usage:** `UCASE$(s$)`
 
 ### VAL
 Converts a string to a number.
