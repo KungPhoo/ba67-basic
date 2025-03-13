@@ -12,7 +12,7 @@ yourself comfortable with this interpreter. But BASIC is also
 a very easy to learn programming language as well as an
 operating system. So it suits perfectly for beginners as well.
 
-Many have programmes BASIC interpreters before, so why another?
+Many have programmed BASIC interpreters before, so why another?
 Well, they all had some sort of limitations, that I don't want.
 
 This BASIC is compatible with COMMODORE's BASIC V7,
