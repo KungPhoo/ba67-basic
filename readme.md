@@ -12,10 +12,12 @@ Three times the digit 7 led to it's name BA67.
 If you're familiar with the C64/C128, you will quickly find
 yourself comfortable with this interpreter. But BASIC is also
 a very easy to learn programming language as well as an
-operating system. So it suits perfectly for beginners as well.
+operating system. So it suits perfectly for beginners as
+well.
 
-Many have programmed BASIC interpreters before, so why another?
-Well, they all had some sort of limitations, that I don't want.
+Many have programmed BASIC interpreters before, so why
+another? Well, they all had some sort of limitations,
+or were written in some strange language that I don't like.
 
 This BASIC is compatible with COMMODORE's BASIC V7,
 but also features some improvements.
@@ -26,9 +28,13 @@ Here are the key features:
 - Unicode strings (no PETSCII or other exotic charsets)
 - 64 bit precission for numbers
 - 64 bit integers
-- Integers are stored as such. Conversion is performed internally
+- Integers are stored as such. Conversion is performed
+  internally
 - Direct access to your local filesystem
 - Modular programming (See keyword `MODULE`)
+- Written in C++ (using some C libraries)
+- Very easy to use as a scripting language in your projects
+- Easy to port to other platforms
 
 -------------------------------------------------------------
 ## Goal
@@ -362,14 +368,14 @@ Clears all variables.
 **Usage:** `CLR`
 
 ### COLOR
-Set text or background color. The screen is an indicator
+Set text or background color. The `screen` is an indicator
 what colour to change.
 ```
 0 or 6: Background (C128: 0)
 1 or 5: Text color (C128: 5)
 4     : Border color (only if available)
 ```
-The default color values are:
+The default `color` values are:
 ```
 1  Black
 2  White
@@ -391,6 +397,13 @@ The default color values are:
 
 **Usage:** `COLOR screen, color`
 
+If you want to **redefine** a color, the syntax is:
+`COLOR color, red, green, blue`
+Where `red`, `green` and `blue` are values from 0 to 255 or
+$00 to $ff.
+
+**NOTE** If you break the program with the `ESC` key, the colors are
+reset to the defaults.
 
 ### CHDIR
 Change into the given directroy.
@@ -438,6 +451,9 @@ So each byte represents 2 pixels. In order to distinguish
 these 8 values from the 8 bytes of a monochrome character,
 one value must be greater than $ff.
 
+Pay attention: The color values are 0..15 - instead of the
+color values ìn `COLOR`, which are 1 based.
+
 Example:
 ```basic
 10 CHARDEF "$",24,36,32,112,32,98,92,0
@@ -472,6 +488,10 @@ See ScreenInfo structure in the code.
 20 PRINT "$$$$"
 RUN
 ```
+
+**NOTE** If you break the program with the `ESC` key, the
+characters 0..127 (ASCII set) reset to the defaults.
+
 
 ### END
 Terminates program execution.

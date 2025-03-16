@@ -96,22 +96,30 @@ void cmdCOLOR(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 
     int ipara = 0;
+    uint8_t red, green, blue;
     for (size_t i = 0; i < values.size(); ++i) {
         auto& v = values[i];
         if (basic->valueIsOperator(v)) { ++ipara; continue; }
         switch (ipara) {
         case 0: colorsource = int(Basic::valueToInt(v)); break;
-        case 1: color = int(Basic::valueToInt(v));          break;
-        case 2: /*optional brightness*/ break;
+        case 1: color = int(Basic::valueToInt(v));  red = uint8_t(color); break;
+        case 2: /*optional brightness*/ green = uint8_t(Basic::valueToInt(v)); break;
+        case 3: /*optional brightness*/ blue = uint8_t(Basic::valueToInt(v)); break;
         default: throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
         }
     }
 
-    if (color > 16 || color < 1) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
-    switch (colorsource) {
-    case 0: case 6: basic->os->screen.setBackgroundColor(color - 1); break;
-    case 1: case 5: basic->os->screen.setTextColor(color - 1); break;
-    case 4: basic->os->setBorderColor(color - 1); break;
+    if (ipara == 3) {
+        color = colorsource;
+        if (color > 16 || color < 1) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+        basic->os->screen.defineColor(color - 1, red, green, blue);
+    } else {
+        if (color > 16 || color < 1) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+        switch (colorsource) {
+        case 0: case 6: basic->os->screen.setBackgroundColor(color - 1); break;
+        case 1: case 5: basic->os->screen.setTextColor(color - 1); break;
+        case 4: basic->os->setBorderColor(color - 1); break;
+        }
     }
 }
 
@@ -190,6 +198,8 @@ void cmdSPRDEF(Basic* basic, const std::vector<Basic::Value>& values) {
         sprite.charmap[i] = c;
     }
     if (Unicode::parseNextUtf8(pc) != 0) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+
+    basic->os->screen.dirtyFlag = true;
 }
 
 void cmdSPRITE(Basic* basic, const std::vector<Basic::Value>& values) {
@@ -222,6 +232,7 @@ void cmdSPRITE(Basic* basic, const std::vector<Basic::Value>& values) {
         default: throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
         }
     }
+    basic->os->screen.dirtyFlag = true;
 }
 
 void cmdMOVSPR(Basic* basic, const std::vector<Basic::Value>& values) {
@@ -246,6 +257,7 @@ void cmdMOVSPR(Basic* basic, const std::vector<Basic::Value>& values) {
         default: throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
         }
     }
+    basic->os->screen.dirtyFlag = true;
 }
 
 void cmdEXIT(Basic* basic, const std::vector<Basic::Value>& values) {
@@ -2575,6 +2587,7 @@ void Basic::restoreColorsAndCursor(bool resetFont) {
     os->screen.setBackgroundColor(11);
     os->screen.setTextColor(colorForModule(moduleVariableStack.back()->first));
     if (resetFont) {
+        os->screen.resetDefaultColors();
         os->screen.resetCharmap();
     }
     if (os->screen.getCursorPos().x != 0) {
@@ -2695,6 +2708,7 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
 void Basic::handleEscapeKey() {
     // break with escape
     if (os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
+        restoreColorsAndCursor(true);
         throw Error(ErrorId::BREAK);
     }
     // pause with scroll lock

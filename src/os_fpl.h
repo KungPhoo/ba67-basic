@@ -21,20 +21,31 @@ public:
 
 
 
-    std::mutex screenLock;
-    bool dirtyFlag = true;
+    std::mutex screenLock, videoLock;
     std::vector<uint32_t> pixelsVideo;
     struct Buffered {
+        ScreenBuffer screen; // this one is only accessed in the drawing thread
+
         bool stopThread = false;
-        std::vector<uint8_t> pixelsPal;
+        //        std::vector<uint8_t> pixelsPal;
         size_t videoW = 0, videoH = 0;
 
-
-        std::array<uint32_t, 16> palette;
-        uint8_t crsrColor = 1;
-        uint8_t borderColor = 0;
-        ScreenBuffer::Cursor crsrPos;
+        // std::array<uint32_t, 16> palette;
+        // uint8_t crsrColor = 1;
+        // uint8_t borderColor = 0;
+        // ScreenBuffer::Cursor crsrPos;
         bool isCursorActive;
         bool imageCreated = false;
+
+        Buffered& operator=(const Buffered& b) {
+            ScreenBuffer::copyWithLock(screen, b.screen);
+            videoW = b.videoW;
+            videoH = b.videoH;
+            stopThread = b.stopThread;
+            isCursorActive = b.isCursorActive;
+            imageCreated = b.imageCreated;
+            return *this;
+        }
+
     }buffered = {};
 };

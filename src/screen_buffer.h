@@ -4,6 +4,7 @@
 #include <iostream>
 #include <array>
 #include <map>
+#include <mutex>
 
 struct ScreenInfo {
     static const size_t charsX = 40, charsY = 25;
@@ -121,6 +122,39 @@ class ScreenBuffer {
 public:
     ScreenBuffer();
 
+    // Custom swap function
+    friend void swap(ScreenBuffer& lhs, ScreenBuffer& rhs) noexcept {
+        using std::swap;
+
+        // Swap everything except screenBitmap
+        swap(lhs.palette, rhs.palette);
+        swap(lhs.sprites, rhs.sprites);
+        swap(lhs.buffer, rhs.buffer);
+        swap(lhs.color, rhs.color);
+        swap(lhs.borderColor, rhs.borderColor);
+        swap(lhs.cursorPos, rhs.cursorPos);
+    }
+
+    // Move constructor
+    ScreenBuffer(ScreenBuffer&& other) noexcept
+        : palette(std::move(other.palette)),
+        sprites(std::move(other.sprites)),
+        buffer(std::move(other.buffer)),
+        color(other.color),
+        borderColor(other.borderColor),
+        cursorPos(other.cursorPos) {
+        // Note: screenBitmap is not moved
+    }
+
+    // Move assignment operator
+    ScreenBuffer& operator=(ScreenBuffer&& other) noexcept {
+        if (this != &other) {
+            swap(*this, other);
+        }
+        return *this;
+    }
+
+
     // zero based cursor position
     struct Cursor {
         size_t x, y;
@@ -173,18 +207,24 @@ public:
     void setTextColor(int index);
     void setBackgroundColor(int index);
     void setBorderColor(int index) { borderColor = (index & 0x0f); }
-    void inverseColours();
+    void inverseColours(); // interchange text and background colors
 
     inline int getTextColor()const { return color & 0x0f; }
     inline int getBackgroundColor()const { return (color >> 4) & 0x0f; }
     inline int getBorderColor()const { return borderColor; }
     void defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xff);
+    void resetDefaultColors();
 
+    void resetCharmap(char32_t from = 0, char32_t to = 127);
 
-    void resetCharmap(char32_t from = U' ', char32_t to = U'~');
+    // thread save copy of all needed information to draw the final pixels
+    // the pixels are not copied. You must call updateScreenXXXX() manually, afterwards.
+    static void copyWithLock(ScreenBuffer& dst, const ScreenBuffer& src);
 
+    std::atomic<bool> dirtyFlag = true; // must be drawn to screen? Must be cleared manually.
 
 private:
+    mutable std::mutex lock;
     struct SChar {
         char32_t ch;
         uint8_t col;
