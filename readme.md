@@ -1,7 +1,7 @@
 ﻿0123456789012345678901234567890123456789012345678901234567890
 # BA67 - 80s BASIC Interpreter
 ## About
-BA67 (pronounced BASIC SEVEN) is a standlone BASIC interpreter,
+BA67 (pronounced BASIC SEVEN) is a standalone BASIC interpreter,
 that can be used as a daily tool on a personal computer.
 
 It is inspired by the Commodore BASIC V7 ©1977 from the C128.
