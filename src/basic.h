@@ -325,6 +325,7 @@ protected:
     void handleGOTO(std::vector<Token>& tokens);
     void handleGOSUB(std::vector<Token>& tokens);
     void handleONGOTO(std::vector<Token>& tokens);
+    void handleHELP(std::vector<Token>& tokens);
     void handleDEFFN(std::vector<Token>& tokens);
     void handleFOR(const std::vector<Token>& tokens);
     void handleNEXT(const std::vector<Token>& tokens);

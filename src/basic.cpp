@@ -5,6 +5,7 @@
 #include <regex>
 #include "about.h"
 #include "string_helper.h"
+#include "help.h"
 
 #if defined(__cplusplus) && __cplusplus > 202002L
 #include <format>
@@ -181,6 +182,7 @@ void cmdCHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
 
     basic->os->screen.defineChar(codePoint, CharBitmap(&bytes[0], iarg - 1));
 }
+
 
 void cmdSPRDEF(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 3) {
@@ -624,7 +626,7 @@ Basic::Basic(Os& os, SoundSystem* ss) {
     // hard coded keywords
     keywords = {"ON", "GOTO", "GOSUB", "RETURN", "IF", "THEN", "LET", "FOR", "TO", "NEXT", "STEP"
         , "READ", "DATA", "RESTORE"
-        , "END", "RUN", "DIM", "PRINT", "?", "GET", "INPUT", "REM", "CLR", "SCNCLR", "NEW", "LIST", "MODULE"
+        , "END", "RUN", "DIM", "PRINT", "?", "GET", "HELP", "INPUT", "REM", "CLR", "SCNCLR", "NEW", "LIST", "MODULE"
         , "KEY", "GETKEY"
         , "DEF", "FN", "DELETE", "USING"
     };
@@ -2118,6 +2120,18 @@ void Basic::handleONGOTO(std::vector<Token>& tokens) {
     }
 }
 
+void Basic::handleHELP(std::vector<Token>& tokens) {
+
+    std::string cmd;
+    for (size_t i = 1; i < tokens.size(); ++i) {
+        if (i > 1) { cmd += " "; }
+        cmd += tokens[i].value;
+    }
+    cmd = Unicode::toUpper(cmd.c_str());
+    std::string usg = Help::getUsage(cmd) + "\n";
+    printUtf8String(usg);
+}
+
 void Basic::handleDEFFN(std::vector<Token>& tokens) {
     std::string fname;
     if (!tokens.empty() && tokens.front().value == "DEF") {
@@ -2421,6 +2435,8 @@ void Basic::executeTokens(std::vector<Token>& tokens) {
             handleDEFFN(tokens);
         } else if (tokens[0].value == "END") {
             doEND();
+        } else if (tokens[0].value == "HELP") {
+            handleHELP(tokens);
         } else if (tokens[0].value == "DELETE") {
             handleDELETE(tokens);
         } else {

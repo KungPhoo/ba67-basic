@@ -24,7 +24,18 @@ Basic::Value fktFOO(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
+#if _DEBUG
+#include "markdown_parser.h"
+#endif
+
+
 int main(int argc, char** argv) {
+
+#if _DEBUG
+    MarkdownParser::ParseAndApplyManual();
+#endif
+
+
     std::vector<std::string> args; // utf-8
 #ifdef _WIN32
     (void)argc; (void)argv;

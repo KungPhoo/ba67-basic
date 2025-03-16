@@ -1,5 +1,123 @@
 ﻿0123456789012345678901234567890123456789012345678901234567890
 # BA67 - 80s BASIC Interpreter
+
+## Contents
+<!-- do not edit TOC_START and TOC_END lines. See markdown_parser.h_>
+<!-- TOC_START -->
+- [BA67 - 80s BASIC Interpreter](#[ba67---80s-basic-interpreter])
+  - [Contents](#[contents])
+  - [About](#[about])
+  - [Goal](#[goal])
+  - [Syntax](#[syntax])
+  - [Editor](#[editor])
+  - [Numbers](#[numbers])
+  - [Unicode](#[unicode])
+  - [Variables](#[variables])
+  - [Files](#[files])
+  - [Keywords, Commands, Functions](#[keywords--commands--functions])
+  - [Keywords](#[keywords])
+    - [DATA](#[data])
+    - [DEF FN](#[def-fn])
+    - [DELETE](#[delete])
+    - [DIM](#[dim])
+    - [ON](#[on])
+    - [FN](#[fn])
+    - [FOR](#[for])
+    - [GOSUB](#[gosub])
+    - [GOTO](#[goto])
+    - [IF](#[if])
+    - [LET](#[let])
+    - [KEY](#[key])
+    - [NEXT](#[next])
+    - [READ](#[read])
+    - [RESTORE](#[restore])
+    - [RETURN](#[return])
+    - [STEP](#[step])
+    - [THEN](#[then])
+    - [TO](#[to])
+  - [Commands](#[commands])
+    - [ABOUT](#[about])
+    - [AUTO](#[auto])
+    - [CLR](#[clr])
+    - [COLOR](#[color])
+    - [CHDIR](#[chdir])
+    - [CATALOG](#[catalog])
+    - [CHAR](#[char])
+    - [CHARDEF](#[chardef])
+      - [For coders:](#[for-coders-])
+    - [END](#[end])
+    - [EXIT](#[exit])
+    - [FAST](#[fast])
+    - [FIND](#[find])
+    - [GET](#[get])
+    - [HELP](#[help])
+    - [INPUT](#[input])
+    - [LIST](#[list])
+    - [LOAD](#[load])
+    - [MOVSPR](#[movspr])
+    - [NEW](#[new])
+    - [MODULE](#[module])
+    - [PLAY](#[play])
+      - [ABC Music Notation - Basics](#[abc-music-notation---basics])
+      - [Basic Structure](#[basic-structure])
+      - [Example:](#[example-])
+      - [Key Components:](#[key-components-])
+      - [Notes & Notation](#[notes---notation])
+      - [Chords & Decorations](#[chords---decorations])
+      - [Instruments](#[instruments])
+      - [Multi-Voice](#[multi-voice])
+      - [Editors](#[editors])
+      - [More Features](#[more-features])
+      - [Technical Background](#[technical-background])
+    - [POKE](#[poke])
+    - [PRINT](#[print])
+    - [PRINT USING](#[print-using])
+    - [REM](#[rem])
+    - [RENUMBER](#[renumber])
+    - [RUN](#[run])
+    - [SAVE](#[save])
+    - [SCNCLR](#[scnclr])
+    - [SLOW](#[slow])
+    - [SOUND](#[sound])
+    - [SPRDEF](#[sprdef])
+    - [SPRITE](#[sprite])
+    - [STOP](#[stop])
+    - [SYS](#[sys])
+  - [Functions](#[functions])
+    - [ABS](#[abs])
+    - [ASC](#[asc])
+    - [ATN](#[atn])
+    - [CHR$](#[chr-])
+    - [COS](#[cos])
+    - [DEC](#[dec])
+    - [EXP](#[exp])
+    - [FRE](#[fre])
+    - [HEX$](#[hex-])
+    - [INSTR](#[instr])
+    - [INT](#[int])
+    - [LCASE$](#[lcase-])
+    - [LEFT$](#[left-])
+    - [LEN](#[len])
+    - [LOG](#[log])
+    - [MID$](#[mid-])
+    - [PEEK](#[peek])
+    - [POS](#[pos])
+    - [POSY](#[posy])
+    - [RIGHT$](#[right-])
+    - [RND](#[rnd])
+    - [SGN](#[sgn])
+    - [SIN](#[sin])
+    - [SPC](#[spc])
+    - [SQR](#[sqr])
+    - [STR$](#[str-])
+    - [TAB](#[tab])
+    - [TAN](#[tan])
+    - [UCASE$](#[ucase-])
+    - [VAL](#[val])
+    - [XOR](#[xor])
+  - [Reserved Commands](#[reserved-commands])
+<!-- TOC_END -->
+
 ## About
 BA67 (pronounced BASIC SEVEN) is a standlone BASIC interpreter,
 that can be used as a daily tool on a personal computer.
@@ -35,6 +153,8 @@ Here are the key features:
 - Written in C++ (using some C libraries)
 - Very easy to use as a scripting language in your projects
 - Easy to port to other platforms
+
+
 
 -------------------------------------------------------------
 ## Goal
@@ -181,8 +301,7 @@ Functions always take at least one argument in braces.
 -------------------------------------------------------------
 ## Keywords
 ### DATA
-**Usage:**
-`DATA value, value, string, "string with spaces", ...`
+**Usage:** `DATA value, value, string, "string with spaces", ...`
 
 Provides data variables to be used with the READ keyword.
 
@@ -211,8 +330,7 @@ DIM A(10)
 ```
 
 ### ON
-**Usage:** `ON expr GOTO line1, line2, ...`
-            `ON expr GOSUB line1, line2, ...`
+**Usage:** `ON expr GOTO/GOSUB line1, line2, ...`
 
 Transfers execution to one of the specified lines based on
 the value of `expr`.
@@ -257,7 +375,7 @@ GOTO 100
 ```
 
 ### IF
-**Usage:** `IF condition THEN statement`
+**Usage:** `IF condition THEN statement|line_number_`
 
 Executes `statement` if `condition` evaluates as true. If
 the condition is false, the execution of this line stops.
@@ -285,7 +403,7 @@ when you press any of the F1..F12 function keys. Without
 arguments, the keyword lists the current keyboard shortcuts.
 
 ### NEXT
-**Usage:** `NEXT var`
+**Usage:** `NEXT [var]`
 
 Marks the end of a `FOR` loop, increasing `var` by `STEP`.
 
@@ -295,7 +413,7 @@ NEXT I
 ```
 
 ### READ
-**Useage:** `READ var[, var [, var2] ]`
+**Usage:** `READ var[, var [, var2] ]`
 
 Reads a variable from the next DATA keyword.
 
@@ -316,7 +434,8 @@ RETURN
 ```
 
 ### STEP
-**Usage:** Used in `FOR` loops to define an increment.
+Used in `FOR` loops to define an increment.
+**Usage:** `FOR var=start TO end STEP increment`
 
 Example:
 ```basic
@@ -324,17 +443,18 @@ FOR I = 1 TO 10 STEP 2
 ```
 
 ### THEN
-**Usage:** Used in conjunction with `IF` to specify the
+Used in conjunction with `IF` to specify the
 action when the condition is true.
+**Usage:** `IF condition THEN expression|line_number_` 
 
 Example:
 ```basic
 IF A > B THEN GOTO 100
 ```
 
-
 ### TO
-**Usage:** Used with `FOR` to specify the loop end value.
+Used with `FOR` to specify the loop end value.
+**Usage:** `FOR var=start TO end [STEP increment]`
 
 Example:
 ```basic
@@ -360,7 +480,7 @@ Calling AUTO with no argument disables this feature.
 When a line already exists, BA67 will print the contents of
 this line to prevent you from overwriting existing code.
 
-**Usage:** `AUTO [n]`_
+**Usage:** `AUTO [n]`
 
 ### CLR
 Clears all variables.
@@ -415,6 +535,9 @@ use CHDIR ".." to go one directory level up.
 ### CATALOG
 Lists all files and directories of the current directory.
 
+**Usage:** `CATALOG`
+
+
 ### CHAR
 Positions the cursor position to `column,line`, where the top
 left screen corner is at position `0,0`.
@@ -425,8 +548,7 @@ Other BASICs have a command `LOCATE` or `PRINT AT` for this.
 The parameter colour_source is just for compatibility and
 will be ignored.
 
-**Usage:**
-`CHAR color_source, column, line, text$[, invers]`
+**Usage:** `CHAR color_source, column, line, text$[, inverse]`
 
 ### CHARDEF
 **Monochrome**
@@ -475,6 +597,7 @@ Example:
 
 `CHARDEF "#", $00, $11, $11, $00,  $11, $22, $22, $11,  $12, $33, $33, $21,  $13, $44, $44, $31,  $14, $55, $55, $41,  $15, $66, $66, $51,  $01, $77, $77, $10,  $00, $18, $81, $00`
 
+**Usage:** `CHARDEF char$, bytes, [more bytes]`
 
 #### For coders:
 If you reimplement BA67 in your own project and your
@@ -482,7 +605,7 @@ character height is defined to 16, but you only pass
 8 lines, each line will be duplicated.
 See ScreenInfo structure in the code.
 
-**Useage:**
+**Example**
 ```basic
 10 CHARDEF "$",24,36,32,112,32,98,92,0
 20 PRINT "$$$$"
@@ -526,6 +649,11 @@ an empty string, if the buffer is empty.
 
 **Usage:** `GET a$ [, b$, ...]`
 
+### HELP
+Prints a small information about how to use the command.
+
+**Usage:** `HELP command`
+
 
 ### INPUT
 Prompts for user input.
@@ -552,7 +680,7 @@ well as in file names.
 
 ### MOVSPR
 Moves a sprite to a given screen location.
-`MOVSPR nr, x, y`
+**Usage:** `MOVSPR nr, x, y`
 
 ### NEW
 Clears the current program from memory.
@@ -627,6 +755,8 @@ IN MAIN 1
 ### PLAY
 The PLAY command plays a music score in the background of
 your program. The music string is in ABC music notation.
+
+**Usage:** `PLAY abc_notation$`
 
 #### ABC Music Notation - Basics
 ABC notation is a simple text-based format for writing
@@ -767,7 +897,7 @@ POKE 1234, 128
 ### PRINT
 Outputs text or values to the screen.
 
-**Usage:** `PRINT expr`
+**Usage:** `PRINT expr [[,|;| ] expr ...]`
 
 Example:
 ```basic
@@ -844,6 +974,8 @@ The optional parameter is ignored.
 Slow mode is enabled. This adds a delay for every
 instruction to aproximately simulate the speed of a C64.
 
+**Usage:** `SLOW`
+
 ### SOUND
 Plays a sound in the background. The parameters are passed
 as a string, that's separated by spaces, commas or colons.
@@ -909,11 +1041,14 @@ arp_mod      : [-1+1] Change amount (SIGNED)
 *Volume*
 volume       : [0 +1] Sound volume
 ```
-**Usage:** SOUND voice, play$
+
+**Example:**
 ```basic
 REM play noise wave with default values
 SOUND 1, "wave_type:3"
 ```
+
+**Usage:** `SOUND voice, play$`
 
 ### SPRDEF
 Defines a sprite. You have 256 sprites to use. They are
@@ -927,7 +1062,7 @@ You can select any color index to be transparent with the
 3rd parameter. If you ommit it, the sprite will not be
 transparent.
 
-`SPRDEF nr, chars$`
+**Usage:** `SPRDEF nr, chars$`
 
 
 ### SPRITE
@@ -942,7 +1077,7 @@ The `prio` parameter is currently not used.
 
 The flags `x2` and `y2` enable 1 or disable 0 the scaling
 of the sprite to twice it's size.
-`SPRITE nr, on, color, prio, x2, y2`
+**Usage:** `SPRITE nr, on, color, prio, x2, y2`
 
 Sprites can be moved with `MOVSPR`.
 
@@ -950,14 +1085,15 @@ Sprites can be moved with `MOVSPR`.
 Stops the program, is if the escape key was pressed with the
 `?BREAK IN linenumber` message.
 
+**Usage:** `STOP`
+
 ### SYS
 If a string is given, the system's command is executed.
 The string must be quoted. Otherwise we could not use
 variables in the command string.
 If a number is given, the command prints an error message.
 
-**Usage:**
-`SYS "wget " + CHR$(22) + "www.microsoft.com" + CHR$(22)`
+**Usage:** `SYS "wget " + CHR$(22) + "www.microsoft.com" + CHR$(22)`
 
 
 
