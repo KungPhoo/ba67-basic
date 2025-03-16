@@ -83,7 +83,7 @@ void MarkdownParser::updateTOC() {
         std::transform(anchor.begin(), anchor.end(), anchor.begin(), [](unsigned char c) {
             return std::isalnum(c) ? std::tolower(c) : '-';
             });
-        tocStream << std::string(2 * (heading.second - 1), ' ') << "- [" << heading.first << "](#[" << anchor << "])\n";
+        tocStream << std::string(2 * (heading.second - 1), ' ') << "- [" << heading.first << "](#" << anchor << ")\n";
     }
     tocStream << "<!-- TOC_END -->";
 
