@@ -250,8 +250,6 @@ private:
 
     void verifyPosition(size_t p = (size_t)-1);
 #else
-    inline void verifyPosition(size_t) {}
+    inline void verifyPosition(size_t p = (size_t)-1) { (void)p; }
 #endif
 };
-
-// 068,069,440
