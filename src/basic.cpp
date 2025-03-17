@@ -6,6 +6,8 @@
 #include "about.h"
 #include "string_helper.h"
 #include "help.h"
+#include <cmath>
+#include <cstring>
 
 #if defined(__cplusplus) && __cplusplus > 202002L
 #include <format>
@@ -1844,7 +1846,7 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
                 case uint32_t(Os::KeyConstant::HOME):       Unicode::appendAsUtf8(str, 0x0093); break; // home 147 93
                 case uint32_t(Os::KeyConstant::DEL):        Unicode::appendAsUtf8(str, 0x0014); break; // del   20 14
                 case uint32_t(Os::KeyConstant::ESCAPE):     Unicode::appendAsUtf8(str, 0x001b); break; // ESC   27 1b
-                case 'x\a3':                                Unicode::appendAsUtf8(str, 0x005c); break; // pound unicode 163
+                case 0x00a3:                                Unicode::appendAsUtf8(str, 0x005c); break; // pound unicode 163
                 }
             }
             switch (valuePostfix(tk)) {
