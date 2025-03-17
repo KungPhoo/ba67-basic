@@ -136,7 +136,7 @@ void MarkdownParser::writeHelpInclude(const std::string& path) {
         str_replace(usage, "\r\n", "\n");
         str_replace(usage, "\r", "");
         str_replace(usage, "\n", "\\n");
-        help << "{\"" << entry.first << "\", R\"(" << usage << ")\"}";
+        help << "{\"" << entry.first << "\", R\"RAW(" << usage << ")RAW\"}";
         help << "\n";
     }
 }
