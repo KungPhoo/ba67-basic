@@ -162,7 +162,7 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
     return exitCode;
 
 #else
-    FILE* pipe = popen(command, "r");
+    FILE* pipe = popen(commandLineUtf8.c_str(), "r");
     if (!pipe) {
         return -1;
     }
