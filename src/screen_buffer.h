@@ -5,6 +5,7 @@
 #include <array>
 #include <map>
 #include <mutex>
+#include <atomic>
 
 struct ScreenInfo {
     static const size_t charsX = 40, charsY = 25;
