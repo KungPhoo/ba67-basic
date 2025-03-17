@@ -205,6 +205,7 @@ public:
         }
         FILE* pfile = nullptr;
     };
+    std::array<FileHandle, 255> openFiles;
 
     class Module {
     public:

@@ -332,6 +332,15 @@ void cmdSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
+void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() != 3) { throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT); }
+    // TODO
+
+}
+void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
+    //TODO
+}
+
 void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
     // RENUMBER newstart, step, startfromold
 
@@ -647,6 +656,8 @@ Basic::Basic(Os& os, SoundSystem* ss) {
     {"EXIT"  , cmdEXIT},
     {"FIND"  , cmdFIND},
     {"LOAD"  , cmdLOAD},
+    {"OPEN"  , cmdOPEN},
+    {"CLOSE"  , cmdCLOSE},
     {"SAVE"  , cmdSAVE},
     {"RENUMBER", cmdRENUMBER },
     {"SYS"  , cmdSYS },
@@ -2846,6 +2857,13 @@ std::string Basic::findFirstFileNameWildcard(std::string filenameUtf8, bool isDi
     return outpath;
 }
 
+
+#if defined(_WIN32) || defined(_WIN64)
+/* We are on Windows */
+# define strtok_r strtok_s
+#endif
+
+
 bool Basic::loadProgram(std::string filenameUtf8) {
     std::string foundname = findFirstFileNameWildcard(filenameUtf8);
 
@@ -2859,7 +2877,7 @@ bool Basic::loadProgram(std::string filenameUtf8) {
     Unicode::toU16String(foundname.c_str(), u16);
     file = _wfsopen(reinterpret_cast<const wchar_t*>(u16.c_str()), L"rb", _SH_DENYNO); // allow shared reading - even if some editor has the file open
 #else
-    file = fopen(foundname.c_str(); "rb");
+    file = fopen(foundname.c_str(), "rb");
 #endif
     if (file == nullptr) { return false; }
 
@@ -2891,10 +2909,10 @@ bool Basic::loadProgram(std::string filenameUtf8) {
 
     // Establish string and get the first token:
     char* next_token = nullptr;
-    char* line = strtok_s(buff, "\r\n", &next_token);
+    char* line = strtok_r(buff, "\r\n", &next_token);
 
     std::string str;
-    // Note: strtok is deprecated; consider using strtok_s instead
+    // Note: strtok is deprecated; consider using strtok_r instead
     auto& listmodule = moduleListingStack.back()->second;
     int iline = 0;
     bool rv = true;
@@ -2912,7 +2930,7 @@ bool Basic::loadProgram(std::string filenameUtf8) {
         } else {
             listmodule.listing[iline] = skipWhite(pc);
         }
-        line = strtok_s(NULL, "\r\n", &next_token);
+        line = strtok_r(NULL, "\r\n", &next_token);
     }
     listmodule.setProgramCounterToEnd();
 
@@ -2929,7 +2947,7 @@ bool Basic::saveProgram(std::string filenameUtf8) {
     Unicode::toU16String(filenameUtf8.c_str(), u16);
     file = _wfsopen(reinterpret_cast<const wchar_t*>(u16.c_str()), L"wb", _SH_DENYNO); // allow shared reading - even if some editor has the file open
 #else
-    file = fopen(filenameUtf8.c_str(); "wb");
+    file = fopen(filenameUtf8.c_str(), "wb");
 #endif
     if (file == nullptr) { return false; }
 
