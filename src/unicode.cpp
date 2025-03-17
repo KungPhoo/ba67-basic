@@ -1,6 +1,7 @@
 #include "unicode.h"
 #include <locale>
 #include <codecvt>
+#include <cstring>
 
 char32_t Unicode::parseNextUtf8(const char*& utf8) {
     char32_t codepoint = 0;
