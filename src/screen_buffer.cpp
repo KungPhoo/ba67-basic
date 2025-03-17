@@ -1,5 +1,6 @@
 #include "screen_buffer.h"
 #include "font.h"
+#include <stdexcept>
 #include <algorithm>
 
 CharMap::CharMap(): ascii{}, unicode{} {
@@ -165,7 +166,7 @@ size_t ScreenBuffer::setCursorPos(Cursor crsr) {
             verifyPosition();
         #if _DEBUG
             auto nowcrsr = getCursorPos();
-            if (nowcrsr != crsr) { throw std::exception(); }
+            if (nowcrsr != crsr) { throw std::runtime_error("bad cursor position"); }
         #endif
             return cursorPos;
         }
@@ -571,7 +572,7 @@ void ScreenBuffer::verifyPosition(size_t p) {
     }
 
     if (p > buffer.length()) {
-        throw std::exception();
+        throw std::runtime_error("cursor position is broken");
     }
 
     // try cursor position error
@@ -583,7 +584,7 @@ void ScreenBuffer::verifyPosition(size_t p) {
     // if (cp != p && cr.y < 25) {
     //     cr = getCursorAtPos(p);
     //     cp = getPosAtCursor(cr);
-    //     throw std::exception();
+    //     throw std::runtime_error();
     // }
 
     cursorPos = oldCur;

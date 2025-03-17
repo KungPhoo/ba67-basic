@@ -6,6 +6,7 @@
 #include "unicode.h"
 #include "string_helper.h"
 
+#include <stdexcept>
 #include <filesystem>
 
 #ifdef _WIN32
@@ -78,7 +79,7 @@ sound_vol       :
 
 
     if (voice < 1 || voice > maxVoiceCount) {
-        throw std::exception("bad voice number");
+        throw std::runtime_error("bad voice number");
     }
 
     SoLoud::Sfxr* fx = sfxr[voice];
@@ -97,7 +98,7 @@ sound_vol       :
             // 3 = noise
             fx->mParams.wave_type = int(value + 0.444445);
             if (fx->mParams.wave_type > 3) {
-                throw std::exception("bad value");
+                throw std::runtime_error("bad value");
             }
             continue;
         } else if (tok == "filter_on") {
@@ -106,10 +107,10 @@ sound_vol       :
         }
 
         // next all floats -1..1
-        auto rng = [value](float f0, float f1) {if (value < f0 - 0.001 || value >= f1 + 0.001) { throw std::exception("out of range"); }};
+        auto rng = [value](float f0, float f1) {if (value < f0 - 0.001 || value >= f1 + 0.001) { throw std::runtime_error("out of range"); }};
         // next: all floats 0..1
         if (value < -0.01f || value > 1.01f) {
-            throw std::exception("bad value");
+            throw std::runtime_error("bad value");
         }
         rng(0.0f, 1.0f);
         if (tok == "base_freq") {
@@ -187,7 +188,7 @@ sound_vol       :
             rng(0.0f, 1.0f);
             fx->mParams.sound_vol = value;
         } else {
-            throw std::exception("unkown parameter name");
+            throw std::runtime_error("unkown parameter name");
         }
     }
 
@@ -246,7 +247,7 @@ bool SoundSystemSoLoud::PLAY(const std::string& music) {
         && std::filesystem::exists(pathAbc2Midi)) {
         FILE* pf = fopen(tempfileAbc.c_str(), "wb");
         if (!pf) {
-            throw std::exception("can't write temp ABC file");
+            throw std::runtime_error("can't write temp ABC file");
         }
 
         fprintf(pf, "%s\n", ms.c_str());
