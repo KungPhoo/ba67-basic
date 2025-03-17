@@ -18,3 +18,12 @@ std::vector<std::string> StringHelper::split(const std::string& in, const std::s
     }
     return vout;
 }
+
+
+void StringHelper::trimLeft(std::string& str, const char* delims = " \r\n\t") {
+    str.erase(0, str.find_first_not_of(delims));
+}
+
+void StringHelper::trimRight(std::string& str, const char* delims = " \r\n\t") {
+    str.erase(str.find_last_not_of(delims) + 1);
+}

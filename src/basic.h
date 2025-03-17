@@ -135,7 +135,7 @@ protected:
         OPERATOR, UNARY_OPERATOR,
         KEYWORD, COMMAND,
         PARENTHESIS, COMMA,
-        MODULE,
+        MODULE, FILEHANDLE,
 
         END
     };
@@ -206,6 +206,7 @@ public:
         FILE* pfile = nullptr;
     };
     std::array<FileHandle, 255> openFiles;
+    size_t currentFileNo = 0;
 
     class Module {
     public:
@@ -283,6 +284,7 @@ public:
     static const char* skipWhite(const char*& str);
     static bool parseDouble(const char*& str, double* number = nullptr);
     static bool parseInt(const char*& str, int64_t* number = nullptr); // int - not a double! "1.23" returns false
+    static bool parseFileHandle(const char*& str, std::string* number = nullptr);
     static int64_t strToInt(const std::string& str); // parses "255" and "$ff"
 protected:
     bool parseKeyword(const char*& str, std::string* keyword = nullptr);
@@ -313,7 +315,7 @@ protected:
     void handleRUN(const std::vector<Token>& tokens);
     void handleMODULE(const std::vector<Token>& tokens);
     void doPrintValue(Value& v);
-    void handlePRINT(const std::vector<Token>& tokens);
+    void handlePRINT(std::vector<Token>& tokens);
     void handlePRINT_USING(const std::vector<Token>& tokens);
     void handleGET(const std::vector<Token>& tokens, bool waitForKeypress);
     void handleINPUT(const std::vector<Token>& tokens);
@@ -381,6 +383,7 @@ public:
     void waitForKeypress();
 
     std::string findFirstFileNameWildcard(std::string filenameUtf8, bool isDirectory = false);
+    FILE* fopenUtf8(const std::string& filenameUtf8, const char* mode);
     bool loadProgram(std::string filenameUtf8);
     bool saveProgram(std::string filenameUtf8);
     bool fileExists(const std::string& filenameUtf8, bool allowWildCard);

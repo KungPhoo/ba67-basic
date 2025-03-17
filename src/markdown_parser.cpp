@@ -45,7 +45,7 @@ void MarkdownParser::extractHeadingsAndUsage() {
 
         std::smatch match;
         if (std::regex_match(line, match, headingRegex)) {
-            lastLevel = match[1].str().length();
+            lastLevel = int(match[1].str().length());
             lastHeading = match[2].str();
             headings.emplace_back(lastHeading, lastLevel);
             captureNextCode = false;

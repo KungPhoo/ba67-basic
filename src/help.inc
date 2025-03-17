@@ -19,6 +19,7 @@
 ,{"THEN", R"(IF condition THEN expression|line_number_)"}
 ,{"TO", R"(FOR var=start TO end [STEP increment])"}
 ,{"AUTO", R"(AUTO [n])"}
+,{"CLOSE", R"(CLOSE fileno)"}
 ,{"CLR", R"(CLR)"}
 ,{"COLOR", R"(COLOR screen, color)"}
 ,{"CHDIR", R"(CHDIR "subdir")"}
@@ -37,6 +38,7 @@
 ,{"MOVSPR", R"(MOVSPR nr, x, y)"}
 ,{"NEW", R"(NEW)"}
 ,{"MODULE", R"(MODULE name)"}
+,{"OPEN", R"(OPEN fileno, "filename , MODE")"}
 ,{"PLAY", R"(PLAY abc_notation$)"}
 ,{"POKE", R"(POKE addr, byte)"}
 ,{"PRINT", R"(PRINT expr [[,|;| ] expr ...])"}

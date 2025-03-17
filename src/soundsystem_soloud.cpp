@@ -5,7 +5,6 @@
 #include "soloud_sfxr.h"
 #include "unicode.h"
 #include "string_helper.h"
-
 #include <stdexcept>
 #include <filesystem>
 
@@ -16,7 +15,15 @@
 
 SoundSystemSoLoud::SoundSystemSoLoud() {
     soloud = new SoLoud::Soloud();
-    soloud->init(SoLoud::Soloud::CLIP_ROUNDOFF, SoLoud::Soloud::AUTO, SoLoud::Soloud::AUTO, SoLoud::Soloud::AUTO, 2/*channels*/);
+    soloud->init(SoLoud::Soloud::CLIP_ROUNDOFF,
+    #ifdef BA67_SOUND_BACKEND_DEFAULT
+        SoLoud::Soloud::AUTO,
+    #else
+        SoLoud::Soloud::NOSOUND,
+    #endif
+        SoLoud::Soloud::AUTO,
+        SoLoud::Soloud::AUTO,
+        2/*channels*/);
 
     sfxr.resize(1 + maxVoiceCount, nullptr);
     for (size_t i = 1; i < sfxr.size(); ++i) {
@@ -241,8 +248,7 @@ bool SoundSystemSoLoud::PLAY(const std::string& music) {
         if (c == ';') { c = '\n'; }
     }
 
-    if (0
-        && std::filesystem::exists(pathAbc2Midi)
+    if (std::filesystem::exists(pathAbc2Midi)
         && std::filesystem::exists(pathAbc2Midi)
         && std::filesystem::exists(pathAbc2Midi)) {
         FILE* pf = fopen(tempfileAbc.c_str(), "wb");

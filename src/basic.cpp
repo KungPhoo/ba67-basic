@@ -336,11 +336,50 @@ void cmdSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
 
 void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 3) { throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT); }
-    // TODO
 
+    int64_t ifile = basic->valueToInt(values[0]);
+    if (ifile < 1 || size_t(ifile) >= basic->openFiles.size()) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+    if (basic->openFiles[ifile].pfile != nullptr) {
+        { throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE); }
+    }
+
+    const char* iomode = "r";
+    std::string path = basic->valueToString(values[2]); // "name*, R", "name, W"
+    size_t comma = path.rfind(',');
+    if (comma != std::string::npos) {
+        std::string strmode = path.substr(comma + 1);
+        path = path.substr(0, comma);
+        StringHelper::trimRight(path, " ");
+        StringHelper::trimLeft(strmode, " ");
+        if (strmode.empty()) {
+            throw Basic::Error(Basic::ErrorId::SYNTAX);
+        }
+        if (strmode[0] == 'r' || strmode[0] == 'R') {
+            iomode = "r";
+            path = basic->findFirstFileNameWildcard(path);
+        } else if (strmode[0] == 'w' || strmode[0] == 'W') {
+            iomode = "w";
+        } else { throw Basic::Error(Basic::ErrorId::INTERNAL); }
+    }
+
+    FILE* pf = basic->fopenUtf8(path, iomode);
+    if (pf == nullptr) {
+        throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
+    }
+    basic->openFiles[ifile].pfile = pf;
 }
+
 void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
-    //TODO
+    if (values.size() != 1) { throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT); }
+
+    int64_t ifile = basic->valueToInt(values[0]);
+    if (ifile < 1 || size_t(ifile) >= basic->openFiles.size()) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+    if (basic->openFiles[ifile].pfile == nullptr) {
+        { throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE); }
+    }
+
+    fclose(basic->openFiles[ifile].pfile);
+    basic->openFiles[ifile].pfile = nullptr;
 }
 
 void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
@@ -910,6 +949,19 @@ inline bool Basic::parseInt(const char*& str, int64_t* number) {
     return true;
 }
 
+bool Basic::parseFileHandle(const char*& str, std::string* number) {
+    skipWhite(str);
+    char* endInt;
+    if (*str == '#') {
+        int64_t i = strtoll(str + 1, &endInt, 10);
+        if (number) { std::string s((const char*)(str)+1, (const char*)(endInt)); *number = s; }
+        if (endInt == str + 1) { return false; }
+        str = endInt;
+        return true;
+    }
+    return false;
+}
+
 
 int64_t Basic::strToInt(const std::string& str) {
     int base = 10;
@@ -1055,6 +1107,8 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
         } else if (*pc == ',') {
             tokens.push_back({TokenType::COMMA, std::string(",")});
             ++pc;
+        } else if (parseFileHandle(pc, &str)) {
+            tokens.push_back({TokenType::FILEHANDLE, str});
         } else if (parseIdentifier(pc, &str)) {
             skipWhite(pc);
             const char* pcdot = pc;
@@ -1435,6 +1489,8 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
                     break;
                 }
             }
+        } else if (tokens[i].type == TokenType::FILEHANDLE) {
+            throw Error(ErrorId::SYNTAX);
         } else if (tokens[i].type == TokenType::KEYWORD) {
             /* TO, STEP, ...*/
             if (ptrEnd != nullptr) { *ptrEnd = *ptrEnd - 1; /* put back ')' */ }
@@ -1597,8 +1653,12 @@ void Basic::doPrintValue(Value& v) {
     if (valueIsOperator(v)) {
         if (auto op = std::get_if<Basic::Operator>(&v)) {
             if (op->value == ",") {
-                auto crsr = os->screen.getCursorPos();
-                os->screen.setCursorPos({(crsr.x / 10 + 1) * 10, crsr.y});
+                if (currentFileNo = 00) {
+                    auto crsr = os->screen.getCursorPos();
+                    os->screen.setCursorPos({(crsr.x / 10 + 1) * 10, crsr.y});
+                } else {
+                    printUtf8String("    ");
+                }
             } else if (op->value == ";") {
                 // do nothing
             }
@@ -1612,11 +1672,18 @@ void Basic::doPrintValue(Value& v) {
     }
 }
 
-void Basic::handlePRINT(const std::vector<Token>& tokens) {
+
+void Basic::handlePRINT(std::vector<Token>& tokens) {
     if (tokens.size() < 2) {
         printUtf8String("\n");
         return;
     }
+
+    if (tokens[1].type == TokenType::FILEHANDLE) {
+        currentFileNo = strToInt(tokens[1].value);
+        tokens.erase(tokens.begin() + 1);
+    }
+
 
     if (tokens[1].type == TokenType::KEYWORD && tokens[1].value == "USING") {
         handlePRINT_USING(tokens);
@@ -1637,6 +1704,7 @@ void Basic::handlePRINT(const std::vector<Token>& tokens) {
     if (forceNewline) {
         printUtf8String("\n");
     }
+    currentFileNo = 0;
 }
 
 static std::string printUsing(const std::string& format, std::string value) {
@@ -2478,10 +2546,20 @@ void Basic::uppercaseProgram(std::string& codeline) {
 }
 
 void Basic::printUtf8String(const char* utf8) {
-    while (*utf8 != '\0') {
-        os->screen.putC(Unicode::parseNextUtf8(utf8));
+    if (currentFileNo == 0) {
+        while (*utf8 != '\0') {
+            os->screen.putC(Unicode::parseNextUtf8(utf8));
+        }
+        os->presentScreen();
+    } else {
+        FILE* pf = openFiles[currentFileNo].pfile;
+        if (pf == nullptr) {
+            currentFileNo = 0; throw Error(ErrorId::ILLEGAL_DEVICE);
+        } else {
+            fprintf(pf, "%s", utf8);
+            fflush(pf);
+        }
     }
-    os->presentScreen();
 }
 
 std::string Basic::inputLine(bool allowVertical) {
@@ -2717,6 +2795,7 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
         }
 
     } catch (Error e) {
+        currentFileNo = 0;
         // dumpVariables();
 
         std::string& line = programCounter().line->second;
@@ -2797,6 +2876,7 @@ void Basic::runInterpreter() {
         try {
             line = inputLine(true);
         } catch (Error) {
+            currentFileNo = 0;
             status = ParseStatus::PS_ERROR;
             continue;
         }
@@ -2859,6 +2939,33 @@ std::string Basic::findFirstFileNameWildcard(std::string filenameUtf8, bool isDi
     return outpath;
 }
 
+FILE* Basic::fopenUtf8(const std::string& filenameUtf8, const char* mode) {
+    FILE* file = nullptr;
+
+    if (mode[0] == 'w') {
+
+    #ifdef _WIN32
+        std::u16string u16;
+        Unicode::toU16String(filenameUtf8.c_str(), u16);
+        file = _wfsopen(reinterpret_cast<const wchar_t*>(u16.c_str()), L"wb", _SH_DENYNO); // allow shared reading - even if some editor has the file open
+    #else
+        file = fopen(filenameUtf8.c_str(), "wb");
+    #endif
+    } else if (mode[0] == 'r') {
+
+    #ifdef _WIN32
+        std::u16string u16;
+        Unicode::toU16String(filenameUtf8.c_str(), u16);
+        file = _wfsopen(reinterpret_cast<const wchar_t*>(u16.c_str()), L"rb", _SH_DENYNO); // allow shared reading - even if some editor has the file open
+    #else
+        file = fopen(foundname.c_str(), "rb");
+    #endif
+    } else {
+        throw std::runtime_error("fopenUtf8 - only r and w supported");
+    }
+    return file;
+}
+
 
 #if defined(_WIN32) || defined(_WIN64)
 /* We are on Windows */
@@ -2873,14 +2980,7 @@ bool Basic::loadProgram(std::string filenameUtf8) {
         printUtf8String("FOUND " + foundname + "\n");
     }
 
-    FILE* file = nullptr;
-#ifdef _WIN32
-    std::u16string u16;
-    Unicode::toU16String(foundname.c_str(), u16);
-    file = _wfsopen(reinterpret_cast<const wchar_t*>(u16.c_str()), L"rb", _SH_DENYNO); // allow shared reading - even if some editor has the file open
-#else
-    file = fopen(foundname.c_str(), "rb");
-#endif
+    FILE* file = fopenUtf8(foundname, "rb");
     if (file == nullptr) { return false; }
 
     doNEW();
@@ -2943,14 +3043,7 @@ bool Basic::loadProgram(std::string filenameUtf8) {
 }
 
 bool Basic::saveProgram(std::string filenameUtf8) {
-    FILE* file = nullptr;
-#ifdef _WIN32
-    std::u16string u16;
-    Unicode::toU16String(filenameUtf8.c_str(), u16);
-    file = _wfsopen(reinterpret_cast<const wchar_t*>(u16.c_str()), L"wb", _SH_DENYNO); // allow shared reading - even if some editor has the file open
-#else
-    file = fopen(filenameUtf8.c_str(), "wb");
-#endif
+    FILE* file = fopenUtf8(filenameUtf8, "wb");
     if (file == nullptr) { return false; }
 
     for (auto& ln : currentModule().listing) {

@@ -222,6 +222,7 @@ void displayUpdateThread(OsFPL* fpl) {
         // == DRAW ==
 
         // simulate a CRT TV with a 3x3 pixel matrix
+    #ifdef BA67_GRAPHICS_CRT_EMULATION_ON
         for (size_t p = 0; p < 6; ++p) {
             const double facDark = 0.7;
             const double facNeigbour = 0.6, facNeighbour2 = 0.6;
@@ -235,6 +236,13 @@ void displayUpdateThread(OsFPL* fpl) {
                 palettes[p][i] = emphasizeRGB(state.screen.palette[i], r, g, b, darken);
             }
         }
+    #else
+        for (size_t p = 0; p < 6; ++p) {
+            for (size_t i = 0; i < 16; ++i) {
+                palettes[p][i] = state.screen.palette[i]);
+            }
+        }
+    #endif
 
         // we don't access the RGB buffer - we use the colour indices
         // screen.updateScreenBitmap();

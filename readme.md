@@ -38,6 +38,7 @@
   - [Commands](#commands)
     - [ABOUT](#about)
     - [AUTO](#auto)
+    - [CLOSE](#close)
     - [CLR](#clr)
     - [COLOR](#color)
     - [CHDIR](#chdir)
@@ -57,6 +58,7 @@
     - [MOVSPR](#movspr)
     - [NEW](#new)
     - [MODULE](#module)
+    - [OPEN](#open)
     - [PLAY](#play)
       - [ABC Music Notation - Basics](#abc-music-notation---basics)
       - [Basic Structure](#basic-structure)
@@ -483,6 +485,11 @@ this line to prevent you from overwriting existing code.
 
 **Usage:** `AUTO [n]`
 
+### CLOSE
+Closes a file handle.
+
+**Usage:** `CLOSE fileno`
+
 ### CLR
 Clears all variables.
 
@@ -750,8 +757,13 @@ IN MODL 3
 IN MAIN 1
 ```
 
+### OPEN
+Opens a file for reading or writing. When reading, wildcard
+characters are supported. The mode "R" for reading or "W"
+for writing must be part of the filename arument and separated
+from the file name with an comma character.
 
-
+**Usage:** `OPEN fileno, "filename , MODE"`
 
 ### PLAY
 The PLAY command plays a music score in the background of
