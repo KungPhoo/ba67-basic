@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.12.0)
+cmake_minimum_required(VERSION 3.12.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,7 +17,11 @@ message("===========================================================")
 message("=== ${APP_NAME} ===")
 message("===========================================================")
 
-project(${APP_NAME} LANGUAGES CXX C RC)
+IF (WIN32)
+    project(${APP_NAME} LANGUAGES CXX C RC)
+ELSE()
+    project(${APP_NAME} LANGUAGES CXX C)
+ENDIF()
 
 set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:EditAndContinue>")
 
@@ -27,9 +31,10 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/lib")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/bin")
 
-#################### ICON ################
-add_library(windows_resource_lib OBJECT "resources/resource.rc")
-
+IF (WIN32)
+    #################### ICON ################
+    add_library(windows_resource_lib OBJECT "resources/resource.rc")
+ENDIF()
 
 # === App Source ===
 file(GLOB APP_SOURCES # cpp files
@@ -52,7 +57,12 @@ file(GLOB SOLOUD_H
 
 add_compile_definitions(WITH_MINIAUDIO=1)
 add_library(lib_soloud OBJECT "${SOLOUD_CPP}")
-add_executable(${APP_NAME} WIN32 "${APP_SOURCES}" "${APP_HEADERS}" "${APP_RESOURCES}" $<TARGET_OBJECTS:windows_resource_lib>)
+
+IF (WIN32)
+    add_executable(${APP_NAME} WIN32 "${APP_SOURCES}" "${APP_HEADERS}" $<TARGET_OBJECTS:windows_resource_lib>)
+ELSE()
+    add_executable(${APP_NAME} WIN32 "${APP_SOURCES}" "${APP_HEADERS}")
+ENDIF()
 target_link_libraries(${APP_NAME} PUBLIC lib_soloud)
 
 
@@ -73,13 +83,6 @@ if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16.0")
     target_precompile_headers(${APP_NAME} PUBLIC src/stdafx.h "$<$<COMPILE_LANGUAGE:CXX>:cxx_only.h>")
 endif()
 
-
-# Group headers and source files for QtCreator
-# add_custom_target("z_Headers"     SOURCES "${APP_HEADERS}" "${GENERAL_SRCN_H}")
-# add_custom_target("z_CppFiles"    SOURCES "${APP_SOURCES}" "${GENERAL_SRCN_CPP}")
-# add_custom_target("z_Resources"   SOURCES "${APP_RESOURCES}")
-# add_custom_target("z_GeneralSrcn.cpp" SOURCES "${GENERAL_SRCN_CPP}")
-# add_custom_target("z_GeneralSrcn.h"   SOURCES "${GENERAL_SRCN_H}")
 
 # Unicode build (for Windows runtime)
 add_compile_definitions(UNICODE=1 _UNICODE=1)
@@ -112,5 +115,4 @@ find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(${APP_NAME} PUBLIC OpenMP::OpenMP_CXX)
 endif()
-
 

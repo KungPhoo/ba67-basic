@@ -188,7 +188,7 @@ void cmdSPRDEF(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
-    int id = basic->valueToInt(values[0]);
+    int id = int(basic->valueToInt(values[0]));
     if (id<1 || id>basic->os->screen.sprites.size()) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
     std::string str = basic->valueToString(values[2]);
     if (Unicode::utf8StrLen(str.c_str()) > 6) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
@@ -215,7 +215,7 @@ void cmdSPRITE(Basic* basic, const std::vector<Basic::Value>& values) {
         int64_t iv = Basic::valueToInt(v);
         switch (ipara) {
         case 0:
-            if (iv<1 || iv>basic->os->screen.sprites.size()) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+            if (iv<1 || iv>int64_t(basic->os->screen.sprites.size())) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
             sprite = &basic->os->screen.sprites[iv];
             break;
         case 1:
@@ -247,7 +247,7 @@ void cmdMOVSPR(Basic* basic, const std::vector<Basic::Value>& values) {
         int64_t iv = Basic::valueToInt(v);
         switch (ipara) {
         case 0:
-            if (iv<1 || iv>basic->os->screen.sprites.size()) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+            if (iv<1 || iv>int64_t(basic->os->screen.sprites.size())) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
             sprite = &basic->os->screen.sprites[iv];
             break;
         case 1:
