@@ -1,4 +1,5 @@
 #pragma once
+#ifdef _WIN32
 #include "os.h"
 class OsWindowsConsole:
     public Os {
@@ -27,3 +28,4 @@ private:
     std::string colors;
 };
 
+#endif // _WIN32

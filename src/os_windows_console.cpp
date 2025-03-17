@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "os_windows_console.h"
 #include "os.h"
 #include <Windows.h>
@@ -433,3 +434,4 @@ void OsWindowsConsole::updateKeyboardBuffer() {
         }
     }
 }
+#endif // _WIN32
