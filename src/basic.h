@@ -364,7 +364,7 @@ public:
 
     std::string inputLine(bool allowVertical = true);
 
-    void handleEscapeKey();
+    void handleEscapeKey(bool allowPauseWithShift = false);
     void runInterpreter();
 
     void waitForKeypress();

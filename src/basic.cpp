@@ -298,7 +298,7 @@ void cmdFIND(Basic* basic, const std::vector<Basic::Value>& values) {
         sline += '\n';
 
         basic->printUtf8String(sline);
-        basic->handleEscapeKey();
+        basic->handleEscapeKey(true);
     }
 }
 
@@ -448,7 +448,7 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
 
         basic->printUtf8String(str);
 
-        basic->handleEscapeKey();
+        basic->handleEscapeKey(true);
     }
 }
 
@@ -1949,7 +1949,7 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
         sline += '\n';
 
         printUtf8String(sline);
-        handleEscapeKey();
+        handleEscapeKey(true);
         os->delay(50);
     }
 }
@@ -2609,6 +2609,10 @@ void Basic::restoreColorsAndCursor(bool resetFont) {
     if (os->screen.getCursorPos().x != 0) {
         printUtf8String("\n");
     }
+    // clear keyboard buffer (ESC key mainly)
+    while (os->keyboardBufferHasData()) {
+        os->getFromKeyboardBuffer();
+    }
 }
 
 Basic::ParseStatus Basic::parseInput(const char* pline) {
@@ -2721,21 +2725,26 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
     return ParseStatus::PS_EXECUTED;
 }
 
-void Basic::handleEscapeKey() {
+void Basic::handleEscapeKey(bool allowPauseWithShift) {
     // break with escape
     if (os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
         restoreColorsAndCursor(true);
         throw Error(ErrorId::BREAK);
     }
+
     // pause with scroll lock
-    if (os->isKeyPressed(Os::KeyConstant::SCROLL)) {
-        while (os->isKeyPressed(Os::KeyConstant::SCROLL)) {
-            if (os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
-                throw Error(ErrorId::BREAK);
-            }
-            os->delay(30);
+    if (!allowPauseWithShift) { return; }
+    while (
+        os->isKeyPressed(Os::KeyConstant::SCROLL)
+        || os->isKeyPressed(Os::KeyConstant::SHIFT_LEFT)
+        || os->isKeyPressed(Os::KeyConstant::SHIFT_RIGHT)
+        ) {
+        if (os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
+            throw Error(ErrorId::BREAK);
         }
+        os->delay(30);
     }
+
 }
 
 // Basic interpreter loop

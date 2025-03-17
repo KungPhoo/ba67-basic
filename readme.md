@@ -232,8 +232,9 @@ Use Alt+INS key to toggle between insert mode and overwrite
 mode. Use the INS key alone to insert a single character
 space.
 
-The ScrollLock key can be used to pause the program. That is
-especially usefull when printing the `LIST` command.
+The ScrollLock and the Shift keys can be used to pause
+commands, that list large texts to the screen. Try the `LIST`
+command or `CATALOG` on large directories.
 
 -------------------------------------------------------------
 ## Numbers

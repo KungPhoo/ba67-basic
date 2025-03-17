@@ -305,6 +305,8 @@ const bool OsWindowsConsole::isKeyPressed(uint32_t index, bool withShift, bool w
     case uint32_t(Os::KeyConstant::CRSR_RIGHT): index = VK_RIGHT; break;
     case uint32_t(Os::KeyConstant::SCROLL): index = VK_SCROLL; bitmask = 0x0001; break;
     case uint32_t(Os::KeyConstant::PAUSE): index = VK_PAUSE; break;
+    case uint32_t(Os::KeyConstant::SHIFT_LEFT): index = VK_LSHIFT; break;
+    case uint32_t(Os::KeyConstant::SHIFT_RIGHT): index = VK_RSHIFT; break;
     }
 
     bool pressed = ((GetKeyState(int(index)) & bitmask) != 0);
@@ -370,6 +372,12 @@ void OsWindowsConsole::updateKeyboardBuffer() {
             case VK_RIGHT:  key.code = uint32_t(Os::KeyConstant::CRSR_RIGHT); break;
             case VK_UP:     key.code = uint32_t(Os::KeyConstant::CRSR_UP); break;
             case VK_DOWN:   key.code = uint32_t(Os::KeyConstant::CRSR_DOWN); break;
+
+            case VK_SCROLL:   key.code = uint32_t(Os::KeyConstant::SCROLL); break;
+            case VK_PAUSE:   key.code = uint32_t(Os::KeyConstant::PAUSE); break;
+            case VK_LSHIFT:   key.code = uint32_t(Os::KeyConstant::SHIFT_LEFT); break;
+            case VK_RSHIFT:   key.code = uint32_t(Os::KeyConstant::SHIFT_RIGHT); break;
+
             case VK_BACK:   key.code = uint32_t(Os::KeyConstant::BACKSPACE); break;
             case VK_DELETE: key.code = uint32_t(Os::KeyConstant::DEL); break;
             case VK_INSERT: key.code = uint32_t(Os::KeyConstant::INSERT); break;

@@ -55,7 +55,9 @@ public:
         CRSR_RIGHT = 148,
 
         SCROLL = 149,
-        PAUSE = 150
+        PAUSE = 150,
+        SHIFT_LEFT = 151,
+        SHIFT_RIGHT = 152
 
         // 161 start of visible characters in unicode
         // no more than 255
