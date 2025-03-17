@@ -106,25 +106,25 @@ size_t OsFPL::getFreeMemoryInBytes() {
 }
 
 
-static uint32_t emphasizeRGB(uint32_t color, float facR, float facG, float facB, float facDark) {
+static uint32_t emphasizeRGB(uint32_t color, double facR, double facG, double facB, double facDark) {
     uint8_t a = (color >> 24) & 0xFF;
     uint8_t b = (color >> 16) & 0xFF;
     uint8_t g = (color >> 8) & 0xFF;
     uint8_t r = (color) & 0xFF;
 
     // Convert RGB to perceived brightness (luminance)
-    float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+    double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
-    const float brightness = 37.0f; // -200..200
-    const float contrast = 1.5f;  // 0..1
+    const double brightness = 37.0; // -200..200
+    const double contrast = 1.5;  // 0..1
 
 
     // https://ie.nitk.ac.in/blog/2020/01/19/algorithms-for-adjusting-brightness-and-contrast-of-an-image/
-    auto truncate = [](float f) {if (f > 255.0f) { return 255.0f; } if (f < 0.0f) { return 0.0f; } return f; };
-    float factor = (259.0f * (contrast + 255.0f)) / (255.0f * (259.0f - contrast));
-    float new_r = truncate((((r - 128.0f) * contrast) + 128 + brightness) * facR * facDark);
-    float new_g = truncate((((g - 128.0f) * contrast) + 128 + brightness) * facG * facDark);
-    float new_b = truncate((((b - 128.0f) * contrast) + 128 + brightness) * facB * facDark);
+    auto truncate = [](double f) {if (f > 255.0) { return 255.0; } if (f < 0.0) { return 0.0; } return f; };
+    double factor = (259.0f * (contrast + 255.0)) / (255.0 * (259.0 - contrast));
+    double new_r = truncate((((r - 128.0) * contrast) + 128 + brightness) * facR * facDark);
+    double new_g = truncate((((g - 128.0) * contrast) + 128 + brightness) * facG * facDark);
+    double new_b = truncate((((b - 128.0) * contrast) + 128 + brightness) * facB * facDark);
 
     r = (uint8_t)new_r;
     g = (uint8_t)new_g;
@@ -222,12 +222,12 @@ void displayUpdateThread(OsFPL* fpl) {
 
         // simulate a CRT TV with a 3x3 pixel matrix
         for (size_t p = 0; p < 6; ++p) {
-            const float facDark = 0.7f;
-            const float facNeigbour = 0.6f, facNeighbour2 = 0.6f;
-            float r = 1.0f, g = 1.0f, b = 1.0f, darken = 1.0f;
-            if (p == 0 || p == 3) { r = 1.0f;   g = facNeigbour; b = facNeighbour2; }
-            if (p == 1 || p == 4) { r = facNeighbour2;   g = 1.0f;  b = facNeigbour; }
-            if (p == 2 || p == 5) { r = facNeigbour; g = facNeighbour2; b = 1.0f; }
+            const double facDark = 0.7;
+            const double facNeigbour = 0.6, facNeighbour2 = 0.6;
+            double r = 1.0, g = 1.0, b = 1.0, darken = 1.0;
+            if (p == 0 || p == 3) { r = 1.0;   g = facNeigbour; b = facNeighbour2; }
+            if (p == 1 || p == 4) { r = facNeighbour2;   g = 1.0;  b = facNeigbour; }
+            if (p == 2 || p == 5) { r = facNeigbour; g = facNeighbour2; b = 1.0; }
             //        if (p == 3 || p == 7) { r = g = b = 0.95; }
             if (p > 2) { darken = facDark; }
             for (size_t i = 0; i < 16; ++i) {
@@ -239,11 +239,11 @@ void displayUpdateThread(OsFPL* fpl) {
         // screen.updateScreenBitmap();
 
         // Compute scaling factors
-        float scaleX = static_cast<float>(state.videoW) / srcWidth;
-        float scaleY = static_cast<float>(state.videoH) / srcHeight;
-        float scale = std::max(0.25f, std::min(scaleX, scaleY)); // Keep aspect ratio
-        if (scale > 1.0f) {
-            scale = floorf(scale); // scale to full pixels
+        double scaleX = static_cast<double>(state.videoW) / srcWidth;
+        double scaleY = static_cast<double>(state.videoH) / srcHeight;
+        double scale = std::max(0.25, std::min(scaleX, scaleY)); // Keep aspect ratio
+        if (scale > 1.0) {
+            scale = floor(scale); // scale to full pixels
         }
 
         // Compute offset for centered output
