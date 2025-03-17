@@ -1,7 +1,8 @@
-﻿
+﻿#ifdef _WIN32
 #include <Windows.h>
-
 #include "os_windows_console.h"
+#endif
+
 #include "os_fpl.h"
 #include "soundsystem_soloud.h"
 
