@@ -6,6 +6,7 @@
 #include "basic.h"
 #include <thread>
 #include <filesystem>
+#include <cstring>
 
 #ifdef _WIN32
 #include "../resources/resource.h"
