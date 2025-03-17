@@ -196,6 +196,16 @@ public:
         std::vector<Token> body;
     };
 
+
+    class FileHandle {
+    public:
+        FileHandle():pfile(nullptr) {}
+        virtual ~FileHandle() {
+            if (pfile) { fclose(pfile); pfile = nullptr; }
+        }
+        FILE* pfile = nullptr;
+    };
+
     class Module {
     public:
         // listing[-2] = immediate mode argument

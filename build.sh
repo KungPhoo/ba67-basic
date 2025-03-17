@@ -15,7 +15,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ../..
 # Build the project
 make
 
-popd 
+popd
 
 # Optionally install the project
 # sudo make install

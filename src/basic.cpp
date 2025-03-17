@@ -2744,17 +2744,12 @@ void Basic::handleEscapeKey(bool allowPauseWithShift) {
         }
         os->delay(30);
     }
-
 }
 
 // Basic interpreter loop
 void Basic::runInterpreter() {
     currentModule().forStack.clear();
     currentModule().gosubStack.clear();
-
-    // colors
-    // for (int i = 0; i < 16; ++i) { os->setTextColor(i); debug(valueToString((int64_t)i).c_str()); debug("\n"); }
-
 
     std::string line;
     ParseStatus status = ParseStatus::PS_EXECUTED;
