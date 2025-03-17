@@ -6,6 +6,7 @@
 #include "basic.h"
 #include <thread>
 #include <filesystem>
+#include <cmath>
 #include <cstring>
 
 #ifdef _WIN32
