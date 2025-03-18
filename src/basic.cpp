@@ -2595,7 +2595,7 @@ std::string Basic::inputLine(bool allowVertical) {
         handleEscapeKey();
 
         auto key = os->getFromKeyboardBuffer();
-        if (key.code < 0x20) { continue; } // windows sends $09 (ESC) and $10 when I press Ctrl+C, Ctrl+V
+        if (key.code < 0x20 && key.code != U'\n' && key.code != U'\r') { continue; } // windows sends $09 (ESC) and $10 when I press Ctrl+C, Ctrl+V
 
         // if shift is pressed and cursor gets moved, a selection is made
         auto startSel = [&]() {

@@ -1,0 +1,32 @@
+#######################################################################
+#     Diese .htaccess wurde vom STRATO-Webservermanager erstellt      #
+#######################################################################
+
+<Files *.cfg>
+order deny,allow
+deny  from all
+</Files>
+
+<Files *.ini>
+order deny,allow
+deny  from all
+</Files>
+
+<Files pad_file.xml>
+order deny,allow
+allow  from all
+</Files>
+
+# AddType application/x-httpd-php7       .php   
+# AddType application/x-httpd-php4       .php4    
+# AddType application/x-httpd-php5       .php5
+
+AddType text/cache-manifest .appcache
+
+# mod_gzip_on Yes
+
+
+Options -Indexes
+DirectoryIndex index.html
+
+
