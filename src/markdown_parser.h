@@ -6,11 +6,10 @@
 #include <filesystem>
 
 class MarkdownParser {
-public:
+   public:
     MarkdownParser(const std::string& filename);
 
-
-private:
+   private:
     std::string filename;
     std::vector<std::pair<std::string, int>> headings;
     std::vector<std::pair<std::string, std::string>> usageSections;
@@ -23,8 +22,7 @@ private:
     void updateTOC();
 
     void writeHelpInclude(const std::string& path);
-public:
+
+   public:
     static void ParseAndApplyManual();
-
 };
-

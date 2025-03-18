@@ -6,7 +6,7 @@
 class Basic;
 class Os;
 class SoundSystem {
-public:
+   public:
     Os* os = nullptr;
     // play a SFXR sound string in the backgroud
     virtual bool SOUND(int voice, const std::string& parameters) = 0;
@@ -15,22 +15,22 @@ public:
 };
 
 class Os {
-public:
+   public:
     virtual ~Os() {}
 
     // get a timer in ms
-    virtual uint64_t tick()const = 0;
+    virtual uint64_t tick() const = 0;
 
     // delay for some time
-    virtual void delay(int ms)const;
+    virtual void delay(int ms) const;
 
-    enum class KeyConstant: uint32_t {
+    enum class KeyConstant : uint32_t {
         ESCAPE = 27,
-        BACKSPACE = '\b', // 8
-        RETURN = '\r', // 13
-        NUM_ENTER = '\n', // 10
+        BACKSPACE = '\b',  // 8
+        RETURN = '\r',     // 13
+        NUM_ENTER = '\n',  // 10
         // 65..126 printable ASCII characters
-        DEL = 127, // WinNt.h defines DELETE
+        DEL = 127,  // WinNt.h defines DELETE
         F1 = 128,
         F2 = 129,
         F3 = 130,
@@ -69,16 +69,15 @@ public:
     // --- SCREEN ---
     // Screen buffer
     ScreenBuffer screen{};
-    virtual void presentScreen() = 0; // copy offscreen buffer to visible window
+    virtual void presentScreen() = 0;  // copy offscreen buffer to visible window
     virtual void setBorderColor(int colorIndex) {};
     virtual size_t getFreeMemoryInBytes() { return 122365; }
-
 
     // --- KEYBOARD ---
     // non-blocking keyboard status. The index is either the ASCII
     // key name or one of KeyConstant.
-    virtual const bool isKeyPressed(uint32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false)const = 0;
-    virtual const bool isKeyPressed(KeyConstant k, bool withShift = false, bool withAlt = false, bool withCtrl = false)const { return isKeyPressed(uint32_t(k), withShift, withAlt, withCtrl); }
+    virtual const bool isKeyPressed(uint32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false) const = 0;
+    virtual const bool isKeyPressed(KeyConstant k, bool withShift = false, bool withAlt = false, bool withCtrl = false) const { return isKeyPressed(uint32_t(k), withShift, withAlt, withCtrl); }
 
     // implement this to put new characters in the keyboard buffer,
     // when they are pressed. The framework will call this like every frame or so.
@@ -89,16 +88,20 @@ public:
     virtual bool keyboardBufferHasData();
 
     class KeyPress {
-    public:
+       public:
         KeyPress() = default;
         KeyPress(const KeyPress&) = default;
         KeyPress& operator=(const KeyPress&) = default;
-        KeyPress(uint32_t character): KeyPress() { code = character; printable = true; }
+        KeyPress(uint32_t character)
+            : KeyPress() {
+            code = character;
+            printable = true;
+        }
 
         // utf32 representation of the input character, or one of KeyConstant.
         // Provides both, upper and lowercase.
         uint32_t code = 0;
-        bool printable = false; // true: visible character, false: cursor keys etc.
+        bool printable = false;  // true: visible character, false: cursor keys etc.
         bool holdShift = false;
         bool holdAlt = false;
         bool holdCtrl = false;
@@ -112,11 +115,9 @@ public:
     // pushes a keypress to the keyboard buffer. Drops overflow keys.
     virtual void putToKeyboardBuffer(Os::KeyPress key);
 
-
     // get/set utf8 clipbard text data
-    virtual std::string getClipboardData() { return{}; }
+    virtual std::string getClipboardData() { return {}; }
     virtual void setClipboardData(const std::string utf8) { (void)utf8; };
-
 
     // --- FILE SYSTEM ---
     // utf-8 strings. Directory separator is '/'
@@ -134,13 +135,13 @@ public:
 
     // --- SOUND SYSTEM ---
     SoundSystem& soundSystem();
-protected:
+
+   protected:
     Basic* basic = nullptr;
     int foregnd = 1, bkgnd = 0;
     std::vector<Os::KeyPress> keyboardBuffer;
     SoundSystem* sound = nullptr;
-private:
+
+   private:
     bool initialized = false;
 };
-
-

@@ -1,6 +1,5 @@
 #include <string>
 class Help {
-public:
+   public:
     static std::string getUsage(const std::string& command);
-
 };

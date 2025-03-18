@@ -9,12 +9,11 @@
 #include <array>
 #include <functional>
 
-
 class Os;
 class SoundSystem;
 
 class Basic {
-public:
+   public:
     Os* os;
 
     Basic(Os& os, SoundSystem* ss = nullptr);
@@ -22,7 +21,7 @@ public:
 
     // Variable types
     class Operator {
-    public:
+       public:
         Operator() = default;
         Operator(const Operator&) = default;
         Operator(const std::string& s) { value = s; }
@@ -30,7 +29,7 @@ public:
         std::string value;
     };
 
-#if 0 // _DEBUG
+#if 0  // _DEBUG
 
     class Value: public std::variant<int64_t, double, std::string, Operator> {
     public:
@@ -73,49 +72,36 @@ public:
     using Value = std::variant<int64_t, double, std::string, Operator>;
 #endif
 
-
-
     enum class ErrorId {
-        INTERNAL = 1
-        , SYNTAX
-        , FILE_NOT_FOUND
-        , ILLEGAL_DEVICE
-        , UNDEFD_STATEMENT
-        , TYPE_MISMATCH
-        , ILLEGAL_QUANTITY
-        , BAD_SUBSCRIPT // out of dim bounds
-        , UNIMPLEMENTED_COMMAND
-        , OUT_OF_DATA
-        , RETURN_WITHOUT_GOSUB
+        INTERNAL = 1,
+        SYNTAX,
+        FILE_NOT_FOUND,
+        ILLEGAL_DEVICE,
+        UNDEFD_STATEMENT,
+        TYPE_MISMATCH,
+        ILLEGAL_QUANTITY,
+        BAD_SUBSCRIPT  // out of dim bounds
+        ,
+        UNIMPLEMENTED_COMMAND,
+        OUT_OF_DATA,
+        RETURN_WITHOUT_GOSUB
 
         // these are not from BASIC V7
-        , BREAK
-        , UNDEFD_MODULE
-        , ARGUMENT_COUNT = 101
-        , VARIABLE_UNDEFINED
+        ,
+        BREAK,
+        UNDEFD_MODULE,
+        ARGUMENT_COUNT = 101,
+        VARIABLE_UNDEFINED
     };
 
     std::map<ErrorId, std::string> errorMessages = {
-          {ErrorId::SYNTAX                 , "SYNTAX ERROR"}
-        , {ErrorId::FILE_NOT_FOUND         , "FILE NOT FOUND ERROR"}
-        , {ErrorId::ILLEGAL_DEVICE         , "ILLEGAL DEVICE ERROR"}
-        , {ErrorId::UNDEFD_STATEMENT       , "UNDEF'D STATEMENT ERROR"}
-        , {ErrorId::TYPE_MISMATCH          , "TYPE MISTMATCH ERROR"}
-        , {ErrorId::ILLEGAL_QUANTITY       , "ILLEGAL QUANTITY ERROR"}
-        , {ErrorId::BAD_SUBSCRIPT          , "BAD SUBSCRIPT ERROR"}
-        , {ErrorId::UNIMPLEMENTED_COMMAND  , "UNIMPLEMENTED COMMAND ERROR"}
-        , {ErrorId::OUT_OF_DATA            , "OUT OF DATA ERROR"}
-        , {ErrorId::RETURN_WITHOUT_GOSUB   , "RETURN WITHOUT GOSUB"}
-        , {ErrorId::BREAK                  , "BREAK"}
-        , {ErrorId::UNDEFD_MODULE          , "UNDEFD MODULE ERROR"}
-        , {ErrorId::ARGUMENT_COUNT         , "ARGUMENT COUNT ERROR"}
-        , {ErrorId::VARIABLE_UNDEFINED     , "VARIABLE UNDEFINED ERROR"}
-    };
+        {ErrorId::SYNTAX, "SYNTAX ERROR"}, {ErrorId::FILE_NOT_FOUND, "FILE NOT FOUND ERROR"}, {ErrorId::ILLEGAL_DEVICE, "ILLEGAL DEVICE ERROR"}, {ErrorId::UNDEFD_STATEMENT, "UNDEF'D STATEMENT ERROR"}, {ErrorId::TYPE_MISMATCH, "TYPE MISTMATCH ERROR"}, {ErrorId::ILLEGAL_QUANTITY, "ILLEGAL QUANTITY ERROR"}, {ErrorId::BAD_SUBSCRIPT, "BAD SUBSCRIPT ERROR"}, {ErrorId::UNIMPLEMENTED_COMMAND, "UNIMPLEMENTED COMMAND ERROR"}, {ErrorId::OUT_OF_DATA, "OUT OF DATA ERROR"}, {ErrorId::RETURN_WITHOUT_GOSUB, "RETURN WITHOUT GOSUB"}, {ErrorId::BREAK, "BREAK"}, {ErrorId::UNDEFD_MODULE, "UNDEFD MODULE ERROR"}, {ErrorId::ARGUMENT_COUNT, "ARGUMENT COUNT ERROR"}, {ErrorId::VARIABLE_UNDEFINED, "VARIABLE UNDEFINED ERROR"}};
 
     class Error {
-    public:
+       public:
         Error(ErrorId id) {
-            if (id != ErrorId::BREAK) {
+            if (id != ErrorId::BREAK)
+            {
                 int stop = 1;
             }
             ID = id;
@@ -125,19 +111,23 @@ public:
         ErrorId ID;
     };
 
-
-protected:
+   protected:
     std::set<std::string> keywords;
-
-
 
     // Token types
     enum class TokenType {
-        NUMBER, INTEGER, STRING, IDENTIFIER/*variable name*/,
-        OPERATOR, UNARY_OPERATOR,
-        KEYWORD, COMMAND,
-        PARENTHESIS, COMMA,
-        MODULE, FILEHANDLE,
+        NUMBER,
+        INTEGER,
+        STRING,
+        IDENTIFIER /*variable name*/,
+        OPERATOR,
+        UNARY_OPERATOR,
+        KEYWORD,
+        COMMAND,
+        PARENTHESIS,
+        COMMA,
+        MODULE,
+        FILEHANDLE,
 
         END
     };
@@ -148,29 +138,25 @@ protected:
         std::string value;
     };
 
-
-
-public:
-    using cmdpointer = std::function< void(Basic*, const std::vector<Value>&) >; // PRINT
-    using fktpointer = std::function<Value(Basic*, const std::vector<Value>&) >; // MID$()
-
+   public:
+    using cmdpointer = std::function<void(Basic*, const std::vector<Value>&)>;   // PRINT
+    using fktpointer = std::function<Value(Basic*, const std::vector<Value>&)>;  // MID$()
 
     std::unordered_map<std::string, cmdpointer> commands;
     std::unordered_map<std::string, fktpointer> functions;
-    std::array<uint8_t, 0x1000> memory; // for PEEK&POKE - no other use
-
-
+    std::array<uint8_t, 0x1000> memory;  // for PEEK&POKE - no other use
 
     struct ArrayIndex {
         ArrayIndex() = default;
         ArrayIndex(const ArrayIndex&) = default;
         ArrayIndex& operator=(const ArrayIndex&) = default;
-        ArrayIndex(size_t a, size_t b = 0, size_t c = 0, size_t d = 0): index{a, b, c, d} {}
+        ArrayIndex(size_t a, size_t b = 0, size_t c = 0, size_t d = 0)
+            : index{a, b, c, d} {}
         std::array<size_t, 4> index = {};
     };
     struct Array {
         std::vector<Value> data;
-        ArrayIndex bounds = {}; // 5 = [0..4]
+        ArrayIndex bounds = {};  // 5 = [0..4]
 
         // dim a(4) = (0..4)
         void dim(size_t i0, size_t i1 = 0, size_t i2 = 0, size_t i3 = 0);
@@ -181,7 +167,7 @@ public:
     struct ProgramCounter {
         std::map<int, std::string>::iterator line;
         size_t position;
-    } ;
+    };
 
     // Loop stack for nested FOR loops
     struct ForLoop {
@@ -198,12 +184,16 @@ public:
         std::vector<Token> body;
     };
 
-
     class FileHandle {
-    public:
-        FileHandle():pfile(nullptr) {}
+       public:
+        FileHandle()
+            : pfile(nullptr) {}
         virtual ~FileHandle() {
-            if (pfile) { fclose(pfile); pfile = nullptr; }
+            if (pfile)
+            {
+                fclose(pfile);
+                pfile = nullptr;
+            }
         }
         FILE* pfile = nullptr;
     };
@@ -211,23 +201,23 @@ public:
     size_t currentFileNo = 0;
 
     class Module {
-    public:
+       public:
         // listing[-2] = immediate mode argument
         // listing[-1] = "END"
-        std::map<int, std::string> listing; // [basic number] = line
+        std::string filenameQSAVE;
+        std::map<int, std::string> listing;  // [basic number] = line
         std::unordered_map<std::string, Value> variables;
         std::unordered_map<std::string, Array> arrays;
         std::vector<ForLoop> forStack;
         std::vector<ProgramCounter> gosubStack;
         std::unordered_map<std::string, FunctionDefinition> functionTable;
-        size_t autoNumbering = 0; // set this value with AUTO
+        size_t autoNumbering = 0;  // set this value with AUTO
         int64_t lastEnteredLineNumber = 0;
 
         ProgramCounter programCounter = {listing.end(), 0};
 
-
         ProgramCounter readDataPosition = {listing.begin(), 0};
-        int readDataIndex = 0; // from the data at readDataPosition, read the readDataIndex's element next
+        int readDataIndex = 0;  // from the data at readDataPosition, read the readDataIndex's element next
 
         bool fastMode = true;
         bool traceOn = false;
@@ -244,14 +234,11 @@ public:
         }
     };
 
+    std::map<std::string, Module> modules;                                     // modules currently in memory
+    std::vector<std::map<std::string, Module>::iterator> moduleVariableStack;  // entered modules - this is for the variable space
+    std::vector<std::map<std::string, Module>::iterator> moduleListingStack;   // entered modules - this is for the listing and program counter
 
-
-
-    std::map<std::string, Module> modules; // modules currently in memory
-    std::vector<std::map<std::string, Module>::iterator> moduleVariableStack; // entered modules - this is for the variable space
-    std::vector<std::map<std::string, Module>::iterator> moduleListingStack; // entered modules - this is for the listing and program counter
-
-    int colorForModule(const std::string& str)const;
+    int colorForModule(const std::string& str) const;
 
     // pointer to the current program counter
     // this one might differ from the currentModule().programCounter!
@@ -269,12 +256,11 @@ public:
     // PRINT a            MAIN  MAIN
     // ProgramCounter* programCounter; // the position in the current listing
 
-    Module& currentModule() { return moduleVariableStack.back()->second; } // the module (variable space) to work in
+    Module& currentModule() { return moduleVariableStack.back()->second; }  // the module (variable space) to work in
     std::map<int, std::string>& currentListing() { return moduleListingStack.back()->second.listing; }
     ProgramCounter& programCounter() { return moduleListingStack.back()->second.programCounter; }
 
-
-public:
+   public:
     // Represent value as string
     static std::string valueToString(const Value& v);
     static double valueToDouble(const Value& v);
@@ -285,10 +271,10 @@ public:
     static bool isEndOfWord(char c);
     static const char* skipWhite(const char*& str);
     static bool parseDouble(const char*& str, double* number = nullptr);
-    static bool parseInt(const char*& str, int64_t* number = nullptr); // int - not a double! "1.23" returns false
+    static bool parseInt(const char*& str, int64_t* number = nullptr);  // int - not a double! "1.23" returns false
     static bool parseFileHandle(const char*& str, std::string* number = nullptr);
-    static int64_t strToInt(const std::string& str); // parses "255" and "$ff"
-protected:
+    static int64_t strToInt(const std::string& str);  // parses "255" and "$ff"
+   protected:
     bool parseKeyword(const char*& str, std::string* keyword = nullptr);
     bool parseCommand(const char*& str, std::string* command = nullptr);
     bool parseString(const char*& str, std::string* stringUnquoted);
@@ -307,7 +293,6 @@ protected:
     std::vector<Value> evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd = nullptr);
 
     static ArrayIndex indexFromValues(const std::vector<Value>& vals);
-
 
     void EndAndPopModule();
 
@@ -328,7 +313,7 @@ protected:
 
     void handleKEY(const std::vector<Token>& tokens);
 
-    char valuePostfix(const Token& t)const; // returns '#', '%', '$'
+    char valuePostfix(const Token& t) const;  // returns '#', '%', '$'
 
     // find asignable value from 'a' or arr(1+3). returns nullptr on error
     Value* findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr);
@@ -354,11 +339,10 @@ protected:
     void updateConstantVariables();
     void executeTokens(std::vector<Token>& tokens);
 
+    std::array<std::string, 12> keyShortcuts;  // F1..F12 key shortcuts. Set with KEY command
+    bool insertMode = false;                   // insert/overwrite Shift+INS
 
-    std::array<std::string, 12> keyShortcuts; // F1..F12 key shortcuts. Set with KEY command
-    bool insertMode = false; // insert/overwrite Shift+INS
-
-public:
+   public:
     bool isCursorActive = true;
 
     void uppercaseProgram(std::string& line);
@@ -372,7 +356,8 @@ public:
     enum class ParseStatus {
         PS_ERROR = 0,
         PS_EXECUTED,
-        PS_PROGRAMMED
+        PS_PROGRAMMED,
+        PS_IDLE  // just pressed enter
     };
     void restoreColorsAndCursor(bool resetFont);
     ParseStatus parseInput(const char* pline);
@@ -386,9 +371,8 @@ public:
 
     std::string findFirstFileNameWildcard(std::string filenameUtf8, bool isDirectory = false);
     FILE* fopenUtf8(const std::string& filenameUtf8, const char* mode);
-    bool loadProgram(std::string filenameUtf8);
+    bool loadProgram(const char* filenameUtf8);
+    bool loadProgram(std::string& inOutFilenameUtf8);
     bool saveProgram(std::string filenameUtf8);
     bool fileExists(const std::string& filenameUtf8, bool allowWildCard);
-
 };
-

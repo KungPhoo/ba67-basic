@@ -11,11 +11,10 @@
 #include <array>
 
 #ifdef _WIN32
-#include "../resources/resource.h"
+    #include "../resources/resource.h"
 #endif
 
 void displayUpdateThread(OsFPL* fpl);
-
 
 OsFPL::~OsFPL() {
     screenLock.lock();
@@ -35,18 +34,17 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     strcpy(settings.window.title, "BA67 BASIC");
     settings.window.fullscreenRefreshRate = 30;
 
-    settings.video.isAutoSize = false; // we resize ourself
+    settings.video.isAutoSize = false;  // we resize ourself
 
     settings.video.backend = fplVideoBackendType_Software;
     // settings.window.icons[0] // TODO icons
 
     if (!fplPlatformInit(
-        /*fplInitFlags_Console | fplInitFlags_Audio |*/ fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_GameController,
-        &settings)) {
+            /*fplInitFlags_Console | fplInitFlags_Audio |*/ fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_GameController,
+            &settings))
+    {
         return false;
     }
-
-
 
 #ifdef _WIN32
     fpl__PlatformAppState* appState = fpl__global__AppState;
@@ -60,9 +58,11 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
 
     wchar_t* user = nullptr;
     size_t len = 0;
-    if (0 == _wdupenv_s(&user, &len, L"USERPROFILE") && user != nullptr) {
+    if (0 == _wdupenv_s(&user, &len, L"USERPROFILE") && user != nullptr)
+    {
         std::wstring home = user;
-        free(user); user = nullptr;
+        free(user);
+        user = nullptr;
         home += L"\\Documents";
         ::CreateDirectoryW(home.c_str(), NULL);
         home += L"\\BASIC";
@@ -73,14 +73,17 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     char homepath[1024] = {};
     fplGetHomePath(homepath, 1024);
     std::string home = homepath;
-    for (auto& c : home) {
+    for (auto& c : home)
+    {
         if (c == '\\') { c = '/'; }
     }
 
-    if (doesFileExist(home) && isDirectory(home)) {
+    if (doesFileExist(home) && isDirectory(home))
+    {
         setCurrentDirectory(home);
         home += "/BASIC";
-        if (!doesFileExist(home)) {
+        if (!doesFileExist(home))
+        {
             std::filesystem::create_directory("BASIC");
         }
         setCurrentDirectory(home);
@@ -107,7 +110,6 @@ size_t OsFPL::getFreeMemoryInBytes() {
     return mem.freePhysicalSize;
 }
 
-
 static uint32_t emphasizeRGB(uint32_t color, double facR, double facG, double facB, double facDark) {
     uint8_t a = (color >> 24) & 0xFF;
     uint8_t b = (color >> 16) & 0xFF;
@@ -117,9 +119,8 @@ static uint32_t emphasizeRGB(uint32_t color, double facR, double facG, double fa
     // Convert RGB to perceived brightness (luminance)
     double luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
-    const double brightness = 37.0; // -200..200
-    const double contrast = 1.5;  // 0..1
-
+    const double brightness = 37.0;  // -200..200
+    const double contrast = 1.5;     // 0..1
 
     // https://ie.nitk.ac.in/blog/2020/01/19/algorithms-for-adjusting-brightness-and-contrast-of-an-image/
     auto truncate = [](double f) {if (f > 255.0) { return 255.0; } if (f < 0.0) { return 0.0; } return f; };
@@ -135,34 +136,39 @@ static uint32_t emphasizeRGB(uint32_t color, double facR, double facG, double fa
     return (a << 24) | (b << 16) | (g << 8) | r;
 }
 
-
-
 void displayUpdateThread(OsFPL* fpl) {
     bool dirty = true;
-    std::array<std::array<uint32_t, 16>, 6> palettes; // [r,g,b, dark r,g,b]
+    std::array<std::array<uint32_t, 16>, 6> palettes;  // [r,g,b, dark r,g,b]
     OsFPL::Buffered state;
     // std::vector<uint8_t> pixelsPal; // what's actually drawn
 
     bool oldCursorVisible = false;
-    uint64_t nextShowCursor = 0; // blink time
-    constexpr size_t srcWidth = ScreenInfo::pixX;  // ScreenBitmap width (80x8)
-    constexpr size_t srcHeight = ScreenInfo::pixY; // ScreenBitmap height (25x16)
+    uint64_t nextShowCursor = 0;                    // blink time
+    constexpr size_t srcWidth = ScreenInfo::pixX;   // ScreenBitmap width (80x8)
+    constexpr size_t srcHeight = ScreenInfo::pixY;  // ScreenBitmap height (25x16)
 
     static int passes = 0;
     bool cursorVisible = true;
     // for (int inthread = 1; inthread == 1; ++inthread) {
-    for (;;) {
+    for (;;)
+    {
         // == UPDATE STATE ==
         fpl->screenLock.lock();
-        if (fpl->buffered.stopThread) { fpl->screenLock.unlock(); return; }
+        if (fpl->buffered.stopThread)
+        {
+            fpl->screenLock.unlock();
+            return;
+        }
 
         if (!dirty) { dirty = fpl->buffered.screen.dirtyFlag; }
-        if (dirty) {
-            state = fpl->buffered; // copy to thread data - this way we don't need to lock the main thread for drawing
+        if (dirty)
+        {
+            state = fpl->buffered;  // copy to thread data - this way we don't need to lock the main thread for drawing
             fpl->buffered.screen.dirtyFlag = false;
             nextShowCursor = 0;
         }
-        if (state.videoH * state.videoW != fpl->pixelsVideo.size()) {
+        if (state.videoH * state.videoW != fpl->pixelsVideo.size())
+        {
             fpl->pixelsVideo.resize(state.videoH * state.videoW);
             dirty = true;
         }
@@ -172,13 +178,15 @@ void displayUpdateThread(OsFPL* fpl) {
         const uint64_t flashSpeed = 560;
         uint64_t now = fplMillisecondsQuery();
 
-        if (now > nextShowCursor) {
+        if (now > nextShowCursor)
+        {
             nextShowCursor = now + flashSpeed;
             cursorVisible = !cursorVisible;
             dirty = true;
         }
 
-        if (!dirty) {
+        if (!dirty)
+        {
             fplThreadSleep(15);
             continue;
         }
@@ -191,61 +199,82 @@ void displayUpdateThread(OsFPL* fpl) {
         // make a deep copy of the pixel buffer - we optionally overwrite the blinking cursor
         // pixelsPal = state.screen.screenBitmap.pixelsPal;
 
-        if (state.isCursorActive) {
+        if (state.isCursorActive)
+        {
             auto crsr = state.screen.getCursorPos();
-            if (cursorVisible
-                && crsr.x < ScreenBuffer::width
-                && crsr.y < ScreenBuffer::height) {
-
+            if (cursorVisible && crsr.x < ScreenBuffer::width && crsr.y < ScreenBuffer::height)
+            {
                 auto sc = state.screen.getLineBuffer()[crsr.y]->cols[crsr.x];
                 uint8_t bkcol = sc.col;
                 uint8_t txcol = bkcol & 0x0f;
                 bkcol >>= 4;
-                if (sc.ch == U'\0') {
+                if (sc.ch == U'\0')
+                {
                     txcol = state.screen.getTextColor();
                     bkcol = state.screen.getBackgroundColor();
                 }
-                if (txcol == bkcol) {
+                if (txcol == bkcol)
+                {
                     txcol = 1;
                     bkcol = 0;
                 }
 
-                for (size_t y = 0; y < ScreenInfo::charPixY; ++y) {
+                for (size_t y = 0; y < ScreenInfo::charPixY; ++y)
+                {
                     uint8_t* pdest = &state.screen.screenBitmap.pixelsPal[(y + crsr.y * ScreenInfo::charPixY) * srcWidth + crsr.x * ScreenInfo::charPixX];
-                    for (size_t x = 0; x < 8; ++x) {
-                        if (*pdest == bkcol) { *pdest = txcol; } else { *pdest = bkcol; }
+                    for (size_t x = 0; x < 8; ++x)
+                    {
+                        if (*pdest == bkcol) { *pdest = txcol; }
+                        else { *pdest = bkcol; }
                         ++pdest;
                     }
                 }
             }
         }
 
-
-
         // == DRAW ==
 
         // simulate a CRT TV with a 3x3 pixel matrix
-    #ifdef BA67_GRAPHICS_CRT_EMULATION_ON
-        for (size_t p = 0; p < 6; ++p) {
+#ifdef BA67_GRAPHICS_CRT_EMULATION_ON
+        for (size_t p = 0; p < 6; ++p)
+        {
             const double facDark = 0.7;
             const double facNeigbour = 0.6, facNeighbour2 = 0.6;
             double r = 1.0, g = 1.0, b = 1.0, darken = 1.0;
-            if (p == 0 || p == 3) { r = 1.0;   g = facNeigbour; b = facNeighbour2; }
-            if (p == 1 || p == 4) { r = facNeighbour2;   g = 1.0;  b = facNeigbour; }
-            if (p == 2 || p == 5) { r = facNeigbour; g = facNeighbour2; b = 1.0; }
+            if (p == 0 || p == 3)
+            {
+                r = 1.0;
+                g = facNeigbour;
+                b = facNeighbour2;
+            }
+            if (p == 1 || p == 4)
+            {
+                r = facNeighbour2;
+                g = 1.0;
+                b = facNeigbour;
+            }
+            if (p == 2 || p == 5)
+            {
+                r = facNeigbour;
+                g = facNeighbour2;
+                b = 1.0;
+            }
             //        if (p == 3 || p == 7) { r = g = b = 0.95; }
             if (p > 2) { darken = facDark; }
-            for (size_t i = 0; i < 16; ++i) {
+            for (size_t i = 0; i < 16; ++i)
+            {
                 palettes[p][i] = emphasizeRGB(state.screen.palette[i], r, g, b, darken);
             }
         }
-    #else
-        for (size_t p = 0; p < 6; ++p) {
-            for (size_t i = 0; i < 16; ++i) {
+#else
+        for (size_t p = 0; p < 6; ++p)
+        {
+            for (size_t i = 0; i < 16; ++i)
+            {
                 palettes[p][i] = state.screen.palette[i]);
             }
         }
-    #endif
+#endif
 
         // we don't access the RGB buffer - we use the colour indices
         // screen.updateScreenBitmap();
@@ -253,9 +282,10 @@ void displayUpdateThread(OsFPL* fpl) {
         // Compute scaling factors
         double scaleX = static_cast<double>(state.videoW) / srcWidth;
         double scaleY = static_cast<double>(state.videoH) / srcHeight;
-        double scale = std::max(0.25, std::min(scaleX, scaleY)); // Keep aspect ratio
-        if (scale > 1.0) {
-            scale = floor(scale); // scale to full pixels
+        double scale = std::max(0.25, std::min(scaleX, scaleY));  // Keep aspect ratio
+        if (scale > 1.0)
+        {
+            scale = floor(scale);  // scale to full pixels
         }
 
         // Compute offset for centered output
@@ -264,30 +294,31 @@ void displayUpdateThread(OsFPL* fpl) {
         size_t offsetX = (state.videoW - scaledWidth) / 2;
         size_t offsetY = (state.videoH - scaledHeight) / 2;
 
-
         // Nearest-neighbor scaling loop
         fpl->videoLock.lock();
-        for (int y = 0; y < int(state.videoH); ++y) {
-
+        for (int y = 0; y < int(state.videoH); ++y)
+        {
             uint32_t* pdest = &fpl->pixelsVideo[0] + y * state.videoW;
 
             size_t srcY = std::min(static_cast<size_t>((y - offsetY) / scale), srcHeight - 1);
-            for (size_t x = 0; x < state.videoW; ++x) {
+            for (size_t x = 0; x < state.videoW; ++x)
+            {
                 // Map screen coordinates to original ScreenBitmap using nearest-neighbor
                 size_t srcX = std::min(static_cast<size_t>((x - offsetX) / scale), srcWidth - 1);
 
                 // Default background if outside scaled region
-                uint8_t color = state.screen.getBorderColor(); // Transparent or black
+                uint8_t color = state.screen.getBorderColor();  // Transparent or black
 
                 // Only sample from ScreenBitmap if inside scaled bounds
                 if (x >= offsetX && x < offsetX + scaledWidth &&
-                    y >= offsetY && y < offsetY + scaledHeight) {
+                    y >= offsetY && y < offsetY + scaledHeight)
+                {
                     color = state.screen.screenBitmap.pixelsPal[srcY * srcWidth + srcX];
                 }
 
                 // buffer->pixels[y * buffer->width + x] = color;
                 size_t pal = (x % 3);
-                if ((y % 3) == 2) { pal += 3; } // dark row
+                if ((y % 3) == 2) { pal += 3; }  // dark row
                 *pdest++ = palettes[pal][color];
             }
         }
@@ -300,10 +331,8 @@ void displayUpdateThread(OsFPL* fpl) {
     }
 }
 
-
-
 void OsFPL::presentScreen() {
-    updateKeyboardBuffer(); // pump win32 messages
+    updateKeyboardBuffer();  // pump win32 messages
     static uint64_t nextPresend = 0;
     uint64_t now = tick();
     if (nextPresend > now) { return; }
@@ -315,10 +344,12 @@ void OsFPL::presentScreen() {
     fplWindowSize windowsz{0, 0};
     fplGetWindowSize(&windowsz);
     fplVideoBackBuffer* buffer = fplGetVideoBackBuffer();
-    if (buffer != nullptr) {
+    if (buffer != nullptr)
+    {
         buffered.videoH = buffer->height;
         buffered.videoW = buffer->width;
-        if (buffer->width != windowsz.width || buffer->height != windowsz.height) {
+        if (buffer->width != windowsz.width || buffer->height != windowsz.height)
+        {
             screen.dirtyFlag = true;
             buffered.imageCreated = false;
             fplResizeVideoBackBuffer(windowsz.width, windowsz.height);
@@ -326,26 +357,27 @@ void OsFPL::presentScreen() {
         }
     }
 
-    if (buffered.imageCreated) {
+    if (buffered.imageCreated)
+    {
         buffered.imageCreated = false;
         videoLock.lock();
-        if (buffer != nullptr && buffer->pixels != nullptr && buffer->width * buffer->height == pixelsVideo.size()) {
+        if (buffer != nullptr && buffer->pixels != nullptr && buffer->width * buffer->height == pixelsVideo.size())
+        {
             memcpy(buffer->pixels, &pixelsVideo[0], sizeof(uint32_t) * pixelsVideo.size());
         }
         videoLock.unlock();
         fplVideoFlip();
     }
 
-    if (screen.dirtyFlag) {
+    if (screen.dirtyFlag)
+    {
         ScreenBuffer::copyWithLock(buffered.screen, screen);
         screen.dirtyFlag = false;
     }
     buffered.isCursorActive = basic->isCursorActive;
     screenLock.unlock();
 
-
     // displayUpdateThread(this); return;
-
 
 #if 0
     return;
@@ -466,7 +498,8 @@ void OsFPL::updateKeyboardBuffer() {
     static auto lastTick = tick();
     auto tickNow = tick();
     auto deltaTick = tickNow - lastTick;
-    if (deltaTick < 16) {
+    if (deltaTick < 16)
+    {
         delay(int(deltaTick));
         lastTick = tickNow;
     }
@@ -475,45 +508,57 @@ void OsFPL::updateKeyboardBuffer() {
     fplGetWindowSize(&sz);
 
     // it seems fplWindowEventType_Closed is never fired
-    if (sz.width == 0) {
+    if (sz.width == 0)
+    {
         exit(0);
     }
 
     static KeyPress lastCharPress = {};
 
     fplEvent event;
-    while (fplPollEvent(&event)) {
-        if (event.type == fplEventType_Window) {
-            if (event.window.type == fplWindowEventType_Closed) {
+    while (fplPollEvent(&event))
+    {
+        if (event.type == fplEventType_Window)
+        {
+            if (event.window.type == fplWindowEventType_Closed)
+            {
                 exit(0);
             }
 
-            if (event.window.type == fplWindowEventType_Restored
-                || event.window.type == fplWindowEventType_Maximized) {
+            if (event.window.type == fplWindowEventType_Restored || event.window.type == fplWindowEventType_Maximized)
+            {
                 fplResizeVideoBackBuffer(sz.width, sz.height);
             }
         }
 
-        if (event.type == fplEventType_Keyboard) {
+        if (event.type == fplEventType_Keyboard)
+        {
             KeyPress keyPress;
             keyPress.holdShift = event.keyboard.modifiers & fplKeyboardModifierFlags_LShift;
             keyPress.holdCtrl = event.keyboard.modifiers & fplKeyboardModifierFlags_LCtrl;
             keyPress.holdAlt = event.keyboard.modifiers & fplKeyboardModifierFlags_LAlt;
             keyPress.code = uint32_t(event.keyboard.keyCode);
 
-            if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Release) {
+            if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Release)
+            {
                 lastCharPress.code = 0;
             }
 
-            if (event.keyboard.type == fplKeyboardEventType_Input) {
+            if (event.keyboard.type == fplKeyboardEventType_Input)
+            {
                 keyPress.printable = true;
                 putToKeyboardBuffer(keyPress);
                 lastCharPress = keyPress;
-            } else if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Repeat) {
-                if (lastCharPress.code != 0) {
+            }
+            else if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Repeat)
+            {
+                if (lastCharPress.code != 0)
+                {
                     putToKeyboardBuffer(lastCharPress);
                 }
-            } else if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Press) {
+            }
+            else if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Press)
+            {
                 // keyPress.code = 0;
                 keyPress.printable = false;
 
@@ -523,57 +568,119 @@ void OsFPL::updateKeyboardBuffer() {
                 // case fplKey_Return:   keyPress.code = uint32_t(KeyConstant::RETURN); break;
                 // case fplKey_KPEnter:  yPress.code = uint32_t(KeyConstant::NUM_ENTER); break;
                 // case fplKey_Escape:   keyPress.code = uint32_t(KeyConstant::ESCAPE); break;
-                switch (event.keyboard.keyCode) {
-                case fplKey_Delete:   keyPress.code = uint32_t(KeyConstant::DEL); repeatable = true; break;
-                case fplKey_F1:       keyPress.code = uint32_t(KeyConstant::F1); break;
-                case fplKey_F2:       keyPress.code = uint32_t(KeyConstant::F2); break;
-                case fplKey_F3:       keyPress.code = uint32_t(KeyConstant::F3); break;
-                case fplKey_F4:       keyPress.code = uint32_t(KeyConstant::F4); break;
-                case fplKey_F5:       keyPress.code = uint32_t(KeyConstant::F5); break;
-                case fplKey_F6:       keyPress.code = uint32_t(KeyConstant::F6); break;
-                case fplKey_F7:       keyPress.code = uint32_t(KeyConstant::F7); break;
-                case fplKey_F8:       keyPress.code = uint32_t(KeyConstant::F8); break;
-                case fplKey_F9:       keyPress.code = uint32_t(KeyConstant::F9); break;
-                case fplKey_F10:      keyPress.code = uint32_t(KeyConstant::F10); break;
-                case fplKey_F11:      keyPress.code = uint32_t(KeyConstant::F11); break;
-                case fplKey_F12:      keyPress.code = uint32_t(KeyConstant::F12); break;
-                case fplKey_Home:     keyPress.code = uint32_t(KeyConstant::HOME); break;
-                case fplKey_Insert:   keyPress.code = uint32_t(KeyConstant::INSERT); repeatable = true; break;
-                case fplKey_End:      keyPress.code = uint32_t(KeyConstant::END); break;
-                case fplKey_PageUp:   keyPress.code = uint32_t(KeyConstant::PG_UP);  repeatable = true; break;
-                case fplKey_PageDown: keyPress.code = uint32_t(KeyConstant::PG_DOWN);  repeatable = true; break;
-                case fplKey_Up:       keyPress.code = uint32_t(KeyConstant::CRSR_UP);  repeatable = true; break;
-                case fplKey_Down:     keyPress.code = uint32_t(KeyConstant::CRSR_DOWN);  repeatable = true; break;
-                case fplKey_Left:     keyPress.code = uint32_t(KeyConstant::CRSR_LEFT);  repeatable = true; break;
-                case fplKey_Right:    keyPress.code = uint32_t(KeyConstant::CRSR_RIGHT);  repeatable = true; break;
-                case fplKey_Scroll:   keyPress.code = uint32_t(KeyConstant::SCROLL); break;
-                case fplKey_Pause:    keyPress.code = uint32_t(KeyConstant::PAUSE); break;
+                switch (event.keyboard.keyCode)
+                {
+                    case fplKey_Delete:
+                        keyPress.code = uint32_t(KeyConstant::DEL);
+                        repeatable = true;
+                        break;
+                    case fplKey_F1:
+                        keyPress.code = uint32_t(KeyConstant::F1);
+                        break;
+                    case fplKey_F2:
+                        keyPress.code = uint32_t(KeyConstant::F2);
+                        break;
+                    case fplKey_F3:
+                        keyPress.code = uint32_t(KeyConstant::F3);
+                        break;
+                    case fplKey_F4:
+                        keyPress.code = uint32_t(KeyConstant::F4);
+                        break;
+                    case fplKey_F5:
+                        keyPress.code = uint32_t(KeyConstant::F5);
+                        break;
+                    case fplKey_F6:
+                        keyPress.code = uint32_t(KeyConstant::F6);
+                        break;
+                    case fplKey_F7:
+                        keyPress.code = uint32_t(KeyConstant::F7);
+                        break;
+                    case fplKey_F8:
+                        keyPress.code = uint32_t(KeyConstant::F8);
+                        break;
+                    case fplKey_F9:
+                        keyPress.code = uint32_t(KeyConstant::F9);
+                        break;
+                    case fplKey_F10:
+                        keyPress.code = uint32_t(KeyConstant::F10);
+                        break;
+                    case fplKey_F11:
+                        keyPress.code = uint32_t(KeyConstant::F11);
+                        break;
+                    case fplKey_F12:
+                        keyPress.code = uint32_t(KeyConstant::F12);
+                        break;
+                    case fplKey_Home:
+                        keyPress.code = uint32_t(KeyConstant::HOME);
+                        break;
+                    case fplKey_Insert:
+                        keyPress.code = uint32_t(KeyConstant::INSERT);
+                        repeatable = true;
+                        break;
+                    case fplKey_End:
+                        keyPress.code = uint32_t(KeyConstant::END);
+                        break;
+                    case fplKey_PageUp:
+                        keyPress.code = uint32_t(KeyConstant::PG_UP);
+                        repeatable = true;
+                        break;
+                    case fplKey_PageDown:
+                        keyPress.code = uint32_t(KeyConstant::PG_DOWN);
+                        repeatable = true;
+                        break;
+                    case fplKey_Up:
+                        keyPress.code = uint32_t(KeyConstant::CRSR_UP);
+                        repeatable = true;
+                        break;
+                    case fplKey_Down:
+                        keyPress.code = uint32_t(KeyConstant::CRSR_DOWN);
+                        repeatable = true;
+                        break;
+                    case fplKey_Left:
+                        keyPress.code = uint32_t(KeyConstant::CRSR_LEFT);
+                        repeatable = true;
+                        break;
+                    case fplKey_Right:
+                        keyPress.code = uint32_t(KeyConstant::CRSR_RIGHT);
+                        repeatable = true;
+                        break;
+                    case fplKey_Scroll:
+                        keyPress.code = uint32_t(KeyConstant::SCROLL);
+                        break;
+                    case fplKey_Pause:
+                        keyPress.code = uint32_t(KeyConstant::PAUSE);
+                        break;
 
-                    // these do not create keypress buffer entries
-                case fplKey_Alt:
-                case fplKey_Control:
-                case fplKey_Shift:
-                case fplKey_LeftAlt:
-                case fplKey_LeftControl:
-                case fplKey_LeftShift:
-                case fplKey_LeftSuper:
-                case fplKey_RightAlt:
-                case fplKey_RightControl:
-                case fplKey_RightShift:
-                case fplKey_RightSuper:
-                    repeatable = false;
-                    continue;
-                default:
-                    if (!keyPress.holdAlt && !keyPress.holdCtrl) {
-                        keyPress.code = 0;
-                    }
-                    break;
+                        // these do not create keypress buffer entries
+                    case fplKey_Alt:
+                    case fplKey_Control:
+                    case fplKey_Shift:
+                    case fplKey_LeftAlt:
+                    case fplKey_LeftControl:
+                    case fplKey_LeftShift:
+                    case fplKey_LeftSuper:
+                    case fplKey_RightAlt:
+                    case fplKey_RightControl:
+                    case fplKey_RightShift:
+                    case fplKey_RightSuper:
+                        repeatable = false;
+                        continue;
+                    default:
+                        if (!keyPress.holdAlt && !keyPress.holdCtrl)
+                        {
+                            keyPress.code = 0;
+                        }
+                        break;
                 }
-                if (keyPress.code != 0) {
+                if (keyPress.code != 0)
+                {
                     putToKeyboardBuffer(keyPress);
-                    if (repeatable) {
+                    if (repeatable)
+                    {
                         lastCharPress = keyPress;
-                    } else {
+                    }
+                    else
+                    {
                         lastCharPress.code = 0;
                     }
                 }
@@ -584,42 +691,103 @@ void OsFPL::updateKeyboardBuffer() {
 
 const bool OsFPL::isKeyPressed(uint32_t index, bool withShift, bool withAlt, bool withCtrl) const {
     fplKeyboardState keyboardState;
-    if (!fplPollKeyboardState(&keyboardState)) {
+    if (!fplPollKeyboardState(&keyboardState))
+    {
         return false;
     }
 
-    switch (index) {
-    case uint32_t(KeyConstant::ESCAPE):     index = fplKey_Escape ; break;
-    case uint32_t(KeyConstant::BACKSPACE):  index = fplKey_Backspace ; break;
-    case uint32_t(KeyConstant::RETURN):     index = fplKey_Return ; break;
-        // case uint32_t(KeyConstant::NUM_ENTER): index = fplKey_KPEnter ; break;
-    case uint32_t(KeyConstant::DEL):        index = fplKey_Delete ; break;
-    case uint32_t(KeyConstant::F1):         index = fplKey_F1 ; break;
-    case uint32_t(KeyConstant::F2):         index = fplKey_F2 ; break;
-    case uint32_t(KeyConstant::F3):         index = fplKey_F3 ; break;
-    case uint32_t(KeyConstant::F4):         index = fplKey_F4 ; break;
-    case uint32_t(KeyConstant::F5):         index = fplKey_F5 ; break;
-    case uint32_t(KeyConstant::F6):         index = fplKey_F6 ; break;
-    case uint32_t(KeyConstant::F7):         index = fplKey_F7 ; break;
-    case uint32_t(KeyConstant::F8):         index = fplKey_F8 ; break;
-    case uint32_t(KeyConstant::F9):         index = fplKey_F9 ; break;
-    case uint32_t(KeyConstant::F10):        index = fplKey_F10; break;
-    case uint32_t(KeyConstant::F11):        index = fplKey_F11; break;
-    case uint32_t(KeyConstant::F12):        index = fplKey_F12; break;
-    case uint32_t(KeyConstant::HOME):       index = fplKey_Home ; break;
-    case uint32_t(KeyConstant::INSERT):     index = fplKey_Insert ; break;
-    case uint32_t(KeyConstant::END):        index = fplKey_End ; break;
-    case uint32_t(KeyConstant::PG_UP):      index = fplKey_PageUp ; break;
-    case uint32_t(KeyConstant::PG_DOWN):    index = fplKey_PageDown ; break;
-    case uint32_t(KeyConstant::CRSR_UP):    index = fplKey_Up ; break;
-    case uint32_t(KeyConstant::CRSR_DOWN):  index = fplKey_Down ; break;
-    case uint32_t(KeyConstant::CRSR_LEFT):  index = fplKey_Left ; break;
-    case uint32_t(KeyConstant::CRSR_RIGHT): index = fplKey_Right ; break;
-    case uint32_t(KeyConstant::SCROLL):     index = fplKey_Scroll; break;
-    case uint32_t(KeyConstant::PAUSE):      index = fplKey_Pause ; break;
-    case uint32_t(KeyConstant::SHIFT_LEFT): index = fplKey_LeftShift; break;
-    case uint32_t(KeyConstant::SHIFT_RIGHT):index = fplKey_RightShift ; break;
-    default: break;
+    switch (index)
+    {
+        case uint32_t(KeyConstant::ESCAPE):
+            index = fplKey_Escape;
+            break;
+        case uint32_t(KeyConstant::BACKSPACE):
+            index = fplKey_Backspace;
+            break;
+        case uint32_t(KeyConstant::RETURN):
+            index = fplKey_Return;
+            break;
+            // case uint32_t(KeyConstant::NUM_ENTER): index = fplKey_KPEnter ; break;
+        case uint32_t(KeyConstant::DEL):
+            index = fplKey_Delete;
+            break;
+        case uint32_t(KeyConstant::F1):
+            index = fplKey_F1;
+            break;
+        case uint32_t(KeyConstant::F2):
+            index = fplKey_F2;
+            break;
+        case uint32_t(KeyConstant::F3):
+            index = fplKey_F3;
+            break;
+        case uint32_t(KeyConstant::F4):
+            index = fplKey_F4;
+            break;
+        case uint32_t(KeyConstant::F5):
+            index = fplKey_F5;
+            break;
+        case uint32_t(KeyConstant::F6):
+            index = fplKey_F6;
+            break;
+        case uint32_t(KeyConstant::F7):
+            index = fplKey_F7;
+            break;
+        case uint32_t(KeyConstant::F8):
+            index = fplKey_F8;
+            break;
+        case uint32_t(KeyConstant::F9):
+            index = fplKey_F9;
+            break;
+        case uint32_t(KeyConstant::F10):
+            index = fplKey_F10;
+            break;
+        case uint32_t(KeyConstant::F11):
+            index = fplKey_F11;
+            break;
+        case uint32_t(KeyConstant::F12):
+            index = fplKey_F12;
+            break;
+        case uint32_t(KeyConstant::HOME):
+            index = fplKey_Home;
+            break;
+        case uint32_t(KeyConstant::INSERT):
+            index = fplKey_Insert;
+            break;
+        case uint32_t(KeyConstant::END):
+            index = fplKey_End;
+            break;
+        case uint32_t(KeyConstant::PG_UP):
+            index = fplKey_PageUp;
+            break;
+        case uint32_t(KeyConstant::PG_DOWN):
+            index = fplKey_PageDown;
+            break;
+        case uint32_t(KeyConstant::CRSR_UP):
+            index = fplKey_Up;
+            break;
+        case uint32_t(KeyConstant::CRSR_DOWN):
+            index = fplKey_Down;
+            break;
+        case uint32_t(KeyConstant::CRSR_LEFT):
+            index = fplKey_Left;
+            break;
+        case uint32_t(KeyConstant::CRSR_RIGHT):
+            index = fplKey_Right;
+            break;
+        case uint32_t(KeyConstant::SCROLL):
+            index = fplKey_Scroll;
+            break;
+        case uint32_t(KeyConstant::PAUSE):
+            index = fplKey_Pause;
+            break;
+        case uint32_t(KeyConstant::SHIFT_LEFT):
+            index = fplKey_LeftShift;
+            break;
+        case uint32_t(KeyConstant::SHIFT_RIGHT):
+            index = fplKey_RightShift;
+            break;
+        default:
+            break;
     }
     return (keyboardState.buttonStatesMapped[index] >= fplButtonState_Press);
 }
@@ -633,7 +801,8 @@ std::string OsFPL::getClipboardData() {
     char* buffer = new char[maxlen];
     buffer[0] = '\0';
     std::string ret;
-    if (fplGetClipboardText(buffer, maxlen + 1)) {
+    if (fplGetClipboardText(buffer, maxlen + 1))
+    {
         ret = buffer;
     }
     delete[] buffer;

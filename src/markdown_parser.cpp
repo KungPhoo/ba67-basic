@@ -5,11 +5,13 @@
 #include <regex>
 #include "markdown_parser.h"
 
-MarkdownParser::MarkdownParser(const std::string& filename): filename(filename) {}
+MarkdownParser::MarkdownParser(const std::string& filename)
+    : filename(filename) {}
 
 void MarkdownParser::readMarkdown() {
     std::ifstream file(filename);
-    if (!file) {
+    if (!file)
+    {
         std::cerr << "Error opening file: " << filename << std::endl;
         return;
     }
@@ -32,42 +34,57 @@ void MarkdownParser::extractHeadingsAndUsage() {
     std::string pendingCode;
     bool insideBlockCode = false;
 
-    while (std::getline(stream, line)) {
-        if (line.find("<!-- TOC_START -->") != std::string::npos) {
+    while (std::getline(stream, line))
+    {
+        if (line.find("<!-- TOC_START -->") != std::string::npos)
+        {
             insideTOC = true;
             continue;
         }
-        if (line.find("<!-- TOC_END -->") != std::string::npos) {
+        if (line.find("<!-- TOC_END -->") != std::string::npos)
+        {
             insideTOC = false;
             continue;
         }
         if (insideTOC) continue;  // Skip TOC lines
 
         std::smatch match;
-        if (std::regex_match(line, match, headingRegex)) {
+        if (std::regex_match(line, match, headingRegex))
+        {
             lastLevel = int(match[1].str().length());
             lastHeading = match[2].str();
             headings.emplace_back(lastHeading, lastLevel);
             captureNextCode = false;
-        } else if (std::regex_search(line, match, usageRegex)) {
+        }
+        else if (std::regex_search(line, match, usageRegex))
+        {
             captureNextCode = true;
             pendingCode.clear();
         }
 
-        if (captureNextCode) {
+        if (captureNextCode)
+        {
             std::smatch codeMatch;
-            if (std::regex_search(line, codeMatch, inlineCodeRegex)) {
+            if (std::regex_search(line, codeMatch, inlineCodeRegex))
+            {
                 usageSections.emplace_back(lastHeading, codeMatch[1].str());
                 captureNextCode = false;
-            } else if (line.rfind("```", 0) == 0) { // Detect block code start
+            }
+            else if (line.rfind("```", 0) == 0)
+            {  // Detect block code start
                 insideBlockCode = true;
                 pendingCode.clear();
-            } else if (insideBlockCode) {
-                if (line.rfind("```", 0) == 0) { // Detect block code end
+            }
+            else if (insideBlockCode)
+            {
+                if (line.rfind("```", 0) == 0)
+                {  // Detect block code end
                     usageSections.emplace_back(lastHeading, pendingCode);
                     captureNextCode = false;
                     insideBlockCode = false;
-                } else {
+                }
+                else
+                {
                     pendingCode += line + "\n";
                 }
             }
@@ -78,11 +95,12 @@ void MarkdownParser::updateTOC() {
     std::regex tocRegex(R"(<!-- TOC_START -->[\s\S]*?<!-- TOC_END -->)");
     std::ostringstream tocStream;
     tocStream << "<!-- TOC_START -->\n";
-    for (const auto& heading : headings) {
+    for (const auto& heading : headings)
+    {
         std::string anchor = heading.first;
         std::transform(anchor.begin(), anchor.end(), anchor.begin(), [](unsigned char c) {
             return std::isalnum(c) ? std::tolower(c) : '-';
-            });
+        });
         tocStream << std::string(2 * (heading.second - 1), ' ') << "- [" << heading.first << "](#" << anchor << ")\n";
     }
     tocStream << "<!-- TOC_END -->";
@@ -90,7 +108,8 @@ void MarkdownParser::updateTOC() {
     fileContent = std::regex_replace(fileContent, tocRegex, tocStream.str());
 
     std::ofstream outFile(filename);
-    if (!outFile) {
+    if (!outFile)
+    {
         std::cerr << "Error writing to file: " << filename << std::endl;
         return;
     }
@@ -104,7 +123,8 @@ static bool str_replace(std::string& s, const std::string& fnd, const std::strin
     size_t b = 0;
     size_t fndsz = fnd.size();
     size_t repsz = repl.size();
-    for (;;) {
+    for (;;)
+    {
         b = s.find(fnd, b);
         if (b == s.npos) { break; }
         s.replace(b, fndsz, repl);
@@ -114,11 +134,10 @@ static bool str_replace(std::string& s, const std::string& fnd, const std::strin
     return brepl;
 }
 
-
-
 void MarkdownParser::writeHelpInclude(const std::string& path) {
     std::ofstream help(path);
-    if (!help) {
+    if (!help)
+    {
         std::cerr << "Error writing usage file." << std::endl;
         return;
     }
@@ -128,8 +147,10 @@ void MarkdownParser::writeHelpInclude(const std::string& path) {
 
     bool first = true;
 
-    for (const auto& entry : usageSections) {
-        if (first) { first = false; } else { help << ","; }
+    for (const auto& entry : usageSections)
+    {
+        if (first) { first = false; }
+        else { help << ","; }
 
         std::string usage = entry.second;
         // remove \r, escape in string

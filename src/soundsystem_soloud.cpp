@@ -9,24 +9,24 @@
 #include <filesystem>
 
 #ifdef _WIN32
-#include <tchar.h>
+    #include <tchar.h>
 #endif
-
 
 SoundSystemSoLoud::SoundSystemSoLoud() {
     soloud = new SoLoud::Soloud();
     soloud->init(SoLoud::Soloud::CLIP_ROUNDOFF,
-    #ifdef BA67_SOUND_BACKEND_DEFAULT
-        SoLoud::Soloud::AUTO,
-    #else
-        SoLoud::Soloud::NOSOUND,
-    #endif
-        SoLoud::Soloud::AUTO,
-        SoLoud::Soloud::AUTO,
-        2/*channels*/);
+#ifdef BA67_SOUND_BACKEND_DEFAULT
+                 SoLoud::Soloud::AUTO,
+#else
+                 SoLoud::Soloud::NOSOUND,
+#endif
+                 SoLoud::Soloud::AUTO,
+                 SoLoud::Soloud::AUTO,
+                 2 /*channels*/);
 
     sfxr.resize(1 + maxVoiceCount, nullptr);
-    for (size_t i = 1; i < sfxr.size(); ++i) {
+    for (size_t i = 1; i < sfxr.size(); ++i)
+    {
         sfxr[i] = new SoLoud::Sfxr();
     }
     wav = new SoLoud::Wav;
@@ -35,14 +35,15 @@ SoundSystemSoLoud::SoundSystemSoLoud() {
 SoundSystemSoLoud::~SoundSystemSoLoud() {
     soloud->deinit();
 
-    for (auto*& p : sfxr) {
+    for (auto*& p : sfxr)
+    {
         delete p;
         p = nullptr;
     }
     sfxr.clear();
-    delete wav; wav = nullptr;
+    delete wav;
+    wav = nullptr;
 }
-
 
 bool SoundSystemSoLoud::SOUND(int voice, const std::string& parameters) {
     /*
@@ -84,8 +85,8 @@ master_vol      :
 sound_vol       :
 */
 
-
-    if (voice < 1 || voice > maxVoiceCount) {
+    if (voice < 1 || voice > maxVoiceCount)
+    {
         throw std::runtime_error("bad voice number");
     }
 
@@ -95,106 +96,161 @@ sound_vol       :
 
     std::vector<std::string> toks = StringHelper::split(parameters, " \t:;,");
 
-    for (size_t i = 0; i + 1 < toks.size(); ++i) {
+    for (size_t i = 0; i + 1 < toks.size(); ++i)
+    {
         std::string& tok = toks[i];
         float value = float(atof(toks[i + 1].c_str()));
-        if (tok == "wave_type") {
+        if (tok == "wave_type")
+        {
             // 0 = square
             // 1 = sawtooth
             // 2 = sine
             // 3 = noise
             fx->mParams.wave_type = int(value + 0.444445);
-            if (fx->mParams.wave_type > 3) {
+            if (fx->mParams.wave_type > 3)
+            {
                 throw std::runtime_error("bad value");
             }
             continue;
-        } else if (tok == "filter_on") {
+        }
+        else if (tok == "filter_on")
+        {
             fx->mParams.filter_on = value > 0.00001;
             continue;
         }
 
         // next all floats -1..1
-        auto rng = [value](float f0, float f1) {if (value < f0 - 0.001 || value >= f1 + 0.001) { throw std::runtime_error("out of range"); }};
+        auto rng = [value](float f0, float f1) {if (value < f0 - 0.001 || value >= f1 + 0.001) { throw std::runtime_error("out of range"); } };
         // next: all floats 0..1
-        if (value < -0.01f || value > 1.01f) {
+        if (value < -0.01f || value > 1.01f)
+        {
             throw std::runtime_error("bad value");
         }
         rng(0.0f, 1.0f);
-        if (tok == "base_freq") {
+        if (tok == "base_freq")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_base_freq = value;
-        } else if (tok == "freq_limit") {
+        }
+        else if (tok == "freq_limit")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_freq_limit = value;
-        } else if (tok == "freq_ramp") {
+        }
+        else if (tok == "freq_ramp")
+        {
             rng(-1.0f, 1.0f);
             fx->mParams.p_freq_ramp = value;
-        } else if (tok == "freq_dramp") {
+        }
+        else if (tok == "freq_dramp")
+        {
             rng(-1.0f, 1.0f);
             fx->mParams.p_freq_dramp = value;
-        } else if (tok == "duty") {
+        }
+        else if (tok == "duty")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_duty = value;
-        } else if (tok == "duty_ramp") {
+        }
+        else if (tok == "duty_ramp")
+        {
             rng(-1.0f, 1.0f);
             fx->mParams.p_duty_ramp = value;
-        } else if (tok == "vib_strength") {
+        }
+        else if (tok == "vib_strength")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_vib_strength = value;
-        } else if (tok == "vib_speed") {
+        }
+        else if (tok == "vib_speed")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_vib_speed = value;
-        } else if (tok == "vib_delay") {
+        }
+        else if (tok == "vib_delay")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_vib_delay = value;
-        } else if (tok == "env_attack") {
+        }
+        else if (tok == "env_attack")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_env_attack = value;
-        } else if (tok == "env_sustain") {
+        }
+        else if (tok == "env_sustain")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_env_sustain = value;
-        } else if (tok == "env_decay") {
+        }
+        else if (tok == "env_decay")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_env_decay = value;
-        } else if (tok == "env_punch") {
+        }
+        else if (tok == "env_punch")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_env_punch = value;
-        } else if (tok == "lpf_resonance") {
+        }
+        else if (tok == "lpf_resonance")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_lpf_resonance = value;
-        } else if (tok == "lpf_freq") {
+        }
+        else if (tok == "lpf_freq")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_lpf_freq = value;
-        } else if (tok == "lpf_ramp") {
+        }
+        else if (tok == "lpf_ramp")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_lpf_ramp = value;
-        } else if (tok == "hpf_freq") {
+        }
+        else if (tok == "hpf_freq")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_hpf_freq = value;
-        } else if (tok == "hpf_ramp") {
+        }
+        else if (tok == "hpf_ramp")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_hpf_ramp = value;
-        } else if (tok == "pha_offset") {
+        }
+        else if (tok == "pha_offset")
+        {
             rng(-1.0f, 1.0f);
             fx->mParams.p_pha_offset = value;
-        } else if (tok == "pha_ramp") {
+        }
+        else if (tok == "pha_ramp")
+        {
             rng(-1.0f, 1.0f);
             fx->mParams.p_pha_ramp = value;
-        } else if (tok == "repeat_speed") {
+        }
+        else if (tok == "repeat_speed")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_repeat_speed = value;
-        } else if (tok == "arp_speed") {
+        }
+        else if (tok == "arp_speed")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.p_arp_speed = value;
-        } else if (tok == "arp_mod") {
+        }
+        else if (tok == "arp_mod")
+        {
             rng(-1.0f, 1.0f);
             fx->mParams.p_arp_mod = value;
             //        } else if (tok == "master_vol") { // master and sound vol are simply multiplied. Defaults: master 0.05, sample 0.50
             //            fx->mParams.master_vol = value;
-        } else if (tok == "volume") {
+        }
+        else if (tok == "volume")
+        {
             rng(0.0f, 1.0f);
             fx->mParams.sound_vol = value;
-        } else {
+        }
+        else
+        {
             throw std::runtime_error("unkown parameter name");
         }
     }
@@ -220,12 +276,15 @@ bool SoundSystemSoLoud::PLAY(const std::string& music) {
 
 #ifdef _WIN32
     WCHAR exepath[1024];
-    if (GetModuleFileNameW(NULL, exepath, 1023) < 1023) {
+    if (GetModuleFileNameW(NULL, exepath, 1023) < 1023)
+    {
         WCHAR* pEnd = _tcsrchr(exepath, L'\\');
-        if (pEnd != nullptr) {
+        if (pEnd != nullptr)
+        {
             *pEnd = L'\0';
             WCHAR* pEnd = _tcsrchr(exepath, L'\\');
-            if (pEnd != nullptr) {
+            if (pEnd != nullptr)
+            {
                 *pEnd = L'\0';
                 std::wstring abc = exepath;
                 // for (auto& c : abc) {
@@ -244,15 +303,16 @@ bool SoundSystemSoLoud::PLAY(const std::string& music) {
 #endif
     // substitute ';' with '\n'
     std::string ms = "X:1\nT:Song\nM:4/4\nL:1/4\nK:C\n" + music;
-    for (auto& c : ms) {
+    for (auto& c : ms)
+    {
         if (c == ';') { c = '\n'; }
     }
 
-    if (std::filesystem::exists(pathAbc2Midi)
-        && std::filesystem::exists(pathAbc2Midi)
-        && std::filesystem::exists(pathAbc2Midi)) {
+    if (std::filesystem::exists(pathAbc2Midi) && std::filesystem::exists(pathAbc2Midi) && std::filesystem::exists(pathAbc2Midi))
+    {
         FILE* pf = fopen(tempfileAbc.c_str(), "wb");
-        if (!pf) {
+        if (!pf)
+        {
             throw std::runtime_error("can't write temp ABC file");
         }
 
@@ -260,24 +320,29 @@ bool SoundSystemSoLoud::PLAY(const std::string& music) {
         fclose(pf);
         pf = nullptr;
 
-        bool printOutput = true; // true for debugging if PLAY fails
+        bool printOutput = true;  // true for debugging if PLAY fails
         std::string cmd = std::string("\"") + pathAbc2Midi + "\" \"" + tempfileAbc + "\" -o \"" + tempfileMidi + "\"";
         os->systemCall(cmd.c_str(), printOutput);
         cmd = std::string("\"") + fluidsynth + "\" -ni \"" + soundfont + "\" \"" + tempfileMidi + "\" -F \"" + tempfileWav + "\" -r 44100";
         os->systemCall(cmd.c_str(), printOutput);
-    #if defined(NDEBUG)
+#if defined(NDEBUG)
         unlink(tempfileAbc.c_str());
         unlink(tempfileMidi.c_str());
-    #endif
-    } else {
+#endif
+    }
+    else
+    {
         AbcMusic abc;
         abc.generate(ms, tempfileWav);
     }
 
     bool rv = true;
-    if (wav->load(tempfileWav.c_str()) != 0) {
+    if (wav->load(tempfileWav.c_str()) != 0)
+    {
         rv = false;
-    } else {
+    }
+    else
+    {
         soloud->play(*wav);
     }
 

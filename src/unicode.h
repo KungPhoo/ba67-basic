@@ -2,7 +2,7 @@
 #include <string>
 
 class Unicode {
-public:
+   public:
     // parses next unicode code point from utf8 string. Advances 'utf8'. Returns 0 on error.
     static char32_t parseNextUtf8(const char*& utf8);
 
@@ -30,11 +30,6 @@ public:
 
     static std::string substr(const std::string& utf8, size_t startCodePoint, size_t length = ~size_t(0));
 
-
-
     static std::string::size_type strstr(const std::string& utf8, const std::string& utf8Find, size_t startCodePoint);
     static bool wildcardMatch(const char32_t* str, const char32_t* pattern);
-
-
 };
-

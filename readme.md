@@ -5,7 +5,6 @@ Visit the project [Homepage:](http://www.ba67.org).
 <!-- do not edit TOC_START and TOC_END lines. -->
 <!-- See markdown_parser.h -->
 <!-- TOC_START -->
-- [BA67 - 80s BASIC Interpreter](#ba67---80s-basic-interpreter)
   - [Contents](#contents)
   - [About](#about)
   - [Goal](#goal)
@@ -75,6 +74,7 @@ Visit the project [Homepage:](http://www.ba67.org).
     - [POKE](#poke)
     - [PRINT](#print)
     - [PRINT USING](#print-using)
+    - [QSAVE](#qsave)
     - [REM](#rem)
     - [RENUMBER](#renumber)
     - [RUN](#run)
@@ -943,6 +943,13 @@ Example:
 1020 PRINT USING "X##=##X";"CBM"       : REM "X CBM X"
 ```
 
+### QSAVE
+Saves the current listing as the name that was last
+loaded or saved.
+
+**Usage:** `QSAVE`
+
+
 ### REM
 Adds a comment in the program.
 
@@ -955,9 +962,37 @@ REM This is a comment
 
 ### RENUMBER
 Renumbers the program lines.
+Where `newstart` specifies the first new line number to
+use. The `oldstart` parameter is the first line of the
+current listing you want to start renumbering from.
+With `increment`, you specify the leap per line.
+The default is 10.
+With `milestone` you can specify what line numbers
+you want to keep and restart incrementing from this
+number, then. The default is zero - no milestone.
 
-**Usage:** `RENUMBER [start, increment]`
-(Optional arguments: `start`, `increment`)
+*DO SAVE YOUR WORK* before you renumber the listing.
+
+**Usage:** `RENUMBER [newstart, increment, oldstart, milestone]`
+
+**Example:**
+```basic
+1 REM START
+2 PRINT "HELLO"
+100 REM SUBROUTINE-MILESTONE
+...
+180 RETURN
+
+RENUMBER 1, 20, 100
+LIST
+
+20 REM START
+40 PRINT "HELLO"
+100 REM SUBROUTINE-MILESTONE
+...
+180 RETURN
+```
+
 
 ### RUN
 Executes the program. Optionally a line number can be passed
@@ -975,7 +1010,10 @@ Saves the BASIC program of the current module to a file on
 the disk drive. The file extension ".BA67" is recommended.
 If no file extension is given, it will be appended.
 
+See also `QSAVE`.
+
 **Usage:** `SAVE "test.bas"`
+
 
 ### SCNCLR
 Clears the screen and puts the cursor in the top left corner.

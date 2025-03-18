@@ -10,50 +10,64 @@
 
 struct ScreenInfo {
     static const size_t charsX = 40, charsY = 25;
-    static const size_t charPixX = 8/*don't change!*/, charPixY = 8 /*8 or 16*/;
+    static const size_t charPixX = 8 /*don't change!*/, charPixY = 8 /*8 or 16*/;
     static const size_t pixX = charsX * charPixX;
     static const size_t pixY = charsY * charPixY;
 };
 
 class CharBitmap {
-public:
+   public:
     CharBitmap() = default;
     // each byte is a 8 pixels line
     // construct with either 8 or 16 bytes
-    CharBitmap(std::initializer_list<uint8_t> lst): CharBitmap(lst.begin(), lst.size()) {}
+    CharBitmap(std::initializer_list<uint8_t> lst)
+        : CharBitmap(lst.begin(), lst.size()) {}
 
-    CharBitmap(const uint8_t* bytes, size_t count):monoPixels{} {
-        if (ScreenInfo::charPixY == 8) {
-            if (count == 8) { // 8x8 mono pixels
+    CharBitmap(const uint8_t* bytes, size_t count)
+        : monoPixels{} {
+        if (ScreenInfo::charPixY == 8)
+        {
+            if (count == 8)
+            {  // 8x8 mono pixels
                 isMono = true;
-                for (size_t i = 0; i < 8; ++i) {
+                for (size_t i = 0; i < 8; ++i)
+                {
                     monoPixels[i] = bytes[i];
                 }
-            } else if (count == ScreenInfo::charPixY * ScreenInfo::charPixY / 2) {
-                isMono = false; // multicolor - every pixel given
-                for (size_t i = 0; i < count; ++i) {
+            }
+            else if (count == ScreenInfo::charPixY * ScreenInfo::charPixY / 2)
+            {
+                isMono = false;  // multicolor - every pixel given
+                for (size_t i = 0; i < count; ++i)
+                {
                     setMulti(i * 2, bytes[i] & 0x0f);
                     setMulti(i * 2 + 1, bytes[i] >> 4);
                 }
             }
-        } else {
-            if (count == 8) { // mono: 8x8 every 2nd line is defined
+        }
+        else
+        {
+            if (count == 8)
+            {  // mono: 8x8 every 2nd line is defined
                 isMono = true;
-                for (size_t i = 0; i < 8; ++i) {
+                for (size_t i = 0; i < 8; ++i)
+                {
                     monoPixels[i * 2] = bytes[i];
                     monoPixels[i * 2 + 1] = monoPixels[i * 2];
                 }
-            } else {
+            }
+            else
+            {
                 isMono = true;
                 if (count > ScreenInfo::charPixY) { count = ScreenInfo::charPixY; }
-                for (size_t i = 0; i < count; ++i) {
+                for (size_t i = 0; i < count; ++i)
+                {
                     monoPixels[i] = bytes[i];
                 }
                 for (size_t i = count; i < ScreenInfo::charPixY; ++i) { monoPixels[i] = 0; }
             }
         }
     }
-
 
     // Multicolor: Get the nth pixel (0-based index)
     inline uint8_t multi(size_t n) const {
@@ -71,21 +85,24 @@ public:
         size_t byteIndex = n / 2;
         bool highNibble = (n % 2 == 0);
 
-        if (highNibble) {
+        if (highNibble)
+        {
             monoPixels[byteIndex] = (monoPixels[byteIndex] & 0x0F) | (value << 4);
-        } else {
+        }
+        else
+        {
             monoPixels[byteIndex] = (monoPixels[byteIndex] & 0xF0) | (value & 0x0F);
         }
     }
 
     // 8xcharPixY pixels, monochrome
-    uint8_t monoPixels[(ScreenInfo::charPixY * ScreenInfo::charPixY + 1) / 2] = {}; // one byte per line
+    uint8_t monoPixels[(ScreenInfo::charPixY * ScreenInfo::charPixY + 1) / 2] = {};  // one byte per line
     bool isMono = true;
 };
 
 class Sprite {
-public:
-    std::array<char32_t, 6> charmap = {0,0,0,0,0,0};
+   public:
+    std::array<char32_t, 6> charmap = {0, 0, 0, 0, 0, 0};
     int64_t x = 0, y = 0;
     uint8_t color = 1;
 
@@ -94,19 +111,22 @@ public:
 };
 
 class ScreenBitmap {
-public:
-    ScreenBitmap() { pixelsRGB.resize(ScreenInfo::pixX * ScreenInfo::pixY); pixelsPal.resize(ScreenInfo::pixX * ScreenInfo::pixY); }
+   public:
+    ScreenBitmap() {
+        pixelsRGB.resize(ScreenInfo::pixX * ScreenInfo::pixY);
+        pixelsPal.resize(ScreenInfo::pixX * ScreenInfo::pixY);
+    }
     // pixels in AABBGGRR little endian format.
     // 80x25 chars, each 8x16 pixels = 640x400 pixels
     std::vector<uint32_t> pixelsRGB;
-    std::vector<uint8_t> pixelsPal; // pixel index in colour palette
+    std::vector<uint8_t> pixelsPal;  // pixel index in colour palette
     void clear() {
         for (auto& p : pixelsRGB) { p = 0; }
         for (auto& p : pixelsPal) { p = 0; }
     }
 };
 class CharMap {
-public:
+   public:
     CharMap();
     std::array<CharBitmap, 128> ascii;
     std::map<char32_t, CharBitmap> unicode;
@@ -118,11 +138,8 @@ public:
     }
 };
 
-
-
-
 class ScreenBuffer {
-public:
+   public:
     ScreenBuffer();
 
     // Custom swap function
@@ -141,35 +158,37 @@ public:
     // Move constructor
     ScreenBuffer(ScreenBuffer&& other) noexcept
         : palette(std::move(other.palette)),
-        sprites(std::move(other.sprites)),
-        lines(std::move(other.lines)),
-        color(other.color),
-        borderColor(other.borderColor),
-        cursor(other.cursor) {
+          sprites(std::move(other.sprites)),
+          lines(std::move(other.lines)),
+          color(other.color),
+          borderColor(other.borderColor),
+          cursor(other.cursor) {
         // Note: screenBitmap is not moved
     }
 
     // Move assignment operator
     ScreenBuffer& operator=(ScreenBuffer&& other) noexcept {
-        if (this != &other) {
+        if (this != &other)
+        {
             swap(*this, other);
         }
         return *this;
     }
 
-
     // zero based cursor position
     struct Cursor {
         size_t x, y;
-        bool operator==(const Cursor& c)const { return x == c.x && y == c.y; }
-        bool operator!=(const Cursor& c)const { return x != c.x || y != c.y; }
-        bool operator <(const Cursor& c)const {
-            if (y < c.y) { return true; } if (y == c.y && x < c.x) { return true; }return false;
+        bool operator==(const Cursor& c) const { return x == c.x && y == c.y; }
+        bool operator!=(const Cursor& c) const { return x != c.x || y != c.y; }
+        bool operator<(const Cursor& c) const {
+            if (y < c.y) { return true; }
+            if (y == c.y && x < c.x) { return true; }
+            return false;
         }
     };
 
     ScreenBitmap screenBitmap;
-    std::array<uint32_t, 16> palette; // AABBGGRR little endian format
+    std::array<uint32_t, 16> palette;  // AABBGGRR little endian format
     std::array<Sprite, 256> sprites;
 
     void clear();
@@ -200,24 +219,23 @@ public:
     // buffer to print to a console
     // void getPrintBuffer(std::u32string& chars, std::string& colors) const;
 
-
     // puffer colour indices per pixel
     void updateScreenPixelsPalette();
     // buffer to draw on a bitmap
     void updateScreenBitmap();
 
-    std::u32string getSelectedText(Cursor start, Cursor end)const;
+    std::u32string getSelectedText(Cursor start, Cursor end) const;
 
     // set the color index [0..15]
     void setColors(uint8_t text, uint8_t back);
     void setTextColor(int index);
     void setBackgroundColor(int index);
     void setBorderColor(int index) { borderColor = (index & 0x0f); }
-    void inverseColours(); // interchange text and background colors
+    void inverseColours();  // interchange text and background colors
 
-    inline int getTextColor()const { return color & 0x0f; }
-    inline int getBackgroundColor()const { return (color >> 4) & 0x0f; }
-    inline int getBorderColor()const { return borderColor; }
+    inline int getTextColor() const { return color & 0x0f; }
+    inline int getBackgroundColor() const { return (color >> 4) & 0x0f; }
+    inline int getBorderColor() const { return borderColor; }
     void defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xff);
     void resetDefaultColors();
 
@@ -227,7 +245,7 @@ public:
     // the pixels are not copied. You must call updateScreenXXXX() manually, afterwards.
     static void copyWithLock(ScreenBuffer& dst, const ScreenBuffer& src);
 
-    std::atomic<bool> dirtyFlag = true; // must be drawn to screen? Must be cleared manually.
+    std::atomic<bool> dirtyFlag = true;  // must be drawn to screen? Must be cleared manually.
 
     struct SChar {
         char32_t ch = U' ';
@@ -235,29 +253,33 @@ public:
     };
     struct Line {
         void clear() {
-            for (auto& c : cols) { c.ch = '\0'; c.col = 1; }; wrapps = false;
+            for (auto& c : cols)
+            {
+                c.ch = '\0';
+                c.col = 1;
+            };
+            wrapps = false;
         }
         std::vector<SChar> cols;
-        bool wrapps = false; // this line wraps with the next line as one string
+        bool wrapps = false;  // this line wraps with the next line as one string
     };
-    const std::vector< std::shared_ptr<Line> > getLineBuffer()const { return lines; }
+    const std::vector<std::shared_ptr<Line>> getLineBuffer() const { return lines; }
 
-protected:
+   protected:
     mutable std::mutex lock;
 
     void resize(size_t w, size_t h);
-    std::vector< std::shared_ptr<Line> > lines;
+    std::vector<std::shared_ptr<Line>> lines;
     Cursor cursor;
-
 
     static void deepCopyLines(std::vector<std::shared_ptr<Line>>& dest, const std::vector<std::shared_ptr<Line>>& src);
 
     // std::u32string buffer;
     // mutable std::basic_string<SChar> buffer;
-    uint8_t color; // color&0x0f = foreground, color>>4 = background
+    uint8_t color;  // color&0x0f = foreground, color>>4 = background
     uint8_t borderColor;
     // size_t cursorPos;
-    // size_t cursorPos(){return 
+    // size_t cursorPos(){return
 
     void dropFirstLine();
     void manageOverflow();
@@ -266,5 +288,4 @@ protected:
     // colText and colBack are the AABBGGRR values of the pixels.
     void drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colText, uint8_t colBack);
     void drawSprPal(int64_t x, int64_t y, char32_t chimg, int8_t color);
-
 };

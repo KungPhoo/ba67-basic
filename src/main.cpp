@@ -1,6 +1,6 @@
 ﻿#ifdef _WIN32
-#include <Windows.h>
-#include "os_windows_console.h"
+    #include <Windows.h>
+    #include "os_windows_console.h"
 #endif
 
 #include "os_fpl.h"
@@ -11,47 +11,43 @@
 #include <iostream>
 #include "unicode.h"
 
-
-
 void cmdWHATEVER(Basic* basic, const std::vector<Basic::Value>& values) {
-    for (auto& v : values) {
+    for (auto& v : values)
+    {
         basic->printUtf8String(
-            Basic::valueToString(v).c_str()
-        );
+            Basic::valueToString(v).c_str());
     }
 }
 Basic::Value fktFOO(Basic* basic, const std::vector<Basic::Value>& values) {
     return {"foo"};
 }
 
-
 #if _DEBUG
-#include "markdown_parser.h"
+    #include "markdown_parser.h"
 #endif
 
-
 int main(int argc, char** argv) {
-
 #if _DEBUG
     MarkdownParser::ParseAndApplyManual();
 #endif
 
-
-    std::vector<std::string> args; // utf-8
+    std::vector<std::string> args;  // utf-8
 #ifdef _WIN32
-    (void)argc; (void)argv;
+    (void)argc;
+    (void)argv;
     LPWSTR* szArglist;
     int nArgs;
     szArglist = ::CommandLineToArgvW(GetCommandLineW(), &nArgs);
-    if (NULL == szArglist) {
+    if (NULL == szArglist)
+    {
         return printf("CommandLineToArgvW failed\n");
     }
     for (int i = 0; i < nArgs; i++) { args.push_back(Unicode::toUtf8String(reinterpret_cast<const char16_t*>(szArglist[i]))); }
-    LocalFree(szArglist); szArglist = nullptr;
+    LocalFree(szArglist);
+    szArglist = nullptr;
 #else
     for (int i = 0; i < argc; ++i) { args.emplace_back(argv[i]); }
 #endif
-
 
 #if 0
     OsWindowsConsole os;
@@ -73,23 +69,29 @@ int main(int argc, char** argv) {
     // basic.parseInput("X=(-(-5))/(3+-1)"); // should be 2.5
     // basic.parseInput("X=-3+4*(-2)-(-(-5))/(3+-1)"); // should be -13.5
 
-    try {
-        if (basic.loadProgram("boot.bas")) {
+    try
+    {
+        if (basic.loadProgram("boot.bas"))
+        {
             basic.parseInput("RUN");
             basic.parseInput("NEW");
         }
-    } catch (...) {}
+    }
+    catch (...)
+    {}
 
 #if 1
-    if (args.size() > 1) {
-        for (size_t i = 1; i < args.size(); ++i) {
-            if (args[i].ends_with(".bas") && basic.loadProgram(args[i])) {
+    if (args.size() > 1)
+    {
+        for (size_t i = 1; i < args.size(); ++i)
+        {
+            if (args[i].ends_with(".bas") && basic.loadProgram(args[i]))
+            {
                 basic.parseInput("RUN");
             }
         }
     }
 #endif
-
 
     basic.runInterpreter();
     return 0;

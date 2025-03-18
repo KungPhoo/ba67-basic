@@ -43,8 +43,9 @@
 ,{"POKE", R"RAW(POKE addr, byte)RAW"}
 ,{"PRINT", R"RAW(PRINT expr [[,|;| ] expr ...])RAW"}
 ,{"PRINT USING", R"RAW(PRINT USING format; expr [, expr ...])RAW"}
+,{"QSAVE", R"RAW(QSAVE)RAW"}
 ,{"REM", R"RAW(REM comment)RAW"}
-,{"RENUMBER", R"RAW(RENUMBER [start, increment])RAW"}
+,{"RENUMBER", R"RAW(RENUMBER [newstart, increment, oldstart, milestone])RAW"}
 ,{"RUN", R"RAW(RUN [start_line_number])RAW"}
 ,{"SAVE", R"RAW(SAVE "test.bas")RAW"}
 ,{"SCNCLR", R"RAW(SCNCLR [n])RAW"}

@@ -3,12 +3,12 @@
 #include "os.h"
 #include <mutex>
 
-class OsFPL: public Os {
-public:
+class OsFPL : public Os {
+   public:
     virtual ~OsFPL();
     bool init(Basic* basic, SoundSystem* sound) override;
     uint64_t tick() const override;
-    void delay(int ms)const override;
+    void delay(int ms) const override;
     size_t getFreeMemoryInBytes() override;
 
     void presentScreen() override;
@@ -19,14 +19,13 @@ public:
 
     void putToKeyboardBuffer(Os::KeyPress key) override;
 
-    std::string getClipboardData()override;
-    void setClipboardData(const std::string utf8)override;
-
+    std::string getClipboardData() override;
+    void setClipboardData(const std::string utf8) override;
 
     std::mutex screenLock, videoLock;
     std::vector<uint32_t> pixelsVideo;
     struct Buffered {
-        ScreenBuffer screen; // this one is only accessed in the drawing thread
+        ScreenBuffer screen;  // this one is only accessed in the drawing thread
 
         bool stopThread = false;
         //        std::vector<uint8_t> pixelsPal;
@@ -49,5 +48,5 @@ public:
             return *this;
         }
 
-    }buffered = {};
+    } buffered = {};
 };
