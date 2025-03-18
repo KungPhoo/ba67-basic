@@ -112,6 +112,12 @@ public:
     // pushes a keypress to the keyboard buffer. Drops overflow keys.
     virtual void putToKeyboardBuffer(Os::KeyPress key);
 
+
+    // get/set utf8 clipbard text data
+    virtual std::string getClipboardData() { return{}; }
+    virtual void setClipboardData(const std::string utf8) { (void)utf8; };
+
+
     // --- FILE SYSTEM ---
     // utf-8 strings. Directory separator is '/'
     struct FileInfo {

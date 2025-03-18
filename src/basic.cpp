@@ -2587,13 +2587,51 @@ std::string Basic::inputLine(bool allowVertical) {
         startCrsr.x = 0;
     }
 
+    bool isSelecting = false;
+    auto startSelection = startCrsr;
+
     for (;;) {
         os->presentScreen();
         handleEscapeKey();
 
         auto key = os->getFromKeyboardBuffer();
+        if (key.code < 0x20) { continue; } // windows sends $09 (ESC) and $10 when I press Ctrl+C, Ctrl+V
+
+        // if shift is pressed and cursor gets moved, a selection is made
+        auto startSel = [&]() {
+            if (key.holdShift) {
+                if (!isSelecting) {
+                    isSelecting = true;
+                    startSelection = os->screen.getCursorPos();
+                }
+            } else {
+                isSelecting = false;
+            }
+            };
+
 
         if (!key.printable) {
+            if (key.holdCtrl) {
+                if (key.code == U'C') {
+                    auto str32 = os->screen.getSelectedText(startSelection, os->screen.getCursorPos());
+                    std::string clipboard = Unicode::toUtf8String(str32.c_str());
+                    if (clipboard.length() > 0) {
+                        os->setClipboardData(clipboard);
+                    }
+                } else if (key.code == U'V') {
+                    std::string clipboard = os->getClipboardData();
+                    if (clipboard.length() != 0) {
+                        const char* utf8 = clipboard.c_str();
+                        for (;;) {
+                            char32_t c = Unicode::parseNextUtf8(utf8);
+                            if (c == 0) { break; }
+                            os->screen.putC(c);
+                        }
+                    }
+                }
+                continue;
+            }
+
             switch (key.code) {
             case uint32_t(Os::KeyConstant::F1):  typeString(keyShortcuts[0]);  continue;
             case uint32_t(Os::KeyConstant::F2):  typeString(keyShortcuts[1]);  continue;
@@ -2616,12 +2654,12 @@ std::string Basic::inputLine(bool allowVertical) {
                     os->screen.insertSpace();
                 }
                 continue;
-            case uint32_t(Os::KeyConstant::CRSR_LEFT): os->screen.moveCursorPos(-1, 0); continue;
-            case uint32_t(Os::KeyConstant::CRSR_RIGHT): os->screen.moveCursorPos(1, 0); continue;
-            case uint32_t(Os::KeyConstant::CRSR_UP): os->screen.moveCursorPos(0, -1); movedVertical = true; continue;
-            case uint32_t(Os::KeyConstant::CRSR_DOWN): os->screen.moveCursorPos(0, 1); movedVertical = true; continue;
-            case uint32_t(Os::KeyConstant::HOME): os->screen.setCursorPos({0, os->screen.getCursorPos().y}); continue;
-            case uint32_t(Os::KeyConstant::END):
+            case uint32_t(Os::KeyConstant::CRSR_LEFT):  startSel(); os->screen.moveCursorPos(-1, 0); continue;
+            case uint32_t(Os::KeyConstant::CRSR_RIGHT): startSel(); os->screen.moveCursorPos(1, 0); continue;
+            case uint32_t(Os::KeyConstant::CRSR_UP):    startSel(); os->screen.moveCursorPos(0, -1); movedVertical = true; continue;
+            case uint32_t(Os::KeyConstant::CRSR_DOWN):  startSel(); os->screen.moveCursorPos(0, 1); movedVertical = true; continue;
+            case uint32_t(Os::KeyConstant::HOME):       startSel(); os->screen.setCursorPos({0, os->screen.getCursorPos().y}); continue;
+            case uint32_t(Os::KeyConstant::END):        startSel();
             {
                 auto crsr = os->screen.getEndOfLineAt(os->screen.getCursorPos()); // that's the '\n' character
                 // auto crsr = os->screen.getCursorAtPos(iend);

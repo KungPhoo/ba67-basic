@@ -514,7 +514,7 @@ void OsFPL::updateKeyboardBuffer() {
                     putToKeyboardBuffer(lastCharPress);
                 }
             } else if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Press) {
-                keyPress.code = 0;
+                // keyPress.code = 0;
                 keyPress.printable = false;
 
                 bool repeatable = false;
@@ -564,6 +564,9 @@ void OsFPL::updateKeyboardBuffer() {
                     repeatable = false;
                     continue;
                 default:
+                    if (!keyPress.holdAlt && !keyPress.holdCtrl) {
+                        keyPress.code = 0;
+                    }
                     break;
                 }
                 if (keyPress.code != 0) {
@@ -623,4 +626,20 @@ const bool OsFPL::isKeyPressed(uint32_t index, bool withShift, bool withAlt, boo
 
 void OsFPL::putToKeyboardBuffer(Os::KeyPress key) {
     Os::putToKeyboardBuffer(key);
+}
+
+std::string OsFPL::getClipboardData() {
+    const size_t maxlen = 1024 * 1024;
+    char* buffer = new char[maxlen];
+    buffer[0] = '\0';
+    std::string ret;
+    if (fplGetClipboardText(buffer, maxlen + 1)) {
+        ret = buffer;
+    }
+    delete[] buffer;
+    return ret;
+}
+
+void OsFPL::setClipboardData(const std::string utf8) {
+    fplSetClipboardText(utf8.c_str());
 }

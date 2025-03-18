@@ -19,6 +19,8 @@ public:
 
     void putToKeyboardBuffer(Os::KeyPress key) override;
 
+    std::string getClipboardData()override;
+    void setClipboardData(const std::string utf8)override;
 
 
     std::mutex screenLock, videoLock;
