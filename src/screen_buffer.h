@@ -6,6 +6,7 @@
 #include <map>
 #include <mutex>
 #include <atomic>
+#include <memory>
 
 struct ScreenInfo {
     static const size_t charsX = 40, charsY = 25;
@@ -119,6 +120,7 @@ public:
 
 
 
+
 class ScreenBuffer {
 public:
     ScreenBuffer();
@@ -130,20 +132,20 @@ public:
         // Swap everything except screenBitmap
         swap(lhs.palette, rhs.palette);
         swap(lhs.sprites, rhs.sprites);
-        swap(lhs.buffer, rhs.buffer);
+        swap(lhs.lines, rhs.lines);
         swap(lhs.color, rhs.color);
         swap(lhs.borderColor, rhs.borderColor);
-        swap(lhs.cursorPos, rhs.cursorPos);
+        swap(lhs.cursor, rhs.cursor);
     }
 
     // Move constructor
     ScreenBuffer(ScreenBuffer&& other) noexcept
         : palette(std::move(other.palette)),
         sprites(std::move(other.sprites)),
-        buffer(std::move(other.buffer)),
+        lines(std::move(other.lines)),
         color(other.color),
         borderColor(other.borderColor),
-        cursorPos(other.cursorPos) {
+        cursor(other.cursor) {
         // Note: screenBitmap is not moved
     }
 
@@ -161,6 +163,9 @@ public:
         size_t x, y;
         bool operator==(const Cursor& c)const { return x == c.x && y == c.y; }
         bool operator!=(const Cursor& c)const { return x != c.x || y != c.y; }
+        bool operator <(const Cursor& c)const {
+            if (y < c.y) { return true; } if (y == c.y && x < c.x) { return true; }return false;
+        }
     };
 
     ScreenBitmap screenBitmap;
@@ -183,17 +188,17 @@ public:
 
     // Cursor <-> Position
     Cursor getCursorPos() const;
-    Cursor getCursorAtPos(size_t pos) const;
-    size_t getPosAtCursor(Cursor crsr);
+    // Cursor getCursorAtPos(size_t pos) const;
+    // size_t getPosAtCursor(Cursor crsr);
 
     // these return position in buffer
-    size_t setCursorPos(Cursor crsr);
-    size_t moveCursorPos(int dx, int dy);
-    size_t getStartOfLineAt(Cursor crsr);
-    size_t getEndOfLineAt(Cursor crsr);
+    const Cursor& setCursorPos(Cursor crsr);
+    const Cursor& moveCursorPos(int dx, int dy);
+    Cursor getStartOfLineAt(Cursor crsr);
+    Cursor getEndOfLineAt(Cursor crsr);
 
     // buffer to print to a console
-    void getPrintBuffer(std::u32string& chars, std::string& colors) const;
+    // void getPrintBuffer(std::u32string& chars, std::string& colors) const;
 
 
     // puffer colour indices per pixel
@@ -201,7 +206,7 @@ public:
     // buffer to draw on a bitmap
     void updateScreenBitmap();
 
-    std::u32string getSelectedText(size_t start, size_t end)const;
+    std::u32string getSelectedText(Cursor start, Cursor end)const;
 
     // set the color index [0..15]
     void setColors(uint8_t text, uint8_t back);
@@ -224,18 +229,35 @@ public:
 
     std::atomic<bool> dirtyFlag = true; // must be drawn to screen? Must be cleared manually.
 
-private:
-    mutable std::mutex lock;
     struct SChar {
-        char32_t ch;
-        uint8_t col;
+        char32_t ch = U' ';
+        uint8_t col = 1;
     };
+    struct Line {
+        void clear() {
+            for (auto& c : cols) { c.ch = '\0'; c.col = 1; }; wrapps = false;
+        }
+        std::vector<SChar> cols;
+        bool wrapps = false; // this line wraps with the next line as one string
+    };
+    const std::vector< std::shared_ptr<Line> > getLineBuffer()const { return lines; }
+
+protected:
+    mutable std::mutex lock;
+
+    void resize(size_t w, size_t h);
+    std::vector< std::shared_ptr<Line> > lines;
+    Cursor cursor;
+
+
+    static void deepCopyLines(std::vector<std::shared_ptr<Line>>& dest, const std::vector<std::shared_ptr<Line>>& src);
 
     // std::u32string buffer;
-    mutable std::basic_string<SChar> buffer;
+    // mutable std::basic_string<SChar> buffer;
     uint8_t color; // color&0x0f = foreground, color>>4 = background
     uint8_t borderColor;
-    size_t cursorPos;
+    // size_t cursorPos;
+    // size_t cursorPos(){return 
 
     void dropFirstLine();
     void manageOverflow();
@@ -245,11 +267,4 @@ private:
     void drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colText, uint8_t colBack);
     void drawSprPal(int64_t x, int64_t y, char32_t chimg, int8_t color);
 
-#ifdef _DEBUG
-    std::string debugBuffer;
-
-    void verifyPosition(size_t p = (size_t)-1);
-#else
-    inline void verifyPosition(size_t p = (size_t)-1) { (void)p; }
-#endif
 };

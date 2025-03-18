@@ -166,7 +166,23 @@ void OsWindowsConsole::setBackgroundColor(int index) {
 }
 
 void OsWindowsConsole::presentScreen() {
-    screen.getPrintBuffer(chars, colors);
+    // screen.getPrintBuffer(chars, colors);
+    chars.clear(); colors.clear();
+    for (size_t y = 0; y < screen.height; ++y) {
+        auto& ln = screen.getLineBuffer()[y];
+        for (size_t x = 0; x < screen.width; ++x) {
+            auto& sc = ln->cols[x];
+            if (sc.ch == U'\0') {
+                break;
+            }
+            chars.push_back(sc.ch);
+            colors.push_back(sc.col);
+        }
+        chars.push_back(U'\n');
+        colors.push_back(1);
+    }
+
+
     if (chars.length() == 0) { return; }
 
     setCursorVisibility(false);

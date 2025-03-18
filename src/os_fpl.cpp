@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <cmath>
 #include <cstring>
+#include <array>
 
 #ifdef _WIN32
 #include "../resources/resource.h"
@@ -171,12 +172,6 @@ void displayUpdateThread(OsFPL* fpl) {
         const uint64_t flashSpeed = 560;
         uint64_t now = fplMillisecondsQuery();
 
-        // cursorVisible = (now % flashSpeed) > (flashSpeed / 2);
-        // if (oldCursorVisible != cursorVisible) {
-        //     oldCursorVisible = cursorVisible;
-        //     dirty = true;
-        // }
-
         if (now > nextShowCursor) {
             nextShowCursor = now + flashSpeed;
             cursorVisible = !cursorVisible;
@@ -185,7 +180,6 @@ void displayUpdateThread(OsFPL* fpl) {
 
         if (!dirty) {
             fplThreadSleep(15);
-
             continue;
         }
 
@@ -202,17 +196,26 @@ void displayUpdateThread(OsFPL* fpl) {
             if (cursorVisible
                 && crsr.x < ScreenBuffer::width
                 && crsr.y < ScreenBuffer::height) {
-                bool draw = false;
+
+                auto sc = state.screen.getLineBuffer()[crsr.y]->cols[crsr.x];
+                uint8_t bkcol = sc.col;
+                uint8_t txcol = bkcol & 0x0f;
+                bkcol >>= 4;
+                if (sc.ch == U'\0') {
+                    txcol = state.screen.getTextColor();
+                    bkcol = state.screen.getBackgroundColor();
+                }
+                if (txcol == bkcol) {
+                    txcol = 1;
+                    bkcol = 0;
+                }
+
                 for (size_t y = 0; y < ScreenInfo::charPixY; ++y) {
-                    auto* pdest = &state.screen.screenBitmap.pixelsPal[(y + crsr.y * ScreenInfo::charPixY) * srcWidth + crsr.x * ScreenInfo::charPixX];
+                    uint8_t* pdest = &state.screen.screenBitmap.pixelsPal[(y + crsr.y * ScreenInfo::charPixY) * srcWidth + crsr.x * ScreenInfo::charPixX];
                     for (size_t x = 0; x < 8; ++x) {
-                        draw = !draw;
-                        if (draw || y + 1 == ScreenInfo::charPixY) {
-                            *pdest = state.screen.getTextColor(); // cursor color 
-                        }
+                        if (*pdest == bkcol) { *pdest = txcol; } else { *pdest = bkcol; }
                         ++pdest;
                     }
-                    draw = !draw;
                 }
             }
         }

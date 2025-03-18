@@ -406,6 +406,7 @@ void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
             if (lastLineNumber > newLineNumber) {
                 throw Basic::Error(Basic::ErrorId::UNDEFD_STATEMENT);
             }
+            if (oldLine > newLineNumber) { newLineNumber = oldLine; }
             lineMapping[oldLine] = newLineNumber;
             newLineNumber += step;
         } else {
@@ -738,6 +739,7 @@ Basic::Basic(Os& os, SoundSystem* ss) {
     {"UCASE$",  fktUCASE$},
     {"LEN",  [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 1); return (int64_t)Unicode::utf8StrLen(basic->valueToString(args[0]).c_str()); }},
     {"LOG",  [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 1); return log(basic->valueToDouble(args[0])); }},
+    {"MOD",  [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 3); auto div = basic->valueToInt(args[2]); if (div == 0) { throw Error(ErrorId::ILLEGAL_QUANTITY); }return basic->valueToInt(args[0]) % div; }},
     {"MID$",  fktMID$},
     {"PEEK", [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 1); return int64_t(memory[basic->valueToInt(args[0])]); }},
     {"POS",  [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().x); }},
@@ -753,7 +755,7 @@ Basic::Basic(Os& os, SoundSystem* ss) {
     {"TAB",  fktTAB},
     {"TAN",  [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 1); return tan(basic->valueToDouble(args[0])); }},
     {"VAL", [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 1); return basic->valueToDouble(args[0]); }},
-    {"XOR", [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 3); return basic->valueToInt(args[0]) ^ basic->valueToInt(args[3]); }}
+    {"XOR", [&](Basic* basic, const std::vector<Basic::Value>& args)->Basic::Value { nargs(args, 3); return basic->valueToInt(args[0]) ^ basic->valueToInt(args[2]); }}
         });
 
 #if 0
@@ -1334,6 +1336,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
             op = "-";
             a = Value(0.0);
         } else {
+            if (values.empty()) { throw Error(ErrorId::SYNTAX); }
             a = values.back();
             values.pop_back();
         }
@@ -1576,7 +1579,7 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
     }
 
 
-    if (pval != nullptr) {
+    if (pval != nullptr && end < tokens.size()) {
         i = end;
         if (tokens[i].value != "=") { throw Error(ErrorId::SYNTAX); }
         auto values = evaluateExpression(tokens, i + 1);
@@ -2469,6 +2472,9 @@ void Basic::executeTokens(std::vector<Token>& tokens) {
             handleGOSUB(tokens);
         } else if (tokens[0].value == "RETURN") {
             ASSERT(moduleListingStack.size() == moduleVariableStack.size());
+            if (modl.gosubStack.empty()) {
+                throw Error(ErrorId::RETURN_WITHOUT_GOSUB);
+            }
             programCounter() = modl.gosubStack.back();
             modl.gosubStack.pop_back();
         } else if (tokens[0].value == "FOR") {
@@ -2617,8 +2623,8 @@ std::string Basic::inputLine(bool allowVertical) {
             case uint32_t(Os::KeyConstant::HOME): os->screen.setCursorPos({0, os->screen.getCursorPos().y}); continue;
             case uint32_t(Os::KeyConstant::END):
             {
-                size_t iend = os->screen.getEndOfLineAt(os->screen.getCursorPos()); // that's the '\n' character
-                auto crsr = os->screen.getCursorAtPos(iend);
+                auto crsr = os->screen.getEndOfLineAt(os->screen.getCursorPos()); // that's the '\n' character
+                // auto crsr = os->screen.getCursorAtPos(iend);
                 os->screen.setCursorPos(crsr);
             }
             continue;
@@ -2641,7 +2647,7 @@ std::string Basic::inputLine(bool allowVertical) {
     }
 
     auto crsr = os->screen.getCursorPos();
-    size_t istart = 0, iend = 0;
+    ScreenBuffer::Cursor istart{}, iend{};
 
     std::u32string screenchars;
     if (movedVertical) {
@@ -2651,14 +2657,14 @@ std::string Basic::inputLine(bool allowVertical) {
         istart = os->screen.getStartOfLineAt(startCrsr);
         iend = os->screen.getEndOfLineAt(crsr); // that's the '\n' character
 
-        crsr = os->screen.getCursorAtPos(iend);
+        crsr = iend;
         crsr.x = 0;
         crsr.y++;
         screenchars = os->screen.getSelectedText(istart, iend);
         os->screen.setCursorPos(crsr);
     } else {
-        istart = os->screen.getPosAtCursor(startCrsr);
-        iend = os->screen.getPosAtCursor(crsr);
+        istart = (startCrsr);
+        iend = (crsr);
         screenchars = os->screen.getSelectedText(istart, iend);
         printUtf8String("\n");
     }

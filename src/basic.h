@@ -86,6 +86,7 @@ public:
         , BAD_SUBSCRIPT // out of dim bounds
         , UNIMPLEMENTED_COMMAND
         , OUT_OF_DATA
+        , RETURN_WITHOUT_GOSUB
 
         // these are not from BASIC V7
         , BREAK
@@ -104,6 +105,7 @@ public:
         , {ErrorId::BAD_SUBSCRIPT          , "BAD SUBSCRIPT ERROR"}
         , {ErrorId::UNIMPLEMENTED_COMMAND  , "UNIMPLEMENTED COMMAND ERROR"}
         , {ErrorId::OUT_OF_DATA            , "OUT OF DATA ERROR"}
+        , {ErrorId::RETURN_WITHOUT_GOSUB   , "RETURN WITHOUT GOSUB"}
         , {ErrorId::BREAK                  , "BREAK"}
         , {ErrorId::UNDEFD_MODULE          , "UNDEFD MODULE ERROR"}
         , {ErrorId::ARGUMENT_COUNT         , "ARGUMENT COUNT ERROR"}

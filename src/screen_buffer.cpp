@@ -13,7 +13,9 @@ static CharMap& charMap() {
     return c;
 }
 
-ScreenBuffer::ScreenBuffer(): cursorPos(0) {
+ScreenBuffer::ScreenBuffer(): cursor{} {
+    resize(width, height);
+
     resetDefaultColors();
     setColors(1, 0);
     borderColor = 1;
@@ -22,55 +24,41 @@ ScreenBuffer::ScreenBuffer(): cursorPos(0) {
 }
 
 void ScreenBuffer::clear() {
-    buffer.clear();
-    cursorPos = 0;
+    cursor = {};
+    for (auto& ln : lines) {
+        for (auto& c : ln->cols) {
+            c.ch = U'\0';
+            c.col = color;
+        }
+        ln->wrapps = false;
+    }
 }
 
 void ScreenBuffer::putC(char32_t c) {
     dirtyFlag = true;
-    verifyPosition();
+
+    if (c == U'\b') { backspaceChar(); return; }
+
+    if (c == U'\n') {
+        cursor.y++;
+        cursor.x = 0;
+        manageOverflow();
+        return;
+    }
 
     SChar sc;
     sc.ch = c;
     sc.col = color;
 
-    if (c == U'\b') { backspaceChar(); return; }
+    lines[cursor.y]->cols[cursor.x] = sc;
+    ++cursor.x;
 
-    // if (c == U'\n') {
-    //     // newline at last line? scroll one line up
-    //     auto crsr = getCursorPos();
-    //     if (crsr.y + 1 >= height) {
-    //         dropFirstLine();
-    //         verifyPosition();
-    //         crsr.y = height - 2;
-    //         setCursorPos(crsr);
-    //         verifyPosition();
-    //     }
-    // }
-
-    if (cursorPos >= buffer.length()) {
-        buffer += sc;
-        cursorPos = buffer.length();
-    } else {
-        if (buffer.at(cursorPos).ch == U'\n') { // append to end of current line
-            if (c != '\n') {
-                buffer.insert(buffer.begin() + cursorPos, sc);
-            }
-        } else {
-            buffer.at(cursorPos) = sc; // overwrite
-        }
-        if (c == U'\n') {
-            auto crsr = getCursorPos();
-            if (crsr.x != 0) {
-                setCursorPos({0, crsr.y + 1});
-            }
-        } else {
-            ++cursorPos;
-        }
+    if (cursor.x >= width) {
+        lines[cursor.y]->wrapps = true;
+        cursor.y++;
+        cursor.x = 0;
+        manageOverflow();
     }
-    verifyPosition();
-    manageOverflow();
-    verifyPosition();
 }
 
 void ScreenBuffer::defineChar(char32_t codePoint, const CharBitmap& bits) {
@@ -81,218 +69,193 @@ void ScreenBuffer::defineChar(char32_t codePoint, const CharBitmap& bits) {
 
 void ScreenBuffer::deleteChar() {
     dirtyFlag = true;
-    if (cursorPos < buffer.size()) {
-        buffer.erase(cursorPos, 1);
+
+    lines[height - 1]->wrapps = false;
+
+    size_t xstart = cursor.x;
+    for (size_t y = cursor.y; y < height; ++y) {
+        auto ln = lines[y];
+        for (size_t x = xstart; x + 1 < width; ++x) {
+            ln->cols[x] = ln->cols[x + 1];
+            if (ln->cols[x].ch == U'\0') { return; }
+        }
+        if (ln->wrapps) {
+            ln->cols[width - 1] = lines[cursor.y + 1]->cols[0];
+            if (ln->cols[width - 1].ch == U'\0') {
+                ln->wrapps = false;
+                return;
+            }
+            xstart = 0;
+        } else {
+            ln->cols[width - 1] = {U'\0', color};
+            break; // y
+        }
     }
 }
 
 void ScreenBuffer::backspaceChar() {
-    dirtyFlag = true;
-    if (cursorPos > 1) {
-        buffer.erase(cursorPos - 1, 1);
-        cursorPos--;
-    }
+    if (cursor.x == 0 && cursor.y == 0) { return; }
+    moveCursorPos(-1, 0);
+    deleteChar();
 }
 
 void ScreenBuffer::insertSpace() {
-    SChar sc{' ', color};
-    buffer.insert(buffer.begin() + cursorPos, sc);
+    dirtyFlag = true;
+    SChar sc{' ', color}, nxt;
+
+    Cursor cr = cursor;
+    while (cr.y < height) {
+        nxt = lines[cr.y]->cols[cr.x];
+        lines[cr.y]->cols[cr.x] = sc;
+        if (nxt.ch == U'\0') { break; }
+
+        if (cr.x + 1 < width) {
+            ++cr.x;
+        } else {
+            lines[cr.y]->wrapps = true;
+            if (lines[cr.y]->wrapps) {
+                cr.x = 0;
+                ++cr.y;
+                if (cr.y >= height) { return; }
+            } else { break; }
+        }
+        sc = nxt;
+    }
 }
 
 ScreenBuffer::Cursor ScreenBuffer::getCursorPos() const {
-    return getCursorAtPos(cursorPos);
+    return cursor;
 }
 
-// can return y values >= screen.height!
-ScreenBuffer::Cursor ScreenBuffer::getCursorAtPos(size_t pos) const {
-    size_t x = 0, y = 0;
-    size_t i = 0;
-    for (i = 0; i < pos && i < buffer.size(); ++i) {
-        bool didLineBreak = false;
-        if (x >= width) { didLineBreak = true; x = 0; ++y; }
-        // if (y >= height) {
-        //     break;
-        // }
-        if (buffer[i].ch == U'\n') {
-            if (didLineBreak) {
-                //++x;
-            } else {
-                y++;
-                x = 0;
-            }
-        } else {
-            x++;
-        }
 
-    }
-    if (x >= width) { x -= width; ++y; }
 
-    // const_cast<ScreenBuffer*>(this)->verifyPosition(pos);
+const ScreenBuffer::Cursor& ScreenBuffer::setCursorPos(Cursor crsr) {
+    cursor = crsr;
+    if (cursor.x >= width) { cursor.x = 0; ++cursor.y; }
+    while (cursor.y >= height) { dropFirstLine(); }
 
-    return {x, y};
-}
-
-// allows y positions greater than end of screen
-size_t ScreenBuffer::setCursorPos(Cursor crsr) {
     dirtyFlag = true;
-    SChar nl{'\n', color};
+    return cursor;
+}
 
-    while (crsr.x >= width) { crsr.x -= width; ++crsr.y; }
-    // if (crsr.y >= height) {
-    //     crsr.y = height;
-    // }
-    // if (crsr.y >= height) {
-    //     crsr.y = height - 1;
-    //     dropFirstLine();
-    //     verifyPosition();
-    // }
-
-    // fill with newlines to make sure we have this much lines
-    cursorPos = buffer.length();
-    auto endCrsr = getCursorAtPos(buffer.length());
-    if (endCrsr.y <= crsr.y) {
-        buffer.append(1 + crsr.y - endCrsr.y, nl);
+const ScreenBuffer::Cursor& ScreenBuffer::moveCursorPos(int dx, int dy) {
+    // vertical
+    if (dy < 0 && cursor.y < -dy) { cursor.y = 0; } else {
+        cursor.y += dy;
     }
-    size_t x = 0, y = 0;
-    for (size_t i = 0; i < buffer.length(); ++i) {
-        auto ch = buffer[i];
-        bool didLineBreak = false;
-        if (x == width) {
-            didLineBreak = true;
-            x = 0; ++y;
+
+    // left
+    while (dx < 0 && cursor.x < -dx) {
+        ++dx;
+        if (cursor.x > 0) { --cursor.x; } else {
+            if (cursor.y > 0) { cursor.x = width - 1; --cursor.y; }
         }
-        if (y > crsr.y || (x == crsr.x && y == crsr.y)) {
-            cursorPos = i;
-            verifyPosition();
-        #if _DEBUG
-            auto nowcrsr = getCursorPos();
-            if (nowcrsr != crsr) { throw std::runtime_error("bad cursor position"); }
-        #endif
-            return cursorPos;
+    }
+    // right
+    cursor.x += dx;
+    if (cursor.x >= width) { cursor.x = 0; ++cursor.y; }
+
+    // down
+    while (cursor.y >= height) { dropFirstLine(); }
+
+    // ensure there's no '\0' left of the cursor
+    auto& ln = lines[cursor.y];
+    for (size_t x = 0; x < cursor.x; ++x) {
+        if (ln->cols[x].ch == '\0') {
+            ln->cols[x].ch = U' ';
+            ln->cols[x].col = color;
         }
-        if (ch.ch == U'\n') {
-            if (!didLineBreak && (y == crsr.y && x < crsr.x)) {
-                // we must insert spaces to get to this position
-                SChar sp{' ', color};
-                buffer.insert(buffer.begin() + i, (crsr.x - x), sp);
-                --i;
-                continue;
+    }
+
+    dirtyFlag = true;
+    return cursor;
+}
+
+
+ScreenBuffer::Cursor ScreenBuffer::getStartOfLineAt(Cursor crsr) {
+    Cursor cr(cursor);
+    cr.x = 0;
+    while (cr.y > 0 && lines[cr.y - 1]->wrapps) { --cr.y; }
+
+    return cr;
+}
+
+ScreenBuffer::Cursor ScreenBuffer::getEndOfLineAt(Cursor crsr) {
+    lines[height - 1]->wrapps = false;
+    for (;;) {
+        auto& sc = lines[crsr.y]->cols[crsr.x];
+        if (sc.ch == U'\0') { return crsr; }
+        if (crsr.x + 1 >= width) {
+            if (lines[crsr.y]->wrapps) {
+                if (crsr.y + 1 >= height) { return crsr; }
+                crsr.x = 0; ++crsr.y;
             }
-
-            if (didLineBreak) {
-                int pause = 1;
-                // ++x;
-            } else {
-                x = 0;
-                ++y;
-            }
-        } else {
-            x++;
         }
-
+        ++crsr.x;
     }
-    return buffer.length();
-}
-
-size_t ScreenBuffer::moveCursorPos(int dx, int dy) {
-    auto crsr = getCursorPos();
-    while (dx < 0 && dx > crsr.x) {
-        dx += int(width);
-        --dy;
-    }
-    crsr.x += dx;
-    while (crsr.x >= width) { crsr.x -= width; ++dy; }
-
-    if (dy < 0 && crsr.y < -dy) { crsr.y = 0; } else { crsr.y += dy; }
-
-    size_t pos = setCursorPos(crsr);
-    if (crsr.y >= height) {
-        dropFirstLine();
-        crsr.y = height - 1;
-        return setCursorPos(crsr);
-    }
-    return pos;
-}
-
-size_t ScreenBuffer::getPosAtCursor(Cursor crsr) {
-    Cursor save = getCursorPos();
-    size_t ret = setCursorPos(crsr);
-    setCursorPos(save);
-    return ret;
-}
-
-size_t ScreenBuffer::getStartOfLineAt(Cursor crsr) {
-    size_t start = 0;
-    size_t pos = 0;
-    size_t posEnd = getPosAtCursor(crsr);
-    while (pos < posEnd) {
-        if (buffer.at(pos).ch == U'\n') { start = pos + 1; }
-        ++pos;
-    }
-    verifyPosition(start);
-    return start;
-}
-
-size_t ScreenBuffer::getEndOfLineAt(Cursor crsr) {
-    size_t pos = getPosAtCursor(crsr);
-    while (pos < buffer.length() && buffer.at(pos).ch != U'\n') {
-        ++pos;
-    }
-    if (pos >= buffer.length() || buffer.at(pos).ch != U'\n') { pos = buffer.length(); }
-    verifyPosition(pos);
-    return pos;
+    return {width - 1, height - 1};
 }
 
 // get buffer as a width * height character buffer
+/*
 void ScreenBuffer::getPrintBuffer(std::u32string& chars, std::string& colors) const {
-    chars.reserve(width * height); colors.reserve(width * height);
     chars.clear(); colors.clear();
+    chars.resize(width * height); colors.resize(width * height);
     char lastColor = char(color);
-    size_t x = 0, y = 0;
-    for (size_t pos = 0; ; ++pos) {
-        const char32_t ch = buffer[pos].ch;
-        if (ch == U'\0') { break; }
-        if (ch == U'\n' || x == width) {
-            chars += std::u32string(width - x, U' ');
-            colors += std::string(width - x, char(buffer[pos].col));
 
-            x = 0; ++y;
-            if (y == height) {
-                SChar sc = {' ', buffer.back().col};
-                for (size_t p = pos + 1; p < buffer.size(); ++p) {
-                    buffer.data()[p] = sc;
-                }
-                return;
+    size_t pos = 0;
+    for (size_t y = 0; y < height; ++y) {
+        bool endReached = false;
+        for (size_t x = 0; x < width; ++x) {
+            auto& sc = lines[y]->cols[x];
+            if (sc.ch == U'\0') {
+                chars[pos] = U' ';
+                colors[pos] = lastColor;
+            } else {
+                chars[pos] = sc.ch;
+                colors[pos] = sc.col;
+                lastColor = sc.col;
             }
-        }
-        if (ch != U'\n') {
-            chars += ch;
-            lastColor = char(buffer[pos].col);
-            colors += lastColor;
-            x++;
+            ++pos;
         }
     }
-
-    size_t fillUp = width * height - chars.size();
-    chars += std::u32string(fillUp, ' ');
-    colors += std::string(fillUp, lastColor);
 }
-
+*/
 
 void ScreenBuffer::updateScreenPixelsPalette() {
-    static std::u32string chars;
-    static std::string colors;
+    // static std::u32string chars;
+    // static std::string colors;
+    // getPrintBuffer(chars, colors);
+    // #pragma omp for
+    // for (int i = 0; i < chars.length(); ++i) {
+    //     size_t x = i % width;
+    //     size_t y = i / width;
+    //     char32_t unicodeCodepoint = chars[i];
+    //     uint8_t color = colors[i];
+    //     drawCharPal(x * ScreenInfo::charPixX, y * ScreenInfo::charPixY, unicodeCodepoint, color & 0x0f, (color >> 4) & 0x0f);
+    // }
 
-    getPrintBuffer(chars, colors);
-
-    // TODO possible?
-// #pragma omp for
-    for (int i = 0; i < chars.length(); ++i) {
-        size_t x = i % width;
-        size_t y = i / width;
-        char32_t unicodeCodepoint = chars[i];
-        uint8_t color = colors[i];
-        drawCharPal(x * ScreenInfo::charPixX, y * ScreenInfo::charPixY, unicodeCodepoint, color & 0x0f, (color >> 4) & 0x0f);
+#pragma omp for
+    for (int y = 0; y < int(height); ++y) {
+        uint8_t cl = 1, lastColor = 1;
+        auto& ln = lines[y];
+        lastColor = this->color;
+        for (size_t x = 0; x < width; ++x) {
+            auto sc = ln->cols[x];
+            if (sc.ch == U'\0') {
+                sc.ch = U' ';
+                sc.col = lastColor;
+            } else {
+                sc.col = sc.col;
+                lastColor = sc.col;
+            }
+            drawCharPal(x * ScreenInfo::charPixX, y * ScreenInfo::charPixY, sc.ch, sc.col & 0x0f, (sc.col >> 4) & 0x0f);
+        }
+    #if _DEBUG
+        if (ln->wrapps) {
+            drawCharPal(ScreenInfo::pixX - ScreenInfo::charPixX, y * ScreenInfo::charPixY, U'~', 7, 0);
+        }
+    #endif
     }
 
 
@@ -345,23 +308,32 @@ void ScreenBuffer::updateScreenBitmap() {
     }
 }
 
-std::u32string ScreenBuffer::getSelectedText(size_t start, size_t end) const {
+std::u32string ScreenBuffer::getSelectedText(Cursor start, Cursor end) const {
     if (end < start) { std::swap(start, end); }
     std::u32string mid;
 
-#if _DEBUG
-    // inverse colors for debugging
-    for (size_t i = start; i < end; ++i) {
-        auto& ch = const_cast<SChar&>(buffer.at(i));
-        ch.col = (ch.col << 4) | (ch.col >> 4);
+    size_t startx = start.x, endx = width - 1;
+    if (end.y == start.y) { endx = end.x; }
+    for (size_t y = start.y; y <= end.y; ++y) {
+        for (size_t x = startx; x <= endx; ++x) {
+            auto& sc = lines[y]->cols[x];
+            if (sc.ch == U'\0') {
+                startx = 0;
+                if (y + 1 == end.y) { endx = end.x; }
+                break;
+            }
+        #if _DEBUG
+            // inverse colors for debugging
+            sc.col = (sc.col << 4) | (sc.col >> 4);
+        #endif
+            mid += sc.ch;
+        }
     }
-#endif
 
-    auto sub = buffer.substr(start, end - start);
-    mid.reserve(sub.length() + 1);
-    for (auto& c : sub) {
-        mid += c.ch;
+    while (mid.length() > 0 && mid[0] == '\0') {
+        mid.erase(mid.begin());
     }
+
     return mid;
 }
 
@@ -416,12 +388,13 @@ void ScreenBuffer::copyWithLock(ScreenBuffer& dst, const ScreenBuffer& src) {
     dst.lock.lock();
     dst.dirtyFlag = true;
 
-    dst.buffer = src.buffer;
+    ScreenBuffer::deepCopyLines(dst.lines, src.lines);
+
     dst.borderColor = src.borderColor;
     dst.color = src.color;
     // dst.height = src.height;
     // dst.width = src.width;
-    dst.cursorPos = src.cursorPos;
+    dst.cursor = src.cursor;
     dst.palette = src.palette;
     dst.sprites = src.sprites;
 
@@ -429,55 +402,53 @@ void ScreenBuffer::copyWithLock(ScreenBuffer& dst, const ScreenBuffer& src) {
     src.lock.unlock();
 }
 
-#if 0
-void ScreenBuffer::printBuffer() const {
-    size_t x = 0, y = 0;
-    for (const char32_t* ch = buffer.c_str(); *ch != U'\0'; ++ch) {
-        if (*ch == U'\n' || x == width) {
-            std::cout << std::string(width - x, ' ') << '\n';
-            x = 0; ++y;
-            if (y == height) {
-                return;
-            }
+
+void ScreenBuffer::resize(size_t w, size_t h) {
+    lines.resize(h);
+    for (size_t y = 0; y < h; ++y) {
+        if (lines[y] == nullptr) {
+            lines[y] = std::make_shared<Line>();
         }
-        if (*ch != U'\n') {
-            std::cout << static_cast<char>(ch); // Assumes ASCII for simplicity
-            x++;
-        }
+        lines[y]->cols.resize(w, {U'\0', color});
     }
-    std::cout << std::string(width - x, ' ') << std::endl;
+    // width=w; height=h;
 }
-#endif
+
+void ScreenBuffer::deepCopyLines(std::vector<std::shared_ptr<Line>>& dest, const std::vector<std::shared_ptr<Line>>& src) {
+    // Resize destination to match source
+    if (dest.size() > src.size()) {
+        dest.resize(src.size()); // Shrink if needed
+    }
+
+    for (size_t i = 0; i < src.size(); ++i) {
+        if (i >= dest.size()) {
+            // Create new Line if dest is smaller
+            dest.push_back(std::make_shared<Line>());
+        }
+        if (!dest[i]) {
+            // Allocate if it's nullptr
+            dest[i] = std::make_shared<Line>();
+        }
+
+        // Copy contents from src[i] to dest[i] (deep copy)
+        dest[i]->cols = src[i]->cols;  // Copies the vector
+        dest[i]->wrapps = src[i]->wrapps;
+    }
+}
+
 
 void ScreenBuffer::dropFirstLine() {
-    auto crsr = getCursorPos();
-    // size_t firstNewline = buffer.find(U'\n');
-    size_t firstNewline = 0;
-    auto* ptr = buffer.c_str();
-    while (ptr->ch != '\0' && ptr->ch != '\n') { ++ptr; ++firstNewline; }
-
-    if (firstNewline != std::u32string::npos && firstNewline < width) {
-        buffer.erase(0, firstNewline + 1);
-    } else {
-        buffer.erase(0, width);
+    dirtyFlag = true;
+    for (size_t y = 1; y < height; ++y) {
+        std::swap(lines[y - 1], lines[y]);
     }
+    lines[height - 1]->clear();
 
-    SChar nl{'\n', color};
-    buffer += nl;
-    if (crsr.y > 0) { --crsr.y; }
-    setCursorPos(crsr);
+    if (cursor.y > 0) { --cursor.y; }
 }
 
 void ScreenBuffer::manageOverflow() {
-    bool didScroll;
-    do {
-        didScroll = false;
-        auto crsr = getCursorPos();
-        if (crsr.y >= height) {
-            didScroll = true;
-            dropFirstLine();
-        }
-    } while (didScroll);
+    while (cursor.y >= height) { dropFirstLine(); }
 }
 
 // draw character pixels at given pixel position
@@ -553,44 +524,5 @@ void ScreenBuffer::drawSprPal(int64_t x, int64_t y, char32_t chimg, int8_t color
 }
 
 
-
-#ifdef _DEBUG
-void ScreenBuffer::verifyPosition(size_t p) {
-    size_t oldCur = cursorPos;
-    static bool inside = false;
-    if (inside) { return; }
-
-    // update debug string
-    debugBuffer.clear();
-    for (auto sc : buffer) {
-        debugBuffer += char(sc.ch);
-    }
-
-    // try beyond end of buffer error
-    if (p == size_t(-1)) {
-        p = cursorPos;
-    }
-
-    if (p > buffer.length()) {
-        throw std::runtime_error("cursor position is broken");
-    }
-
-    // try cursor position error
-    inside = true;
-    auto cr = getCursorAtPos(p);
-    size_t cp = getPosAtCursor(cr);
-    inside = false;
-    // 
-    // if (cp != p && cr.y < 25) {
-    //     cr = getCursorAtPos(p);
-    //     cp = getPosAtCursor(cr);
-    //     throw std::runtime_error();
-    // }
-
-    cursorPos = oldCur;
-}
-
-
-#endif
 
 
