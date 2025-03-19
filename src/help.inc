@@ -28,7 +28,6 @@
 ,{"CHAR", R"RAW(CHAR color_source, column, line, text$[, inverse])RAW"}
 ,{"CHARDEF", R"RAW(CHARDEF char$, bytes, [more bytes])RAW"}
 ,{"END", R"RAW(END)RAW"}
-,{"EXIT", R"RAW(EXIT)RAW"}
 ,{"FAST", R"RAW(FAST)RAW"}
 ,{"FIND", R"RAW(FIND "print*hello world")RAW"}
 ,{"GET", R"RAW(GET a$ [, b$, ...])RAW"}
@@ -44,6 +43,7 @@
 ,{"POKE", R"RAW(POKE addr, byte)RAW"}
 ,{"PRINT", R"RAW(PRINT expr [[,|;| ] expr ...])RAW"}
 ,{"PRINT USING", R"RAW(PRINT USING format; expr [, expr ...])RAW"}
+,{"QUIT", R"RAW(QUIT)RAW"}
 ,{"QSAVE", R"RAW(QSAVE)RAW"}
 ,{"REM", R"RAW(REM comment)RAW"}
 ,{"RENUMBER", R"RAW(RENUMBER [newstart, increment, oldstart, milestone])RAW"}

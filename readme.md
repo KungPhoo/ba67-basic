@@ -48,7 +48,6 @@ Visit the project [Homepage:](http://www.ba67.org).
     - [CHARDEF](#chardef)
       - [For coders:](#for-coders-)
     - [END](#end)
-    - [EXIT](#exit)
     - [FAST](#fast)
     - [FIND](#find)
     - [GET](#get)
@@ -75,6 +74,7 @@ Visit the project [Homepage:](http://www.ba67.org).
     - [POKE](#poke)
     - [PRINT](#print)
     - [PRINT USING](#print-using)
+    - [QUIT](#quit)
     - [QSAVE](#qsave)
     - [REM](#rem)
     - [RENUMBER](#renumber)
@@ -644,11 +644,6 @@ Terminates program execution.
 
 **Usage:** `END`
 
-### EXIT
-Exits the interpreter.
-
-**Usage:** `EXIT`
-
 ### FAST
 Enables fast mode for this `MODULE`. That's the default
 speed. No delay will be added. See also `SLOW`.
@@ -958,6 +953,12 @@ Example:
 1010 PRINT USING "##.##";"CBM"         : REM "CBM"
 1020 PRINT USING "X##=##X";"CBM"       : REM "X CBM X"
 ```
+
+### QUIT
+Quits the interpreter.
+
+**Usage:** `QUIT`
+
 
 ### QSAVE
 Saves the current listing as the name that was last

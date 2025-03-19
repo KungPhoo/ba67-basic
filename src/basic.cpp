@@ -349,7 +349,7 @@ void cmdMOVSPR(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->os->screen.dirtyFlag = true;
 }
 
-void cmdEXIT(Basic* basic, const std::vector<Basic::Value>& values) {
+void cmdQUIT(Basic* basic, const std::vector<Basic::Value>& values) {
     int code = 0;
     if (values.size() == 1)
     {
@@ -832,7 +832,7 @@ Basic::Basic(Os& os, SoundSystem* ss) {
         {"SPRDEF", cmdSPRDEF},
         {"SPRITE", cmdSPRITE},
         {"MOVSPR", cmdMOVSPR},
-        {"EXIT", cmdEXIT},
+        {"QUIT", cmdQUIT},
         {"FIND", cmdFIND},
         {"LOAD", cmdLOAD},
         {"OPEN", cmdOPEN},
@@ -2537,7 +2537,7 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
             {
                 throw Error(ErrorId::SYNTAX);
             }
-            int64_t v;
+            int64_t v = 0;
             if (iarg == 0) { v = bmp.isMono ? -1 : 1; }
             else
             {
@@ -2550,8 +2550,10 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
                     size_t n = (iarg - 1) * 8;
                     for (size_t i = 0; i < 8; ++i)
                     {
+                        size_t nibble = bmp.multi(n + i);
+                        ;
                         v <<= 4;
-                        v += bmp.multi(n);
+                        v += nibble;
                     }
                 }
             }
@@ -3642,7 +3644,6 @@ void Basic::runInterpreter() {
             {
                 restoreColorsAndCursor(false);
                 printUtf8String("\nREADY." + std::string(os->screen.width - 7, ' ') + "\n");
-                printUtf8String(std::string(os->screen.width, ' ') + "\n");
                 printUtf8String(std::string(os->screen.width, ' ') + "\n");
                 size_t y = os->screen.getCursorPos().y;
                 os->screen.setCursorPos({0, y - 1});
