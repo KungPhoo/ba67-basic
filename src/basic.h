@@ -84,10 +84,11 @@ class Basic {
         ,
         UNIMPLEMENTED_COMMAND,
         OUT_OF_DATA,
-        RETURN_WITHOUT_GOSUB
+        RETURN_WITHOUT_GOSUB,
+        FORMULA_TOO_COMPLEX,
 
         // these are not from BASIC V7
-        ,
+
         BREAK,
         UNDEFD_MODULE,
         ARGUMENT_COUNT = 101,
@@ -95,7 +96,21 @@ class Basic {
     };
 
     std::map<ErrorId, std::string> errorMessages = {
-        {ErrorId::SYNTAX, "SYNTAX ERROR"}, {ErrorId::FILE_NOT_FOUND, "FILE NOT FOUND ERROR"}, {ErrorId::ILLEGAL_DEVICE, "ILLEGAL DEVICE ERROR"}, {ErrorId::UNDEFD_STATEMENT, "UNDEF'D STATEMENT ERROR"}, {ErrorId::TYPE_MISMATCH, "TYPE MISTMATCH ERROR"}, {ErrorId::ILLEGAL_QUANTITY, "ILLEGAL QUANTITY ERROR"}, {ErrorId::BAD_SUBSCRIPT, "BAD SUBSCRIPT ERROR"}, {ErrorId::UNIMPLEMENTED_COMMAND, "UNIMPLEMENTED COMMAND ERROR"}, {ErrorId::OUT_OF_DATA, "OUT OF DATA ERROR"}, {ErrorId::RETURN_WITHOUT_GOSUB, "RETURN WITHOUT GOSUB"}, {ErrorId::BREAK, "BREAK"}, {ErrorId::UNDEFD_MODULE, "UNDEFD MODULE ERROR"}, {ErrorId::ARGUMENT_COUNT, "ARGUMENT COUNT ERROR"}, {ErrorId::VARIABLE_UNDEFINED, "VARIABLE UNDEFINED ERROR"}};
+        {ErrorId::SYNTAX, "SYNTAX ERROR"},
+        {ErrorId::FILE_NOT_FOUND, "FILE NOT FOUND ERROR"},
+        {ErrorId::ILLEGAL_DEVICE, "ILLEGAL DEVICE ERROR"},
+        {ErrorId::UNDEFD_STATEMENT, "UNDEF'D STATEMENT ERROR"},
+        {ErrorId::TYPE_MISMATCH, "TYPE MISTMATCH ERROR"},
+        {ErrorId::ILLEGAL_QUANTITY, "ILLEGAL QUANTITY ERROR"},
+        {ErrorId::BAD_SUBSCRIPT, "BAD SUBSCRIPT ERROR"},
+        {ErrorId::UNIMPLEMENTED_COMMAND, "UNIMPLEMENTED COMMAND ERROR"},
+        {ErrorId::OUT_OF_DATA, "OUT OF DATA ERROR"},
+        {ErrorId::RETURN_WITHOUT_GOSUB, "RETURN WITHOUT GOSUB"},
+        {ErrorId::FORMULA_TOO_COMPLEX, "FORMULA TOO COMPLEX"},
+        {ErrorId::BREAK, "BREAK"},
+        {ErrorId::UNDEFD_MODULE, "UNDEFD MODULE ERROR"},
+        {ErrorId::ARGUMENT_COUNT, "ARGUMENT COUNT ERROR"},
+        {ErrorId::VARIABLE_UNDEFINED, "VARIABLE UNDEFINED ERROR"}};
 
     class Error {
        public:
@@ -312,6 +327,8 @@ class Basic {
     void handleDELETE(const std::vector<Token>& tokens);
 
     void handleKEY(const std::vector<Token>& tokens);
+
+    void handleRCHARDEF(const std::vector<Token>& tokens);
 
     char valuePostfix(const Token& t) const;  // returns '#', '%', '$'
 

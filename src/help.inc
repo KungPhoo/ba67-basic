@@ -12,6 +12,7 @@
 ,{"LET", R"RAW(LET var = expr)RAW"}
 ,{"KEY", R"RAW(KEY [index, string])RAW"}
 ,{"NEXT", R"RAW(NEXT [var])RAW"}
+,{"RCHARDEF", R"RAW(RCHARDEF char$, mono, bits1, bits2, ..., bits8)RAW"}
 ,{"READ", R"RAW(READ var[, var [, var2] ])RAW"}
 ,{"RESTORE", R"RAW(RESTORE [linenumber])RAW"}
 ,{"RETURN", R"RAW(RETURN)RAW"}

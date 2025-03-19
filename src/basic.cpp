@@ -218,9 +218,10 @@ void cmdCHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
     // one 64 bit integer - 8x8 mono
     if (iarg == 1 + 1)
     {
+        dwords[0] = 0;
         for (size_t i = 0; i < 8; ++i)
         {
-            bytes[8 - i] = uint8_t((bytes8 >> (8 * i)) & 0xff);
+            bytes[7 - i] = uint8_t((bytes8 >> (8 * i)) & 0xff);
         }
         iarg = 9;
     }
@@ -396,7 +397,7 @@ void cmdLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
         throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
     }
 
-    basic->printUtf8String("LOADING\n");
+    basic->printUtf8String("LOADING         \n");
     if (!basic->loadProgram(path))
     {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
@@ -415,7 +416,7 @@ void cmdSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
         if (yesno.length() == 0 || Unicode::toUpper(yesno[0]) != u'Y') { return; }
     }
 
-    basic->printUtf8String("SAVING\n");
+    basic->printUtf8String("SAVING          \n");
     if (!basic->saveProgram(filename))
     {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
@@ -433,7 +434,7 @@ void cmdQSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     }
     basic->printUtf8String("SAVE \"");
     basic->printUtf8String(filename);
-    basic->printUtf8String("\"\n");
+    basic->printUtf8String("\" \n");
     cmdSAVE(basic, {filename});
 }
 
@@ -521,7 +522,7 @@ void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
         {
             if (lastLineNumber > newLineNumber)
             {
-                basic->printUtf8String("LINE NUMBERS WOULD OVERLAP!\n");
+                basic->printUtf8String("LINE NUMBERS WOULD OVERLAP! \n");
                 throw Basic::Error(Basic::ErrorId::UNDEFD_STATEMENT);
             }
 
@@ -808,15 +809,16 @@ Basic::Basic(Os& os, SoundSystem* ss) {
     os.screen.setColors(13, 11);
     os.screen.setBorderColor(13);
 
-    keyShortcuts[2 - 1] = "\"LOAD\"";
-    keyShortcuts[3 - 1] = "\"CATALOG\"+CHR$(13)";
-    keyShortcuts[5 - 1] = "\"SAVE\"";
-    keyShortcuts[6 - 1] = "\"RUN\"+CHR$(13)";
-    keyShortcuts[7 - 1] = "\"LIST\"+CHR$(13)";
-    keyShortcuts[8 - 1] = "\"CHDIR\"";
+    keyShortcuts[1 - 1] = "\"CHDIR\"";
+    keyShortcuts[2 - 1] = "\"LOAD \"";
+    keyShortcuts[3 - 1] = "\"CATALOG \"+CHR$(13)";
+    keyShortcuts[4 - 1] = "\"SCNCLR \"+CHR$(13)";
+    keyShortcuts[5 - 1] = "\"SAVE \"";
+    keyShortcuts[6 - 1] = "\"RUN \"+CHR$(13)";
+    keyShortcuts[7 - 1] = "\"LIST \"+CHR$(13)";
 
     // hard coded keywords
-    keywords = {"ON", "GOTO", "GOSUB", "RETURN", "IF", "THEN", "LET", "FOR", "TO", "NEXT", "STEP", "READ", "DATA", "RESTORE", "END", "RUN", "DIM", "PRINT", "?", "GET", "HELP", "INPUT", "REM", "CLR", "SCNCLR", "NEW", "LIST", "MODULE", "KEY", "GETKEY", "DEF", "FN", "DELETE", "USING"};
+    keywords = {"ON", "GOTO", "GOSUB", "RETURN", "IF", "THEN", "LET", "FOR", "TO", "NEXT", "STEP", "RCHARDEF", "READ", "DATA", "RESTORE", "END", "RUN", "DIM", "PRINT", "?", "GET", "HELP", "INPUT", "REM", "CLR", "SCNCLR", "NEW", "LIST", "MODULE", "KEY", "GETKEY", "DEF", "FN", "DELETE", "USING"};
 
     // commands
     commands.insert({
@@ -2194,7 +2196,7 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
     for (size_t itk = 1; itk < tokens.size(); ++itk)
     {
         auto& tk = tokens[itk];
-        if (tk.type == TokenType::IDENTIFIER)
+        if (tk.type != TokenType::COMMA)
         {
             Value* pval = findLeftValue(currentModule(), tokens, itk, &itk);
             if (pval == nullptr)
@@ -2309,7 +2311,7 @@ void Basic::handleINPUT(const std::vector<Token>& tokens) {
             printUtf8String(tk.value);
             if (tokens[itk + 1].value != ";") { printUtf8String("\n"); }
         }
-        else if (tk.type == TokenType::IDENTIFIER)
+        else if (tk.type != TokenType::COMMA)
         {
             Value* pval = findLeftValue(currentModule(), tokens, itk, &itk);
             if (pval == nullptr)
@@ -2350,7 +2352,7 @@ void Basic::handleINPUT(const std::vector<Token>& tokens) {
                 {
                     if (e.ID == ErrorId::BREAK) { throw e; }
 
-                    printUtf8String("? REDO FROM START\n");
+                    printUtf8String("? REDO FROM START \n");
                 }
             }
         }
@@ -2464,7 +2466,7 @@ void Basic::handleKEY(const std::vector<Token>& tokens) {
     {
         for (size_t k = 0; k < keyShortcuts.size(); ++k)
         {
-            std::string s = "KEY " + valueToString(int64_t(1 + k)) + "," + keyShortcuts[k] + "\n";
+            std::string s = "KEY " + valueToString(int64_t(1 + k)) + "," + keyShortcuts[k] + " \n";
             printUtf8String(s);
         }
         return;
@@ -2484,6 +2486,90 @@ void Basic::handleKEY(const std::vector<Token>& tokens) {
         else
         {
             str += tokens[i].value;
+        }
+    }
+}
+
+void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
+    int iarg = 0;  // nth argument to assign
+
+    // iarg                 0   1   2
+    // RCHARDEF ichar, ismono, b1, b2, b3, b4, b5, b6, b7, b8
+
+    CharBitmap bmp;
+    for (size_t itk = 1; itk < tokens.size(); ++itk)
+    {
+        auto& tk = tokens[itk];
+        if (itk == 1)
+        {
+            std::string str;
+            if (tk.type == TokenType::STRING) { str = tk.value; }
+            else if (tk.type == TokenType::IDENTIFIER)
+            {
+                Value* pval = findLeftValue(currentModule(), tokens, itk, &itk);
+                if (pval == nullptr)
+                {
+                    throw Error(ErrorId::SYNTAX);
+                }
+                str = valueToString(*pval);
+            }
+            else
+            {
+                throw Error(ErrorId::FORMULA_TOO_COMPLEX);
+            }
+            if (str.empty())
+            {
+                throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+            }
+            const char* ptr = str.c_str();
+            char32_t ichar = Unicode::parseNextUtf8(ptr);
+            bmp = os->screen.getCharDefinition(ichar);
+            continue;
+        }
+        if (iarg > 8)
+        {
+            throw Error(ErrorId::ARGUMENT_COUNT);
+        }
+        if (tk.type != TokenType::COMMA)
+        {
+            Value* pval = findLeftValue(currentModule(), tokens, itk, &itk);
+            if (pval == nullptr)
+            {
+                throw Error(ErrorId::SYNTAX);
+            }
+            int64_t v;
+            if (iarg == 0) { v = bmp.isMono ? -1 : 1; }
+            else
+            {
+                if (bmp.isMono)
+                {
+                    v = bmp.bits[iarg - 1];
+                }
+                else
+                {
+                    size_t n = (iarg - 1) * 8;
+                    for (size_t i = 0; i < 8; ++i)
+                    {
+                        v <<= 4;
+                        v += bmp.multi(n);
+                    }
+                }
+            }
+
+            switch (valuePostfix(tk))
+            {
+                case '%':
+                    *pval = v;
+                    break;
+                case '$':
+                    *pval = valueToString(v);
+                    break;
+                default:
+                case '#':
+                    *pval = double(v);
+                    break;
+            }
+            ++iarg;
         }
     }
 }
@@ -2629,7 +2715,7 @@ void Basic::handleHELP(std::vector<Token>& tokens) {
         cmd += tokens[i].value;
     }
     cmd = Unicode::toUpper(cmd.c_str());
-    std::string usg = Help::getUsage(cmd) + "\n";
+    std::string usg = Help::getUsage(cmd) + " \n";
     printUtf8String(usg);
 }
 
@@ -3034,6 +3120,10 @@ void Basic::executeTokens(std::vector<Token>& tokens) {
         else if (tokens[0].value == "KEY")
         {
             handleKEY(tokens);
+        }
+        else if (tokens[0].value == "RCHARDEF")
+        {
+            handleRCHARDEF(tokens);
         }
         else if (tokens[0].value == "DEF")
         {
@@ -3489,7 +3579,7 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
         }
         else
         {
-            printUtf8String("?" + errorMessages[e.ID] + "\n");
+            printUtf8String("?" + errorMessages[e.ID] + " \n");
         }
         return ParseStatus::PS_ERROR;
     }
@@ -3552,6 +3642,10 @@ void Basic::runInterpreter() {
             {
                 restoreColorsAndCursor(false);
                 printUtf8String("\nREADY." + std::string(os->screen.width - 7, ' ') + "\n");
+                printUtf8String(std::string(os->screen.width, ' ') + "\n");
+                printUtf8String(std::string(os->screen.width, ' ') + "\n");
+                size_t y = os->screen.getCursorPos().y;
+                os->screen.setCursorPos({0, y - 1});
             }
 
             // wait for ESC release
@@ -3688,7 +3782,7 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
 
     if (foundname != inOutFilenameUtf8)
     {
-        printUtf8String("FOUND " + foundname + "\n");
+        printUtf8String("FOUND " + foundname + " \n");
         inOutFilenameUtf8 = foundname;
     }
 

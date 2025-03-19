@@ -48,6 +48,14 @@ void ScreenBuffer::putC(char32_t c) {
 
     if (c == U'\n')
     {
+        // here's the magic in printing 40 chars per line w/o wrapping
+        // print 40 chars, then print '\n'.
+        if (cursor.y > 0 && cursor.x == 0 && lines[cursor.y - 1]->wrapps)
+        {
+            lines[cursor.y - 1]->wrapps = false;
+            return;
+        }
+
         cursor.y++;
         cursor.x = 0;
         manageOverflow();
@@ -73,6 +81,10 @@ void ScreenBuffer::putC(char32_t c) {
 void ScreenBuffer::defineChar(char32_t codePoint, const CharBitmap& bits) {
     dirtyFlag = true;
     charMap()[codePoint] = bits;
+}
+
+const CharBitmap& ScreenBuffer::getCharDefinition(char32_t codePoint) const {
+    return charMap()[codePoint];
 }
 
 void ScreenBuffer::deleteChar() {
@@ -220,8 +232,6 @@ ScreenBuffer::Cursor ScreenBuffer::getEndOfLineAt(Cursor crsr) {
     lines[height - 1]->wrapps = false;
     for (;;)
     {
-        auto& sc = lines[crsr.y]->cols[crsr.x];
-        if (sc.ch == U'\0') { return crsr; }
         if (crsr.x + 1 >= width)
         {
             if (lines[crsr.y]->wrapps)
@@ -230,7 +240,14 @@ ScreenBuffer::Cursor ScreenBuffer::getEndOfLineAt(Cursor crsr) {
                 crsr.x = 0;
                 ++crsr.y;
             }
+            else
+            {
+                crsr.x = width - 1;
+                return crsr;
+            }
         }
+        auto& sc = lines[crsr.y]->cols[crsr.x];
+        if (sc.ch == U'\0') { return crsr; }
         ++crsr.x;
     }
     return {width - 1, height - 1};
@@ -518,7 +535,7 @@ void ScreenBuffer::drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colIxTex
     {
         for (size_t row = 0; row < ScreenInfo::charPixY; ++row)
         {
-            uint8_t pixelRow = img.monoPixels[row];  // Each byte represents 8 pixels in a row
+            uint8_t pixelRow = img.bits[row];  // Each byte represents 8 pixels in a row
             static_assert(ScreenInfo::charPixX == 8, "the pixel bytes are wrong, otherwise");
             for (size_t col = 0; col < ScreenInfo::charPixX; ++col)
             {
@@ -533,7 +550,7 @@ void ScreenBuffer::drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colIxTex
         size_t nth = 0;
         for (size_t row = 0; row < ScreenInfo::charPixY; ++row)
         {
-            uint8_t pixelRow = img.monoPixels[row];  // Each byte represents 8 pixels in a row
+            uint8_t pixelRow = img.bits[row];  // Each byte represents 8 pixels in a row
             static_assert(ScreenInfo::charPixX == 8, "the pixel bytes are wrong, otherwise");
             for (size_t col = 0; col < ScreenInfo::charPixX; ++col)
             {
@@ -554,7 +571,7 @@ void ScreenBuffer::drawSprPal(int64_t x, int64_t y, char32_t chimg, int8_t color
     {
         for (int64_t row = 0; row < ScreenInfo::charPixY; ++row)
         {
-            uint8_t pixelRow = img.monoPixels[row];  // Each byte represents 8 pixels in a row
+            uint8_t pixelRow = img.bits[row];  // Each byte represents 8 pixels in a row
             for (int64_t col = 0; col < ScreenInfo::charPixX; ++col)
             {
                 bool isSet = (pixelRow >> (7 - col)) & 1;  // Extract pixel bit
@@ -572,7 +589,7 @@ void ScreenBuffer::drawSprPal(int64_t x, int64_t y, char32_t chimg, int8_t color
         size_t nth = 0;
         for (int64_t row = 0; row < ScreenInfo::charPixY; ++row)
         {
-            uint8_t pixelRow = img.monoPixels[row];  // Each byte represents 8 pixels in a row
+            uint8_t pixelRow = img.bits[row];  // Each byte represents 8 pixels in a row
             static_assert(ScreenInfo::charPixX == 8, "the pixel bytes are wrong, otherwise");
             for (int64_t col = 0; col < ScreenInfo::charPixX; ++col)
             {

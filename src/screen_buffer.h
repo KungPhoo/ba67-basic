@@ -24,7 +24,7 @@ class CharBitmap {
         : CharBitmap(lst.begin(), lst.size()) {}
 
     CharBitmap(const uint8_t* bytes, size_t count)
-        : monoPixels{} {
+        : bits{} {
         if (ScreenInfo::charPixY == 8)
         {
             if (count == 8)
@@ -32,7 +32,7 @@ class CharBitmap {
                 isMono = true;
                 for (size_t i = 0; i < 8; ++i)
                 {
-                    monoPixels[i] = bytes[i];
+                    bits[i] = bytes[i];
                 }
             }
             else if (count == ScreenInfo::charPixY * ScreenInfo::charPixY / 2)
@@ -52,8 +52,8 @@ class CharBitmap {
                 isMono = true;
                 for (size_t i = 0; i < 8; ++i)
                 {
-                    monoPixels[i * 2] = bytes[i];
-                    monoPixels[i * 2 + 1] = monoPixels[i * 2];
+                    bits[i * 2] = bytes[i];
+                    bits[i * 2 + 1] = bits[i * 2];
                 }
             }
             else
@@ -62,9 +62,9 @@ class CharBitmap {
                 if (count > ScreenInfo::charPixY) { count = ScreenInfo::charPixY; }
                 for (size_t i = 0; i < count; ++i)
                 {
-                    monoPixels[i] = bytes[i];
+                    bits[i] = bytes[i];
                 }
-                for (size_t i = count; i < ScreenInfo::charPixY; ++i) { monoPixels[i] = 0; }
+                for (size_t i = count; i < ScreenInfo::charPixY; ++i) { bits[i] = 0; }
             }
         }
     }
@@ -74,7 +74,7 @@ class CharBitmap {
         if (n >= ScreenInfo::charPixY * ScreenInfo::charPixY) throw std::out_of_range("Pixel index out of range");
         size_t byteIndex = n / 2;
         bool highNibble = (n % 2 == 0);
-        return highNibble ? (monoPixels[byteIndex] >> 4) : (monoPixels[byteIndex] & 0x0F);
+        return highNibble ? (bits[byteIndex] >> 4) : (bits[byteIndex] & 0x0F);
     }
 
     // Multicolor: Set the nth pixel (0-based index) to value (4-bit)
@@ -87,16 +87,16 @@ class CharBitmap {
 
         if (highNibble)
         {
-            monoPixels[byteIndex] = (monoPixels[byteIndex] & 0x0F) | (value << 4);
+            bits[byteIndex] = (bits[byteIndex] & 0x0F) | (value << 4);
         }
         else
         {
-            monoPixels[byteIndex] = (monoPixels[byteIndex] & 0xF0) | (value & 0x0F);
+            bits[byteIndex] = (bits[byteIndex] & 0xF0) | (value & 0x0F);
         }
     }
 
-    // 8xcharPixY pixels, monochrome
-    uint8_t monoPixels[(ScreenInfo::charPixY * ScreenInfo::charPixY + 1) / 2] = {};  // one byte per line
+    // 8xcharPixY pixels, monochrome - or 4 bits per pixel multicolor
+    std::array<uint8_t, (ScreenInfo::charPixY * ScreenInfo::charPixY + 1) / 2> bits = {};  // one byte per line
     bool isMono = true;
 };
 
@@ -200,6 +200,7 @@ class ScreenBuffer {
     // at current cursor position
     void putC(char32_t c);
     void defineChar(char32_t codePoint, const CharBitmap& bits);
+    const CharBitmap& getCharDefinition(char32_t codePoint) const;
 
     void deleteChar();
     void backspaceChar();

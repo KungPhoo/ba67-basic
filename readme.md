@@ -29,6 +29,7 @@ Visit the project [Homepage:](http://www.ba67.org).
     - [LET](#let)
     - [KEY](#key)
     - [NEXT](#next)
+    - [RCHARDEF](#rchardef)
     - [READ](#read)
     - [RESTORE](#restore)
     - [RETURN](#return)
@@ -414,6 +415,18 @@ Example:
 NEXT I
 ```
 
+### RCHARDEF
+Reads the pixels for a character image. See `CHARDEF`
+before reading this.
+
+The `mono` parameter will be filled with -1 (yes, mono) or
+0 (no, multicolor).
+The `bits1..bits8` will hold either 8 bit values or 32 bit
+values for each line of the character pixels.
+
+**Usage:** `RCHARDEF char$, mono, bits1, bits2, ..., bits8`
+
+
 ### READ
 **Usage:** `READ var[, var [, var2] ]`
 
@@ -605,6 +618,9 @@ Example:
 `CHARDEF "#", $00, $11, $11, $00,  $11, $22, $22, $11,  $12, $33, $33, $21,  $13, $44, $44, $31,  $14, $55, $55, $41,  $15, $66, $66, $51,  $01, $77, $77, $10,  $00, $18, $81, $00`
 
 **Usage:** `CHARDEF char$, bytes, [more bytes]`
+
+You can read the bits of a character with the
+keyword `RCHARDEF`.
 
 #### For coders:
 If you reimplement BA67 in your own project and your
