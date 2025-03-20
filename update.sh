@@ -3,10 +3,10 @@
 set -e
 
 sudo apt-get update
-sudo apt install git g++ cmake pulseaudio libasound2-dev libx11-dev
+sudo apt install git g++ cmake pulseaudio libasound2-dev libx11-dev libgl libgl-dev 
 
 cd ~
-if [ ! -d ~/ba68 ] ; then
+if [ ! -d ./ba68 ] ; then
     git -c user.name=JohnDoe -c user.email=me@privacy.net clone --recurse-submodules --remote-submodules https://github.com/KungPhoo/ba67-basic.git ba67
 fi
 
