@@ -3,7 +3,7 @@
 set -e
 
 sudo apt-get update
-sudo apt install git g++ cmake pulseaudio libasound2-dev libx11-dev libgl libgl-dev 
+sudo apt install git g++ cmake pulseaudio libasound2-dev libx11-dev libglew-dev 
 
 cd ~
 if [ ! -d ./ba68 ] ; then
