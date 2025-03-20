@@ -8,12 +8,12 @@ sudo apt install git g++ cmake pulseaudio libasound2-dev libx11-dev libglew-dev
 
 echo do we need to clone?
 cd ~
-if [ ! -d ./ba68 ] ; then
+if [ ! -d ./ba67 ] ; then
     git -c user.name=JohnDoe -c user.email=me@privacy.net clone --recurse-submodules --remote-submodules https://github.com/KungPhoo/ba67-basic.git ba67
 fi
 
 echo cd into directory
-cd ~/ba68
+cd ~/ba67
 
 echo save and remove all manual changes
 git stash
