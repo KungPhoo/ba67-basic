@@ -4,7 +4,7 @@ set -e
 
 echo update system and install libraries
 sudo apt-get update
-sudo apt install git g++ cmake pulseaudio libasound2-dev libx11-dev libglew-dev 
+sudo apt install git g++ cmake pulseaudio libpthread-stubs0-dev libasound2-dev libx11-dev libglew-dev 
 
 echo do we need to clone?
 cd ~
