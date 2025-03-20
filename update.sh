@@ -12,13 +12,12 @@ fi
 
 cd ~/ba68
 
-# remove all manual changes
-git reset
-git checkout .
-git clean -fdx
+# save and remove all manual changes
+git stash
 
 # update sources
-git -c user.name=JohnDoe -c user.email=me@privacy.net -c pull.rebase=true pull origin main
+git fetch origin
+git reset --hard origin/main
 
 # updating from sources...
 chmod +x build.sh
