@@ -4,9 +4,12 @@ set -e
 
 echo update system and install libraries
 sudo apt-get update
-sudo apt install git g++ cmake xserver-xorg xinit pulseaudio libpthread-stubs0-dev libasound2-dev libx11-dev libglew-dev -y
+sudo apt install git g++ cmake xserver-xorg xinit openbox pulseaudio libpthread-stubs0-dev libasound2-dev libx11-dev libglew-dev -y
+
+if [! -f /usr/lib/aarch64-linux-gnu/libpthread.so]; then
 sudo ln -s /usr/lib/aarch64-linux-gnu/libpthread.so.0 /usr/lib/aarch64-linux-gnu/libpthread.so
 sudo ldconfig
+fi
 
 echo do we need to clone?
 cd ~
