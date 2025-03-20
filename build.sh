@@ -19,7 +19,8 @@ popd
 
 # Optionally install the project
 # sudo make install
-
-mkdir ~/BASIC
+if [! -d ~/BASIC ]; then
+    mkdir ~/BASIC
+fi
 cp --force --recursive --update ./examples/ ~/BASIC/examples/
 
