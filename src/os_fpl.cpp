@@ -187,7 +187,7 @@ void displayUpdateThread(OsFPL* fpl) {
 
         if (!dirty)
         {
-            fplThreadSleep(15);
+            fplThreadSleep(5);
             continue;
         }
 
@@ -238,9 +238,9 @@ void displayUpdateThread(OsFPL* fpl) {
 #ifdef BA67_GRAPHICS_CRT_EMULATION_ON
         for (size_t p = 0; p < 6; ++p)
         {
-            const double facDark = 0.7;
-            const double facNeigbour = 0.6, facNeighbour2 = 0.6;
-            double r = 1.0, g = 1.0, b = 1.0, darken = 1.0;
+            const double facDark = 0.7;                           // factor for darker scanlines
+            const double facNeigbour = 0.6, facNeighbour2 = 0.6;  // factor for neighboured r,g,b channels. On true CRT screen, that would be 0.0
+            double r = 1.0, g = 1.0, b = 1.0, darken = 1.0;       // factor for r,g,b channels
             if (p == 0 || p == 3)
             {
                 r = 1.0;

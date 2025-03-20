@@ -93,8 +93,9 @@ include_directories(AFTER ./soloud/include)
 
 if (WIN32)
 # Console Window: GCC flags: -mconsole
-set_target_properties(${APP_NAME} PROPERTIES LINK_FLAGS -mconsole)
-target_link_options(${APP_NAME} PRIVATE "/SUBSYSTEM:CONSOLE")
+# set_target_properties(${APP_NAME} PROPERTIES LINK_FLAGS -mconsole)
+# target_link_options(${APP_NAME} PRIVATE "/SUBSYSTEM:CONSOLE")
+target_link_options(${APP_NAME} PRIVATE "/SUBSYSTEM:WINDOWS")
 endif()
 
 # precompiled headers (CMake 3.16.0-RC2 and greater)

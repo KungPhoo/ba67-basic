@@ -304,7 +304,7 @@ void ScreenBuffer::updateScreenPixelsPalette() {
             if (sc.ch == U'\0')
             {
                 sc.ch = U' ';
-                sc.col = lastColor;
+                sc.col = this->color;
             }
             else
             {
@@ -421,28 +421,28 @@ void ScreenBuffer::inverseColours() {
 
 void ScreenBuffer::defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     if (index > 15) { return; }
-    palette[index] = r | (g << 8) | (b << 16) | (a << 24);
+    palette[index] = b | (g << 8) | (r << 16) | (a << 24);
     dirtyFlag = true;
 }
 
 void ScreenBuffer::resetDefaultColors() {
-    // C64 color palette
-    defineColor(0, 0x00, 0x00, 0x00);   // Black
-    defineColor(1, 0xFF, 0xFF, 0xFF);   // White
-    defineColor(2, 0x96, 0x28, 0x2e);   // Red
-    defineColor(3, 0x9f, 0x2d, 0xad);   // Cyan
-    defineColor(4, 0x5b, 0xd6, 0xce);   // Purple
-    defineColor(5, 0x41, 0xb9, 0x36);   // Green
-    defineColor(6, 0x27, 0x24, 0xc4);   // Blue
-    defineColor(7, 0xef, 0xf3, 0x47);   // Yellow
-    defineColor(8, 0x9f, 0x48, 0x15);   // Orange
-    defineColor(9, 0x5e, 0x35, 0x00);   // Brown
-    defineColor(10, 0xda, 0x5f, 0x66);  // Light Red
-    defineColor(11, 0x47, 0x47, 0x47);  // Dark Gray
-    defineColor(12, 0x78, 0x78, 0x78);  // Medium Gray
-    defineColor(13, 0x91, 0xff, 0x84);  // Light Green
-    defineColor(14, 0x68, 0x64, 0xff);  // Light Blue
-    defineColor(15, 0xae, 0xae, 0xae);  // Light Gray
+    // C64 color palette             COLOR-ID (BASIC command)
+    defineColor(0, 0x00, 0x00, 0x00);   //  1 Black
+    defineColor(1, 0xFF, 0xFF, 0xFF);   //  2 White
+    defineColor(2, 0x96, 0x28, 0x2e);   //  3 Red
+    defineColor(3, 0x9f, 0x2d, 0xad);   //  4 Cyan
+    defineColor(4, 0x5b, 0xd6, 0xce);   //  5 Purple
+    defineColor(5, 0x41, 0xb9, 0x36);   //  6 Green
+    defineColor(6, 0x27, 0x24, 0xc4);   //  7 Blue
+    defineColor(7, 0xef, 0xf3, 0x47);   //  8 Yellow
+    defineColor(8, 0x9f, 0x48, 0x15);   //  9 Orange
+    defineColor(9, 0x5e, 0x35, 0x00);   //  0 Brown
+    defineColor(10, 0xda, 0x5f, 0x66);  // 11 Light Red
+    defineColor(11, 0x47, 0x47, 0x47);  // 12 Dark Gray
+    defineColor(12, 0x78, 0x78, 0x78);  // 13 Medium Gray
+    defineColor(13, 0x91, 0xff, 0x84);  // 14 Light Green
+    defineColor(14, 0x68, 0x64, 0xff);  // 15 Light Blue
+    defineColor(15, 0xae, 0xae, 0xae);  // 16 Light Gray
 }
 
 void ScreenBuffer::resetCharmap(char32_t from, char32_t to) {

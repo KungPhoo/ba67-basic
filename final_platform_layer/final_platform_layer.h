@@ -11408,6 +11408,15 @@ LRESULT CALLBACK fpl__Win32MessageProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
         }
     } break;
 
+    case WM_IME_COMPOSITION:
+
+        if ((lParam & GCS_RESULTSTR) == GCS_RESULTSTR) {
+            fpl__HandleKeyboardInputEvent(&appState->window, (uint64_t)wParam, (uint32_t)wParam);
+        }
+        break;
+
+    case WM_PASTE:
+        break;
     case WM_CHAR:
     case WM_SYSCHAR:
     case WM_UNICHAR:

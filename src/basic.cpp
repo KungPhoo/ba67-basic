@@ -46,7 +46,7 @@ void cmdAUTO(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
-    int colorsource = 0, x = 0, y = 0;
+    int color = 0, x = 0, y = 0;
     std::string text;
     bool inverse = false;
 
@@ -63,7 +63,7 @@ void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
         switch (ipara)
         {
             case 0:
-                colorsource = int(Basic::valueToInt(v));
+                color = int(Basic::valueToInt(v));
                 break;
             case 1:
                 x = int(Basic::valueToInt(v));
@@ -98,11 +98,31 @@ void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
     {
         basic->os->screen.inverseColours();
     }
-    basic->printUtf8String(text.c_str());
+    if (color > 0)
+    {
+        if (color > 16) { throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY); }
+
+        int old = basic->os->screen.getTextColor();
+        basic->os->screen.setTextColor(color - 1);
+        color = old;
+    }
+    /// basic->printUtf8String(text.c_str());
+    const char* utf8 = text.c_str();
+    while (*utf8 != '\0')
+    {
+        basic->os->screen.putC(Unicode::parseNextUtf8(utf8));
+    }
+    if (color > 0)
+    {
+        // restore old color
+        basic->os->screen.setTextColor(color);
+    }
+
     if (inverse)
     {
         basic->os->screen.inverseColours();
     }
+    basic->os->presentScreen();
 }
 
 void cmdCHDIR(Basic* basic, const std::vector<Basic::Value>& values) {

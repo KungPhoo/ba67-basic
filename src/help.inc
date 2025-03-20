@@ -22,10 +22,10 @@
 ,{"AUTO", R"RAW(AUTO [n])RAW"}
 ,{"CLOSE", R"RAW(CLOSE fileno)RAW"}
 ,{"CLR", R"RAW(CLR)RAW"}
-,{"COLOR", R"RAW(COLOR screen, color)RAW"}
+,{"COLOR", R"RAW(COLOR source, color)RAW"}
 ,{"CHDIR", R"RAW(CHDIR "subdir")RAW"}
 ,{"CATALOG", R"RAW(CATALOG)RAW"}
-,{"CHAR", R"RAW(CHAR color_source, column, line, text$[, inverse])RAW"}
+,{"CHAR", R"RAW(CHAR color, column, line, text$[, inverse])RAW"}
 ,{"CHARDEF", R"RAW(CHARDEF char$, bytes, [more bytes])RAW"}
 ,{"END", R"RAW(END)RAW"}
 ,{"FAST", R"RAW(FAST)RAW"}

@@ -508,7 +508,7 @@ Clears all variables.
 **Usage:** `CLR`
 
 ### COLOR
-Set text or background color. The `screen` is an indicator
+Set text or background color. The `source` is an indicator
 what colour to change.
 ```
 0 or 6: Background (C128: 0)
@@ -516,34 +516,43 @@ what colour to change.
 4     : Border color (only if available)
 ```
 The default `color` values are:
-```
-1  Black
-2  White
-3  Red
-4  Cyan
-5  Purple
-6  Green
-7  Blue
-8  Yellow
-9  Orange
-10  Brown
-11 Light Red
-12 Dark Gray
-13 Medium Gray
-14 Light Green
-15 Light Blue
-16 Light Gray
-```
+- 1 Black
+- 2 White
+- 3 Red
+- 4 Cyan
+- 5 Purple
+- 6 Green
+- 7 Blue
+- 8 Yellow
+- 9 Orange
+- 10 Brown
+- 11 Light Red
+- 12 Dark Gray
+- 13 Medium Gray
+- 14 Light Green
+- 15 Light Blue
+- 16 Light Gray
 
-**Usage:** `COLOR screen, color`
+**Usage:** `COLOR source, color`
 
 If you want to **redefine** a color, the syntax is:
 `COLOR color, red, green, blue`
 Where `red`, `green` and `blue` are values from 0 to 255 or
 $00 to $ff.
 
-**NOTE** If you break the program with the `ESC` key, the colors are
-reset to the defaults.
+**NOTE** If you break the program with the `ESC` key, the
+colors are reset to the defaults.
+
+In order to change the background and text colour for a
+a text on the screen, one technique is
+
+`COLOR 5, 3 : CHAR 8, 10, 10, "M", 1`
+
+In Detail:
+- Set text color to 3 (red)
+- Invert the colours (last argument of `CHAR`)
+- Print "M" with text color 8 (yellow)
+- Result: yellow M on red background
 
 ### CHDIR
 Change into the given directroy.
@@ -565,10 +574,15 @@ Then prints the given string at that position and leaves the
 cursor at the end of the printed string's position.
 Other BASICs have a command `LOCATE` or `PRINT AT` for this.
 
-The parameter colour_source is just for compatibility and
-will be ignored.
+The parameter `color` was ignored on the C128, but here it is
+used as the text color index. See `COLOR` for possible values
+from 0 to 16. The color 0 (or ommiting the parameter) uses
+the current text color.
 
-**Usage:** `CHAR color_source, column, line, text$[, inverse]`
+The command will leave the cursor at the end of the text
+and restore the current text color.
+
+**Usage:** `CHAR color, column, line, text$[, inverse]`
 
 ### CHARDEF
 **Monochrome**
