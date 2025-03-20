@@ -6,14 +6,14 @@ echo update system and install libraries
 sudo apt-get update
 sudo apt install git g++ cmake xserver-xorg xinit openbox pulseaudio libpthread-stubs0-dev libasound2-dev libx11-dev libglew-dev -y
 
-if [! -f /usr/lib/aarch64-linux-gnu/libpthread.so]; then
+if [ ! -e /usr/lib/aarch64-linux-gnu/libpthread.so ]; then
 sudo ln -s /usr/lib/aarch64-linux-gnu/libpthread.so.0 /usr/lib/aarch64-linux-gnu/libpthread.so
 sudo ldconfig
 fi
 
 echo do we need to clone?
 cd ~
-if [ ! -d ./ba67 ] ; then
+if [ ! -d ./ba67 ]; then
     git -c user.name=JohnDoe -c user.email=me@privacy.net clone --recurse-submodules --remote-submodules https://github.com/KungPhoo/ba67-basic.git ba67
 fi
 
