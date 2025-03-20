@@ -7,7 +7,7 @@ sudo apt install git g++ cmake pulseaudio libasound2-dev libx11-dev
 
 cd ~
 if [ ! -d ~/ba68 ] ; then
-    git -c user.name=JohnDoe -c user.email=me@privacy.net clone --recursive-submodules --remote-submodules https://github.com/KungPhoo/ba67-basic.git ba67
+    git -c user.name=JohnDoe -c user.email=me@privacy.net clone --recurse-submodules --remote-submodules https://github.com/KungPhoo/ba67-basic.git ba67
 fi
 
 cd ~/ba68
