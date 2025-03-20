@@ -2,6 +2,10 @@
 
 // https://libfpl.org/docs/page_categories.html
 #define FPL_IMPLEMENTATION
+#define FPL_LOGGING
+#define FPL_NO_AUDIO
+#define FPL_NO_MEMORY_MACROS
+
 #include "final_platform_layer.h"
 #include "basic.h"
 #include <thread>
@@ -9,6 +13,10 @@
 #include <cmath>
 #include <cstring>
 #include <array>
+
+#if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
+    #include <GL/gl.h>
+#endif
 
 #ifdef _WIN32
     #include "../resources/resource.h"
@@ -33,10 +41,20 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     settings.window.windowSize = {640 + 2 * border, 400 + 2 * border};
     strcpy(settings.window.title, "BA67 BASIC");
     settings.window.fullscreenRefreshRate = 60;
-
     settings.video.isAutoSize = false;  // we resize ourself
 
-    settings.video.backend = fplVideoBackendType_Software;
+#if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
+    if (this->settings.renderMode == BA68settings::OpenGL)
+    {
+        // Use Legacy OpenGL (1.1)
+        settings.video.backend = fplVideoBackendType_OpenGL;
+        settings.video.graphics.opengl.compabilityFlags = fplOpenGLCompabilityFlags_Legacy;
+    }
+    else
+#endif
+    {
+        settings.video.backend = fplVideoBackendType_Software;
+    }
     // settings.window.icons[0] // TODO icons
 
     if (!fplPlatformInit(
@@ -333,6 +351,8 @@ void displayUpdateThread(OsFPL* fpl) {
 
 void OsFPL::presentScreen() {
     updateKeyboardBuffer();  // pump win32 messages
+    fplWindowUpdate();
+
     static uint64_t nextPresend = 0;
     uint64_t now = tick();
     if (nextPresend > now) { return; }
@@ -340,6 +360,28 @@ void OsFPL::presentScreen() {
 
     screenLock.lock();
 
+    switch (settings.renderMode)
+    {
+        case BA68settings::OpenGL:
+#if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
+            renderOpenGL();
+            break;
+#endif
+        case BA68settings::Software:
+            renderSoftware();
+            break;
+    }
+
+    if (screen.dirtyFlag)
+    {
+        ScreenBuffer::copyWithLock(buffered.screen, screen);
+        screen.dirtyFlag = false;
+    }
+    buffered.isCursorActive = basic->isCursorActive;
+    screenLock.unlock();
+}
+
+void OsFPL::renderSoftware() {
     // window resized?
     fplWindowSize windowsz{0, 0};
     fplGetWindowSize(&windowsz);
@@ -368,126 +410,41 @@ void OsFPL::presentScreen() {
         videoLock.unlock();
         fplVideoFlip();
     }
+}
 
-    if (screen.dirtyFlag)
+void OsFPL::renderOpenGL() {
+#if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
+
+    // Get window size
+    fplWindowSize winSize = {};
+    if (!fplGetWindowSize(&winSize))
     {
-        ScreenBuffer::copyWithLock(buffered.screen, screen);
-        screen.dirtyFlag = false;
+        printf("can't get window size\n");
+        return;
     }
-    buffered.isCursorActive = basic->isCursorActive;
-    screenLock.unlock();
-
-    // displayUpdateThread(this); return;
-
-#if 0
-    return;
-
-
-    fplWindowSize windowsz{0, 0};
-    fplGetWindowSize(&windowsz);
-    fplVideoBackBuffer* buffer = fplGetVideoBackBuffer();
-    if (buffer != nullptr) {
-        if (buffer->width != windowsz.width || buffer->height != windowsz.height) {
-            fplResizeVideoBackBuffer(windowsz.width, windowsz.height);
-            buffer = fplGetVideoBackBuffer();
-        }
+    if (buffered.videoW != winSize.width || buffered.videoH != winSize.height)
+    {
+        buffered.videoW = winSize.width;
+        buffered.videoH = winSize.height;
+        screen.dirtyFlag = true;
+        buffered.imageCreated = false;
+        return;
     }
 
+    if (winSize.width * winSize.height == pixelsVideo.size())
+    {
+        glClear(GL_COLOR_BUFFER_BIT);
 
-    // simulate a CRT TV
-    std::array<std::array<uint32_t, 16>, 6> palettes; // [r,g,b, dark r,g,b]
-    for (size_t p = 0; p < 6; ++p) {
-        const float facDark = 0.7f;
-        const float facNeigbour = 0.6f, facNeighbour2 = 0.6f;
-        float r = 1.0f, g = 1.0f, b = 1.0f, darken = 1.0f;
-        if (p == 0 || p == 3) { r = 1.0f;   g = facNeigbour; b = facNeighbour2; }
-        if (p == 1 || p == 4) { r = facNeighbour2;   g = 1.0f;  b = facNeigbour; }
-        if (p == 2 || p == 5) { r = facNeigbour; g = facNeighbour2; b = 1.0f; }
-        //        if (p == 3 || p == 7) { r = g = b = 0.95; }
-        if (p > 2) { darken = facDark; }
-        for (size_t i = 0; i < 16; ++i) {
-            palettes[p][i] = emphasizeRGB(screen.palette[i], r, g, b, darken);
-        }
-    }
+        // Flip the image vertically
+        glViewport(0, 0, winSize.width, winSize.height);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrtho(0, winSize.width, 0, winSize.height, 0.1, 1);
+        glPixelZoom(1, -1);
+        glRasterPos3f(0, winSize.height - 1, -0.3);
 
-
-    if (buffer) {
-        screen.updateScreenPixelsPalette();
-        // memcpy(buffer->pixels, screen.pixelData, buffer->width * buffer->height * 4);
-        constexpr size_t srcWidth = ScreenInfo::pixX;  // ScreenBitmap width (80x8)
-        constexpr size_t srcHeight = ScreenInfo::pixY; // ScreenBitmap height (25x16)
-
-        // overwrite cursor box
-        uint8_t crsrColor = uint8_t(screen.getTextColor());
-        const uint64_t flashSpeed = 240;
-        auto now = tick();
-        if (nextShowCursor == 0) { nextShowCursor = now; }
-        if (cursorVisible && now >= nextShowCursor) {
-            if (now > nextShowCursor + flashSpeed) {
-                nextShowCursor = now + 2 * flashSpeed;
-            }
-
-            auto crsr = screen.getCursorPos();
-            if (this->cursorVisible
-                && this->basic->isCursorActive
-                && crsr.x < screen.getWidth()
-                && crsr.y < screen.getHeight()) {
-                bool draw = false;
-                for (size_t y = 0; y < ScreenInfo::charPixY; ++y) {
-                    auto* pdest = &screen.screenBitmap.pixelsPal[(y + crsr.y * ScreenInfo::charPixY) * srcWidth + crsr.x * ScreenInfo::charPixX];
-                    for (size_t x = 0; x < 8; ++x) {
-                        draw = !draw;
-                        if (draw || y + 1 == ScreenInfo::charPixY) {
-                            *pdest = crsrColor;
-                        }
-                        ++pdest;
-                    }
-                    draw = !draw;
-                }
-            }
-        }
-        // we don't access the RGB buffer - we use the colour indices
-        // screen.updateScreenBitmap();
-
-        // Compute scaling factors
-        float scaleX = static_cast<float>(buffer->width) / srcWidth;
-        float scaleY = static_cast<float>(buffer->height) / srcHeight;
-        float scale = std::max(0.25f, std::min(scaleX, scaleY)); // Keep aspect ratio
-        if (scale > 1.0f) {
-            scale = floorf(scale); // scale to full pixels
-        }
-
-        // Compute offset for centered output
-        size_t scaledWidth = static_cast<size_t>(srcWidth * scale);
-        size_t scaledHeight = static_cast<size_t>(srcHeight * scale);
-        size_t offsetX = (buffer->width - scaledWidth) / 2;
-        size_t offsetY = (buffer->height - scaledHeight) / 2;
-
-        uint8_t borderColor = screen.getBorderColor();
-        // Nearest-neighbor scaling loop
-    #pragma omp for
-        for (int y = 0; y < int(buffer->height); ++y) {
-            uint32_t* pdest = &buffer->pixels[0] + y * buffer->width;
-            for (size_t x = 0; x < buffer->width; ++x) {
-                // Map screen coordinates to original ScreenBitmap using nearest-neighbor
-                size_t srcX = std::min(static_cast<size_t>((x - offsetX) / scale), srcWidth - 1);
-                size_t srcY = std::min(static_cast<size_t>((y - offsetY) / scale), srcHeight - 1);
-
-                // Default background if outside scaled region
-                uint8_t color = borderColor; // Transparent or black
-
-                // Only sample from ScreenBitmap if inside scaled bounds
-                if (x >= offsetX && x < offsetX + scaledWidth &&
-                    y >= offsetY && y < offsetY + scaledHeight) {
-                    color = screen.screenBitmap.pixelsPal[srcY * srcWidth + srcX];
-                }
-
-                // buffer->pixels[y * buffer->width + x] = color;
-                size_t pal = (x % 3);
-                if ((y % 3) == 2) { pal += 3; } // dark row
-                *pdest++ = palettes[pal][color];
-            }
-        }
+        // Draw pixels
+        glDrawPixels(winSize.width, winSize.height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, pixelsVideo.data());
 
         fplVideoFlip();
     }

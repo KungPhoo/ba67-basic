@@ -36,6 +36,8 @@ int main(){
 }
 #endif
 
+void printfHelp();
+
 // ---------------------------------------
 // MAIN
 // ---------------------------------------
@@ -63,8 +65,35 @@ int main(int argc, char** argv) {
     for (int i = 0; i < argc; ++i) { args.emplace_back(argv[i]); }
 #endif
 
+#ifdef _DEBUG
+    args = {"--video", "opengl"};
+#endif
+
+    auto& sets = Os::settings;
+    for (size_t i = 1; i < args.size(); ++i)
+    {
+        if (args[i - 1] == "--help")
+        {
+            printfHelp();
+        }
+        if (args[i - 1] == "--fullscreen") { sets.fullscreen = true; }
+        if (args[i - 1] == "--video")
+        {
+            if (args[i] == "opengl")
+            {
+                sets.renderMode = BA68settings::OpenGL;
+                printf("Render mode: OpenGL\n");
+            }
+            else
+            {
+                printf("Render mode: Software\n");
+            }
+        }
+    }
+
     // OsWindowsConsole os;
     OsFPL os;
+
     SoundSystemSoLoud soloud;
     Basic basic(os, &soloud);
 
@@ -95,4 +124,12 @@ int main(int argc, char** argv) {
 
     basic.runInterpreter();
     return 0;
+}
+
+void printfHelp() {
+    printf("BA68 BASIC interpreter. www.ba67.org/\n");
+    printf("\n");
+    printf("--help            show this help\n");
+    printf("--video software  (default) use X11 or Windows GDI\n");
+    printf("        opengl    Use OpenGL 1.1 glDrawPixels\n");
 }

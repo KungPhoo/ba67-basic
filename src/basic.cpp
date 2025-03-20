@@ -3778,7 +3778,7 @@ FILE* Basic::fopenUtf8(const std::string& filenameUtf8, const char* mode) {
         Unicode::toU16String(filenameUtf8.c_str(), u16);
         file = _wfsopen(reinterpret_cast<const wchar_t*>(u16.c_str()), L"rb", _SH_DENYNO);  // allow shared reading - even if some editor has the file open
 #else
-        file = fopen(foundname.c_str(), "rb");
+        file = fopen(filenameUtf8.c_str(), "rb");
 #endif
     }
     else

@@ -1,4 +1,4 @@
-﻿# FIDES DV-Partner Code Style converted to ClangFormat
+﻿# BA67 Code Style converted to ClangFormat
 
 BasedOnStyle: Google  # Default to a style close to Astyle's "Java"
 IndentWidth: 4        # Use 4 spaces for indentation

@@ -13,6 +13,11 @@ class OsFPL : public Os {
 
     void presentScreen() override;
 
+   private:
+    void renderSoftware();
+    void renderOpenGL();
+
+   public:
     void updateKeyboardBuffer() override;
 
     const bool isKeyPressed(uint32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false) const override;

@@ -2,6 +2,9 @@
 #include <filesystem>
 #include "unicode.h"
 
+// static instance
+BA68settings Os::settings = {};
+
 Os::KeyPress Os::getFromKeyboardBuffer() {
     while (!keyboardBufferHasData())
     {

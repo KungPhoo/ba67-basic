@@ -4,6 +4,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+# Enable Hot Reload for MSVC compilers if supported.
+if (POLICY CMP0141)
+  cmake_policy(SET CMP0141 NEW)
+  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
+endif()
+
 # ==========================================
 # PROJECT CONFIGURATION
 # ==========================================
@@ -24,6 +30,13 @@ else()
 add_compile_definitions(BA67_GRAPHICS_CRT_EMULATION_OFF)
 endif()
 
+set(BA67_GRAPHICS_ENABLE_OPENGL "ON" CACHE STRING "Enable OpenGL: ON, OFF")
+set_property(CACHE BA67_GRAPHICS_ENABLE_OPENGL PROPERTY STRINGS "ON" "OFF")
+if(${BA67_GRAPHICS_ENABLE_OPENGL} STREQUAL "ON" )
+add_compile_definitions(BA67_GRAPHICS_ENABLE_OPENGL_ON)
+else()
+add_compile_definitions(BA67_GRAPHICS_ENABLE_OPENGL_OFF)
+endif()
 
 
 
@@ -39,7 +52,7 @@ else()
     project(${APP_NAME} LANGUAGES CXX C)
 endif()
 
-set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:EditAndContinue>")
+# set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:EditAndContinue>")
 
 add_compile_definitions(_CRT_SECURE_NO_WARNINGS=1)
 add_compile_definitions(_UNICODE=1 UNICODE=1) # Windows needs this
@@ -47,6 +60,7 @@ add_compile_definitions(_UNICODE=1 UNICODE=1) # Windows needs this
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/lib")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/bin")
+
 
 
 
@@ -90,6 +104,13 @@ add_library(lib_soloud OBJECT "${SOLOUD_CPP}")
 # FPL takes care of wWinMain and calls main
 add_executable(${APP_NAME} "${APP_SOURCES}" "${APP_HEADERS}")
 target_link_libraries(${APP_NAME} PUBLIC lib_soloud)
+
+# OpenGL
+if(${BA67_GRAPHICS_ENABLE_OPENGL} STREQUAL "ON" )
+find_package(OpenGL)
+TARGET_LINK_LIBRARIES(${APP_NAME} PRIVATE OpenGL::GL)
+endif()
+
 
 
 add_test(NAME TestVersion  COMMAND $<TARGET_FILE:${APP_NAME}> --version) # dummy test for QtCreator

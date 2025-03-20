@@ -14,9 +14,21 @@ class SoundSystem {
     virtual bool PLAY(const std::string& music) = 0;
 };
 
+class BA68settings {
+   public:
+    bool fullscreen = false;
+    enum RenderMode {
+        Software = 0,
+        OpenGL = 1
+    };
+    RenderMode renderMode = Software;
+};
+
 class Os {
    public:
     virtual ~Os() {}
+
+    static BA68settings settings;
 
     // get a timer in ms
     virtual uint64_t tick() const = 0;
