@@ -4,6 +4,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+# ==========================================
+# PROJECT CONFIGURATION
+# ==========================================
 
 set(BA67_SOUND_BACKEND "DEFAULT" CACHE STRING "Select feature mode: DEFAULT, NONE")
 set_property(CACHE BA67_SOUND_BACKEND PROPERTY STRINGS "DEFAULT" "NONE")
@@ -22,9 +25,6 @@ add_compile_definitions(BA67_GRAPHICS_CRT_EMULATION_OFF)
 endif()
 
 
-# ==========================================
-# PROJECT CONFIGURATION
-# ==========================================
 
 
 # Minimum required variables/pathes
@@ -42,6 +42,7 @@ endif()
 set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:EditAndContinue>")
 
 add_compile_definitions(_CRT_SECURE_NO_WARNINGS=1)
+add_compile_definitions(_UNICODE=1 UNICODE=1) # Windows needs this
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/lib")
@@ -76,11 +77,18 @@ file(GLOB SOLOUD_H
 add_compile_definitions(WITH_MINIAUDIO=1)
 add_library(lib_soloud OBJECT "${SOLOUD_CPP}")
 
-if (WIN32)
-    add_executable(${APP_NAME} WIN32 "${APP_SOURCES}" "${APP_HEADERS}" $<TARGET_OBJECTS:windows_resource_lib>)
-else()
-    add_executable(${APP_NAME} WIN32 "${APP_SOURCES}" "${APP_HEADERS}")
-endif()
+# if (WIN32)
+#     add_executable(${APP_NAME} WIN32 "${APP_SOURCES}" "${APP_HEADERS}" $<TARGET_OBJECTS:windows_resource_lib>)
+#     # Console Window: GCC flags: -mconsole
+#     # set_target_properties(${APP_NAME} PROPERTIES LINK_FLAGS -mconsole)
+#     # target_link_options(${APP_NAME} PRIVATE "/SUBSYSTEM:CONSOLE")
+#     target_link_options(${APP_NAME} PRIVATE "/SUBSYSTEM:WINDOWS")
+# else()
+#     add_executable(${APP_NAME} "${APP_SOURCES}" "${APP_HEADERS}")
+# endif()
+
+# FPL takes care of wWinMain and calls main
+add_executable(${APP_NAME} "${APP_SOURCES}" "${APP_HEADERS}")
 target_link_libraries(${APP_NAME} PUBLIC lib_soloud)
 
 
@@ -89,14 +97,6 @@ add_test(NAME TestVersion  COMMAND $<TARGET_FILE:${APP_NAME}> --version) # dummy
 include_directories(AFTER ./src)
 include_directories(AFTER ./final_platform_layer)
 include_directories(AFTER ./soloud/include)
-
-
-if (WIN32)
-# Console Window: GCC flags: -mconsole
-# set_target_properties(${APP_NAME} PROPERTIES LINK_FLAGS -mconsole)
-# target_link_options(${APP_NAME} PRIVATE "/SUBSYSTEM:CONSOLE")
-target_link_options(${APP_NAME} PRIVATE "/SUBSYSTEM:WINDOWS")
-endif()
 
 # precompiled headers (CMake 3.16.0-RC2 and greater)
 if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16.0")

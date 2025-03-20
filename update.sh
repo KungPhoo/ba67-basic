@@ -6,6 +6,7 @@ set -e
 git pull origin main
 
 # build release
+chmod +x build.sh
 ./build.sh
 
 

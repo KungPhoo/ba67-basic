@@ -1,36 +1,50 @@
-﻿#ifdef _WIN32
-    #include <Windows.h>
-    #include "os_windows_console.h"
-#endif
-
-#include "os_fpl.h"
+﻿#include "os_fpl.h"
 #include "soundsystem_soloud.h"
+#ifdef _WIN32
+    #include <Windows.h>
+#endif
 
 #include <vector>
 #include "basic.h"
 #include <iostream>
 #include "unicode.h"
 
+#if _DEBUG
+    #include "markdown_parser.h"
+#endif
+
+#if 0
 void cmdWHATEVER(Basic* basic, const std::vector<Basic::Value>& values) {
+    // attention! values contains operators (COMMA)
     for (auto& v : values)
     {
         basic->printUtf8String(
             Basic::valueToString(v).c_str());
     }
 }
-Basic::Value fktFOO(Basic* basic, const std::vector<Basic::Value>& values) {
+Basic::Value fktFOO$(Basic* basic, const std::vector<Basic::Value>& values) {
+    // attention! values contains operators (COMMA)
     return {"foo"};
 }
-
-#if _DEBUG
-    #include "markdown_parser.h"
+int main(){
+    ...
+    // here's how to add your own commands
+    basic.commands["WHATEVER"] = cmdWHATEVER;
+    // and functions
+    basic.functions["FOO$"] = fktFOO$;
+    return basic.parseInput("WHATEVER foo$(1,2,3)");
+}
 #endif
 
+// ---------------------------------------
+// MAIN
+// ---------------------------------------
 int main(int argc, char** argv) {
 #if _DEBUG
     MarkdownParser::ParseAndApplyManual();
 #endif
 
+    // ARGV to UTF-8
     std::vector<std::string> args;  // utf-8
 #ifdef _WIN32
     (void)argc;
@@ -49,26 +63,12 @@ int main(int argc, char** argv) {
     for (int i = 0; i < argc; ++i) { args.emplace_back(argv[i]); }
 #endif
 
-#if 0
-    OsWindowsConsole os;
-#else
+    // OsWindowsConsole os;
     OsFPL os;
-#endif
     SoundSystemSoLoud soloud;
     Basic basic(os, &soloud);
 
-    // here's how to add your own commands
-    basic.commands["WHATEVER"] = cmdWHATEVER;
-    // and functions
-    basic.functions["FOO"] = fktFOO;
-
-    basic.parseInput("IF -3+4*(-2)-(-(-5))/(3+-1)<>-13.5 THEN PRINT \"ERROR: COMPLEX MATH 1\"");
-
-    // basic.parseInput("FOR I = 1 TO 3: FOR J = 1 TO 2: PRINT I, J: NEXT: NEXT");
-    // basic.parseInput("X=-3+4*(-2)"); // should be -11
-    // basic.parseInput("X=(-(-5))/(3+-1)"); // should be 2.5
-    // basic.parseInput("X=-3+4*(-2)-(-(-5))/(3+-1)"); // should be -13.5
-
+    // load boot.bas
     try
     {
         if (basic.loadProgram("boot.bas"))
@@ -80,18 +80,18 @@ int main(int argc, char** argv) {
     catch (...)
     {}
 
-#if 1
-    if (args.size() > 1)
+    // run bas program from command line
+    for (size_t i = 1; i < args.size(); ++i)
     {
-        for (size_t i = 1; i < args.size(); ++i)
+        if (
+            (args[i].ends_with(".bas") ||
+             args[i].ends_with(".ba67")) &&
+            basic.loadProgram(args[i]))
         {
-            if (args[i].ends_with(".bas") && basic.loadProgram(args[i]))
-            {
-                basic.parseInput("RUN");
-            }
+            basic.parseInput("RUN");
+            break;
         }
     }
-#endif
 
     basic.runInterpreter();
     return 0;

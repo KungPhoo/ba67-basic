@@ -32,7 +32,7 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     settings.window.isResizable = true;
     settings.window.windowSize = {640 + 2 * border, 400 + 2 * border};
     strcpy(settings.window.title, "BA67 BASIC");
-    settings.window.fullscreenRefreshRate = 30;
+    settings.window.fullscreenRefreshRate = 60;
 
     settings.video.isAutoSize = false;  // we resize ourself
 
