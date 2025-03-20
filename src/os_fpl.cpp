@@ -4,7 +4,6 @@
 #define FPL_IMPLEMENTATION
 #define FPL_LOGGING
 #define FPL_NO_AUDIO
-#define FPL_NO_MEMORY_MACROS
 
 #include "final_platform_layer.h"
 #include "basic.h"
@@ -441,7 +440,7 @@ void OsFPL::renderOpenGL() {
         glLoadIdentity();
         glOrtho(0, winSize.width, 0, winSize.height, 0.1, 1);
         glPixelZoom(1, -1);
-        glRasterPos3f(0, winSize.height - 1, -0.3);
+        glRasterPos3f(0, GLfloat(winSize.height - 1), -0.3f);
 
         // Draw pixels
         glDrawPixels(winSize.width, winSize.height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, pixelsVideo.data());

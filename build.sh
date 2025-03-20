@@ -13,6 +13,7 @@ pushd out/build
 cmake -DCMAKE_BUILD_TYPE=Release ../..
 
 # Build the project
+rm -rf bin/
 make
 
 popd
@@ -24,3 +25,6 @@ if [! -d ~/BASIC ]; then
 fi
 cp --force --recursive --update ./examples/ ~/BASIC/examples/
 
+echo starting new built BA67
+chmod +x bin/BA67
+./bin/BA67

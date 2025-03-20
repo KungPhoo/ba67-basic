@@ -1,6 +1,6 @@
 #include "font.h"
 #include "screen_buffer.h"
-#include <map>
+#include <unordered_map>
 
 // @preserve
 // char8.js v.1.2.1, (c) 2015-2019 Norbert Landsteiner, www.masswerk.at
@@ -21,7 +21,7 @@
 namespace Font {
 
 void createCharmap(CharMap& charmap, char32_t from, char32_t to) {
-    std::map<char32_t, CharBitmap> ascii = {
+    std::unordered_map<char32_t, CharBitmap> ascii = {
         {0x00, {126, 66, 66, 66, 66, 66, 126, 0}},
         {0x09, {0, 0, 0, 0, 0, 0, 0, 0}},
         // Basic Latin
