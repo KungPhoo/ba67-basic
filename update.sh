@@ -5,6 +5,8 @@ set -e
 echo update system and install libraries
 sudo apt-get update
 sudo apt install git g++ cmake pulseaudio libpthread-stubs0-dev libasound2-dev libx11-dev libglew-dev 
+sudo ln -s /usr/lib/aarch64-linux-gnu/libpthread.so.0 /usr/lib/aarch64-linux-gnu/libpthread.so
+sudo ldconfig
 
 echo do we need to clone?
 cd ~
