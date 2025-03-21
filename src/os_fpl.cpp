@@ -44,6 +44,8 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
 
     settings.window.isFullscreen = false;
 
+    settings.input.controllerDetectionFrequency = 5000;
+
 #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
     if (this->settings.renderMode == BA68settings::OpenGL)
     {

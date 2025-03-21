@@ -17970,7 +17970,11 @@ fpl_internal void fpl__LinuxPollGameControllers(const fplSettings* settings, fpl
             if (!alreadyFound && freeIndex >= 0) {
                 int fd = open(deviceName, O_RDONLY);
                 if (fd < 0) {
-                    FPL_LOG_ERROR(FPL__MODULE_LINUX, "Failed opening joystick device '%s'", deviceName);
+                    static int didWarn = 0;
+                    if (!didWarn) {
+                        didWarn = 1;
+                        FPL_LOG_ERROR(FPL__MODULE_LINUX, "Failed opening joystick device '%s'", deviceName);
+                    }
                     continue;
                 }
                 uint8_t numAxis = 0;
