@@ -352,7 +352,22 @@ void displayUpdateThread(OsFPL* fpl) {
 
 void OsFPL::presentScreen() {
     updateKeyboardBuffer();  // pump win32 messages
-    fplWindowUpdate();
+    if (!fplWindowUpdate())
+    {
+        // TODO minimizing the window exits
+        static bool didWarn = false;
+        if (!didWarn)
+        {
+            didWarn = true;
+            printf("fplWindowUpdate returned false\n");
+        }
+        return;
+        // exit(0);
+        //
+        // TODO throw Basic::Error(Basic::ErrorId::
+    }
+    fplEvent ev;
+    while (fplPollEvent(&ev)) {}
 
     static uint64_t nextPresend = 0;
     uint64_t now = tick();
