@@ -30,7 +30,7 @@ git pull origin main
 
 echo updating from sources...
 chmod +x build.sh
-./build.sh
+./build.sh && echo "Starting..."
 
 if [ -f ~/ba67/BA67 ]; then
     echo detect resolution
