@@ -32,7 +32,7 @@ echo updating from sources...
 chmod +x build.sh
 ./build.sh && echo "Starting..."
 
-if [ -f ~/ba67/BA67 ]; then
+if [ -f ~/ba67/bin/BA67 ]; then
     echo detect resolution
     xrandr
     echo RESOLUTION = $(xrandr | grep '*' | awk '{print $1}')
