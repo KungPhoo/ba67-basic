@@ -41,8 +41,8 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
     Os::FileInfo info = {};
     for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path()))
     {
-        info.filesize = entry.file_size();
         info.isDirectory = entry.is_directory();
+        info.filesize = info.isDirectory ? 0 : entry.file_size();
         info.name = entry.path().filename().string();
         files.push_back(info);
     }
