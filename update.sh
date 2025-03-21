@@ -33,6 +33,9 @@ chmod +x build.sh
 ./build.sh && echo "Starting..."
 
 if [ -f ~/ba67/bin/BA67 ]; then
+    # use first screen
+    export DISPLAY=:0
+
     echo detect resolution
     xrandr
     echo RESOLUTION = $(xrandr | grep '*' | awk '{print $1}')
@@ -45,6 +48,6 @@ if [ -f ~/ba67/bin/BA67 ]; then
     # Apply the detected resolution
     xrandr --output $OUTPUT --mode $RESOLUTION
 
-    startx ~/ba67/BA67 --fullscreen --video opengl &
+    startx ~/ba67/bin/BA67 --fullscreen --video opengl &
 fi
 
