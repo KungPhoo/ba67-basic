@@ -5,15 +5,17 @@
 # Exit on error
 set -e
 
+mkdir -p ~/ba67/bin
+rm -f ~/ba67/bin/BA67
+
 # Create build directory if it doesn't exist
-mkdir -p out/build
-pushd out/build
+mkdir -p ~/ba67/out/build
+pushd ~ba67/out/build
 
 # Run CMake to configure the project
 cmake -DCMAKE_BUILD_TYPE=Release ../..
 
 # Build the project
-rm -rf bin/
 make
 
 popd
@@ -23,6 +25,7 @@ popd
 if [ ! -d ~/BASIC ]; then
     mkdir ~/BASIC
 fi
-cp --force --recursive --update ./examples/ ~/BASIC/examples/
+cp --force --recursive --update ~/ba67/examples/ ~/BASIC/examples/
 
-chmod +x ./bin/BA67
+chmod +x ~/ba67/bin/BA67
+echo build finished
