@@ -198,10 +198,12 @@ size_t Unicode::utf8StrLen(const char* utf8) {
 }
 
 char32_t Unicode::toUpper(char32_t c) {
+    if (c < 0x41) { return c; }
     static std::locale loc("");
     return std::toupper(c, loc);  // seems to work on unicode even w/o locale
 }
 char32_t Unicode::toLower(char32_t c) {
+    if (c < 0x41) { return c; }
     static std::locale loc("");
     return std::tolower(c, loc);
 }

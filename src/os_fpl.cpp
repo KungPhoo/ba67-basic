@@ -549,7 +549,7 @@ void OsFPL::updateKeyboardBuffer() {
                 // case fplKey_Return:   keyPress.code = uint32_t(KeyConstant::RETURN); break;
                 // case fplKey_KPEnter:  yPress.code = uint32_t(KeyConstant::NUM_ENTER); break;
                 // case fplKey_Escape:   keyPress.code = uint32_t(KeyConstant::ESCAPE); break;
-                switch (event.keyboard.keyCode)
+                switch (event.keyboard.mappedKey)
                 {
                     case fplKey_Delete:
                         keyPress.code = uint32_t(KeyConstant::DEL);

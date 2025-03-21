@@ -48,6 +48,9 @@ if [ -f ~/ba67/bin/BA67 ]; then
     # Apply the detected resolution
     # xrandr --output $OUTPUT --mode $RESOLUTION
 
-    startx ~/ba67/bin/BA67 --fullscreen --video opengl &
+    echo ~/ba67/bin/BA67 --fullscreen > ~/.config/openbox/autostart
+
+    # startx ~/ba67/bin/BA67 --fullscreen --video opengl &
+    startx /usr/bin/openbox-session &
 fi
 
