@@ -42,6 +42,8 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     settings.window.fullscreenRefreshRate = 60;
     settings.video.isAutoSize = false;  // we resize ourself
 
+    settings.window.isFullscreen = this->settings.fullscreen;
+
 #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
     if (this->settings.renderMode == BA68settings::OpenGL)
     {
