@@ -20,11 +20,9 @@ popd
 
 # Optionally install the project
 # sudo make install
-if [! -d ~/BASIC ]; then
+if [ ! -d ~/BASIC ]; then
     mkdir ~/BASIC
 fi
 cp --force --recursive --update ./examples/ ~/BASIC/examples/
 
-echo starting new built BA67
-chmod +x bin/BA67
-./bin/BA67
+chmod +x ./bin/BA67
