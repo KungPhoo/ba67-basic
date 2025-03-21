@@ -10,7 +10,7 @@ rm -f ~/ba67/bin/BA67
 
 # Create build directory if it doesn't exist
 mkdir -p ~/ba67/out/build
-pushd ~ba67/out/build
+pushd ~/ba67/out/build
 
 # Run CMake to configure the project
 cmake -DCMAKE_BUILD_TYPE=Release ../..
