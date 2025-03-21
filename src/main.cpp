@@ -66,20 +66,21 @@ int main(int argc, char** argv) {
 #endif
 
 #ifdef _DEBUG
-    args = {"--video", "opengl"};
+    args = {"--video", "opengl", "--fullscreen"};
 #endif
 
     auto& sets = Os::settings;
-    for (size_t i = 1; i < args.size(); ++i)
+    args.push_back("");  // ensure [i] and [i+1]
+    for (size_t i = 1; i + 1 < args.size(); ++i)
     {
-        if (args[i - 1] == "--help")
+        if (args[i] == "--help")
         {
             printfHelp();
         }
-        if (args[i - 1] == "--fullscreen") { sets.fullscreen = true; }
-        if (args[i - 1] == "--video")
+        if (args[i] == "--fullscreen") { sets.fullscreen = true; }
+        if (args[i] == "--video")
         {
-            if (args[i] == "opengl")
+            if (args[i + 1] == "opengl")
             {
                 sets.renderMode = BA68settings::OpenGL;
                 printf("Render mode: OpenGL\n");

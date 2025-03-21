@@ -42,7 +42,7 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     settings.window.fullscreenRefreshRate = 60;
     settings.video.isAutoSize = false;  // we resize ourself
 
-    settings.window.isFullscreen = this->settings.fullscreen;
+    settings.window.isFullscreen = false;
 
 #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
     if (this->settings.renderMode == BA68settings::OpenGL)
@@ -63,6 +63,12 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
             &settings))
     {
         return false;
+    }
+
+    if (this->settings.fullscreen)
+    {
+        // Enable fullscreen on the nearest desktop
+        fplSetWindowFullscreenSize(true, 0, 0, 0);
     }
 
 #ifdef _WIN32
