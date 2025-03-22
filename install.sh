@@ -19,7 +19,9 @@ if [ -f ~/ba67/bin/BA67 ]; then
     # Apply the detected resolution
     # xrandr --output $OUTPUT --mode $RESOLUTION
 
+    mkdir -p ~/.config/openbox
     echo ~/ba67/bin/BA67 --fullscreen > ~/.config/openbox/autostart
+    chmod +x ~/.config/openbox/autostart
 
     # startx ~/ba67/bin/BA67 --fullscreen --video opengl &
     startx /usr/bin/openbox-session &
