@@ -27,6 +27,10 @@ class OsFPL : public Os {
     std::string getClipboardData() override;
     void setClipboardData(const std::string utf8) override;
 
+    void updateGamepadState() override;
+    const GamepadState& getGamepadState(int index) override;
+
+    // thread buffered window update
     std::mutex screenLock, videoLock;
     std::vector<uint32_t> pixelsVideo;
     struct Buffered {

@@ -697,6 +697,38 @@ Basic::Value fktINSTR(Basic* basic, const std::vector<Basic::Value>& args) {
     return int64_t(pos + 1);
 }
 
+Basic::Value fktJOY(Basic* basic, const std::vector<Basic::Value>& args) {
+    if (args.size() != 1)
+    {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    int64_t port = basic->valueToInt(args[0]);
+    const auto& state = basic->os->getGamepadState(int(port));
+
+    int64_t joy = 0;
+
+    auto setJoy = [&joy, &state](int8_t xIs, int8_t yIs, int64_t ijoy) {
+        if (state.dpad.x == xIs && state.dpad.y == yIs) { joy = ijoy; }
+    };
+    setJoy(0, -1, 1);
+    setJoy(1, -1, 2);
+    setJoy(1, 0, 3);
+    setJoy(1, 1, 4);
+    setJoy(0, 1, 5);
+    setJoy(-1, 1, 6);
+    setJoy(-1, 0, 7);
+    setJoy(-1, -1, 8);
+    if (state.buttons[0] || state.buttons[1])
+    {
+        joy += 128;
+    }
+    if (state.buttons[2] || state.buttons[3])
+    {
+        joy += 256;
+    }
+    return joy;
+}
+
 Basic::Value fktLEFT$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 3)
     {
@@ -892,6 +924,7 @@ Basic::Basic(Os& os, SoundSystem* ss) {
                       {"HEX$", fktHEX$},
                       {"INT", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return basic->valueToInt(args[0]); }},
                       {"INSTR", fktINSTR},
+                      {"JOY", fktJOY},
                       {"LEFT$", fktLEFT$},
                       {"LCASE$", fktLCASE$},
                       {"UCASE$", fktUCASE$},
@@ -904,7 +937,11 @@ Basic::Basic(Os& os, SoundSystem* ss) {
                       {"POSY", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().y); }},
                       {"RIGHT$", fktRIGHT$},
                       {"RND", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return double(rand()) / double(RAND_MAX); }},
-                      {"SGN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); double d = basic->valueToDouble(args[0]); return (d == 0.0) ? 0.0 : ((d < 0.0) ? -1.0 : 1.0); }},
+                      {"SGN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value {
+                           nargs(args, 1);
+                           double d = basic->valueToDouble(args[0]);
+                           return (d == 0.0) ? 0.0 : ((d < 0.0) ? -1.0 : 1.0);
+                       }},
                       {"SIN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return sin(basic->valueToDouble(args[0])); }},
 
                       {"SPC", fktSPC},

@@ -14315,6 +14315,7 @@ fpl_platform_api bool fplPollGamepadStates(fplGamepadStates* outStates) {
             fplClearStruct(outStates);
             for (DWORD controllerIndex = 0; controllerIndex < XUSER_MAX_COUNT; ++controllerIndex) {
                 XINPUT_STATE controllerState = fplZeroInit;
+                auto rv = xinputState->xinputApi.XInputGetState(controllerIndex, &controllerState);
                 if (xinputState->xinputApi.XInputGetState(controllerIndex, &controllerState) == ERROR_SUCCESS) {
                     if (!xinputState->isConnected[controllerIndex]) {
                         xinputState->isConnected[controllerIndex] = true;

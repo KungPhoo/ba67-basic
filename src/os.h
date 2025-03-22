@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <bitset>
 #include "screen_buffer.h"
 
 class Basic;
@@ -147,6 +148,21 @@ class Os {
 
     // --- SOUND SYSTEM ---
     SoundSystem& soundSystem();
+
+    // --- JOYPADS ---
+    struct GamepadState {
+        bool connected = false;
+        const char* name = nullptr;
+        std::bitset<32> buttons;
+        struct DPad {
+            int8_t x = 0, y = 0;  // x and y axis -1,/0/1
+        } dpad = {};
+        struct Analog {
+            double x = 0.0, y = 0.0;  // x and y axis [-1 .. 1.0]
+        } analogLeft = {}, analogRight = {};
+    };
+    virtual void updateGamepadState() {}
+    virtual const GamepadState& getGamepadState(int index);  // index 0..8
 
    protected:
     Basic* basic = nullptr;

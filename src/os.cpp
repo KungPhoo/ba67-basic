@@ -74,6 +74,11 @@ SoundSystem& Os::soundSystem() {
     return *sound;
 }
 
+const Os::GamepadState& Os::getGamepadState(int index) {
+    static GamepadState gs;
+    return gs;
+}
+
 // delay for some time
 void Os::delay(int ms) const {
     uint64_t t = tick() + ms;

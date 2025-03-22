@@ -4,6 +4,8 @@ set -e
 
 
 if [ -f ~/ba67/bin/BA67 ]; then
+    cp  --force ~/ba67/bin/BA67 /usr/local/bin/BA67
+
     # use first screen
     # export DISPLAY=:0
 
@@ -21,7 +23,7 @@ if [ -f ~/ba67/bin/BA67 ]; then
 
     echo installing autostart of BA67 for openbox
     mkdir -p ~/.config/openbox
-    echo '~/ba67/bin/BA67 --fullscreen' > ~/.config/openbox/autostart
+    echo '/usr/local/bin/BA67 --fullscreen' > ~/.config/openbox/autostart
     chmod +x ~/.config/openbox/autostart
 
     echo installing autostart of openbox in .bash_profile

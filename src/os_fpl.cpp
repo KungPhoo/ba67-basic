@@ -376,6 +376,7 @@ void OsFPL::presentScreen() {
     }
     fplEvent ev;
     while (fplPollEvent(&ev)) {}
+    updateGamepadState();
 
     static uint64_t nextPresend = 0;
     uint64_t now = tick();
@@ -792,4 +793,104 @@ std::string OsFPL::getClipboardData() {
 
 void OsFPL::setClipboardData(const std::string utf8) {
     fplSetClipboardText(utf8.c_str());
+}
+
+#ifdef FPL_PLATFORM_LINUX
+    #include <bluetooth/bluetooth.h>
+    #include <bluetooth/hci.h>
+    #include <bluetooth/hci_lib.h>
+// Function to scan and connect to new gamepads
+static void linuxScanAndConnectBTgamepad() {
+    int device_id = hci_get_route(nullptr);
+    int sock = hci_open_dev(device_id);
+
+    if (device_id < 0 || sock < 0)
+    {
+        std::cerr << "Error: Unable to access Bluetooth device" << std::endl;
+        return;
+    }
+
+    inquiry_info devices[10];
+    int num_responses = hci_inquiry(device_id, 8, 10, nullptr, &devices, IREQ_CACHE_FLUSH);
+
+    if (num_responses < 0)
+    {
+        std::cerr << "Error: Inquiry failed" << std::endl;
+        return;
+    }
+
+    for (int i = 0; i < num_responses; i++)
+    {
+        char addr[19] = {0};
+        ba2str(&(devices[i].bdaddr), addr);
+        std::cout << "Found device: " << addr << std::endl;
+
+        // Get device name
+        char name[248] = {0};
+        if (hci_read_remote_name(sock, &(devices[i].bdaddr), sizeof(name), name, 0) < 0)
+        {
+            strcpy(name, "[unknown]");
+        }
+        std::cout << "Device Name: " << name << std::endl;
+
+        // Attempt to pair, trust, and connect
+        std::cout << "Pairing with " << addr << "..." << std::endl;
+        execCommand("bluetoothctl pair " + std::string(addr));
+        execCommand("bluetoothctl trust " + std::string(addr));
+        execCommand("bluetoothctl connect " + std::string(addr));
+        std::cout << "Device " << addr << " connected!" << std::endl;
+    }
+
+    close(sock);
+}
+#endif
+
+static fplGamepadStates gamepadStates = {};
+void OsFPL::updateGamepadState() {
+#ifdef FPL_PLATFORM_LINUX
+    static auto lastTick = tick();
+    auto tickNow = tick();
+    auto deltaTick = tickNow - lastTick;
+    if (deltaTick < 16)
+    {
+        delay(int(deltaTick));
+        lastTick = tickNow;
+        linuxScanAndConnectBTgamepad();
+    }
+#endif
+    if (!fplPollGamepadStates(&gamepadStates)) { return; }
+}
+
+const Os::GamepadState& OsFPL::getGamepadState(int index) {
+    static Os::GamepadState st = {};
+    if (index < 0 || index >= FPL_MAX_GAMEPAD_STATE_COUNT)
+    {
+        st = {};
+        st.connected = false;
+        return st;
+    }
+
+    auto& g = gamepadStates.deviceStates[index];
+    st.connected = g.isConnected;
+    if (!st.connected)
+    {
+        st = {};
+        st.connected = false;
+        return st;
+    }
+
+    st.name = g.deviceName;
+    st.analogLeft.x = g.leftStickX;
+    st.analogLeft.y = g.leftStickY;
+    st.analogRight.x = g.rightStickX;
+    st.analogRight.y = g.rightStickY;
+    size_t numButtons = sizeof(fplGamepadState::buttons) / sizeof(fplGamepadState::buttons[0]);
+    if (numButtons > 32) { numButtons = 32; }
+    for (size_t i = 0; i < numButtons; ++i)
+    {
+        st.buttons.set(i, g.buttons[i].isDown ? true : false);
+    }
+    st.dpad.x = g.dpadLeft.isDown ? -1 : (g.dpadRight.isDown ? 1 : 0);
+    st.dpad.y = g.dpadUp.isDown ? -1 : (g.dpadDown.isDown ? 1 : 0);
+    return st;
 }

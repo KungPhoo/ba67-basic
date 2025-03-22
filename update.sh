@@ -2,9 +2,9 @@
 # Exit on error
 set -e
 
-echo update system and install libraries
+echo update system and install runtime libraries
 sudo apt-get update
-sudo apt install git g++ cmake xserver-xorg xinit x11-xserver-utils openbox pulseaudio libpthread-stubs0-dev libasound2-dev libx11-dev libglew-dev -y
+sudo apt install -y git g++ cmake xserver-xorg xinit x11-xserver-utils openbox pulseaudio fluidsynth abcmidi
 
 if [ ! -e /usr/lib/aarch64-linux-gnu/libpthread.so ]; then
     sudo ln -s /usr/lib/aarch64-linux-gnu/libpthread.so.0 /usr/lib/aarch64-linux-gnu/libpthread.so

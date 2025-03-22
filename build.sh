@@ -2,6 +2,11 @@
 
 # This script sets up and builds the project on Linux/macOS
 
+# get dev packages
+sudo apt install -y libpthread-stubs0-dev libasound2-dev libx11-dev libglew-dev
+
+
+
 # Exit on error
 set -e
 
