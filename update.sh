@@ -2,18 +2,14 @@
 # Exit on error
 set -e
 
-echo update system and install runtime libraries
-sudo apt-get update
-sudo apt install -y git g++ cmake xserver-xorg xinit x11-xserver-utils openbox pulseaudio fluidsynth abcmidi
-
-if [ ! -e /usr/lib/aarch64-linux-gnu/libpthread.so ]; then
-    sudo ln -s /usr/lib/aarch64-linux-gnu/libpthread.so.0 /usr/lib/aarch64-linux-gnu/libpthread.so
-    sudo ldconfig
-fi
+echo updating from sources...
+chmod +x get_dependecies.sh
+./get_dependecies.sh && echo "Updating GIT repository..."
 
 echo do we need to clone?
 cd ~
 if [ ! -d ./ba67 ]; then
+    echo Clone 1st time
     git -c user.name=JohnDoe -c user.email=me@privacy.net clone --recurse-submodules --remote-submodules https://github.com/KungPhoo/ba67-basic.git ba67
 fi
 
