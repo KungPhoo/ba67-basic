@@ -26,10 +26,10 @@ git fetch origin
 git reset --hard origin/main
 git pull origin main
 
-if [ -f ~/ba67/get_dependecies.sh ]; then
-    echo "Updating dependenies"
-    chmod +x get_dependecies.sh
-    ./get_dependecies.sh && echo .
+if [ -f ~/ba67/get_dependencies.sh ]; then
+    echo "Updating dependencies"
+    chmod +x get_dependencies.sh
+    ./get_dependencies.sh && echo .
 fi
 
 echo "Building from sources..."
