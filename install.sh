@@ -7,7 +7,7 @@ if [ -f ~/ba67/bin/BA67 ]; then
     # use first screen
     # export DISPLAY=:0
 
-    echo detect resolution
+    # echo detect resolution
     # xrandr
     # echo RESOLUTION = $(xrandr | grep '*' | awk '{print $1}')
     # echo OUTPUT = $(xrandr | grep " connected" | awk '{print $1}')
@@ -19,11 +19,16 @@ if [ -f ~/ba67/bin/BA67 ]; then
     # Apply the detected resolution
     # xrandr --output $OUTPUT --mode $RESOLUTION
 
+    echo installing autostart of BA67 for openbox
     mkdir -p ~/.config/openbox
     echo ~/ba67/bin/BA67 --fullscreen > ~/.config/openbox/autostart
     chmod +x ~/.config/openbox/autostart
 
-    # startx ~/ba67/bin/BA67 --fullscreen --video opengl &
-    startx /usr/bin/openbox-session &
+    echo installing autostart of openbox in .bash_profile
+    echo if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then > ~/.bash_profile
+    echo     startx /usr/bin/openbox-session &                    > ~/.bash_profile
+    echo fi                                                       > ~/.bash_profile
+    
+    # startx /usr/bin/openbox-session &
 fi
 
