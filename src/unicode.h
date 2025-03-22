@@ -20,11 +20,16 @@ class Unicode {
     // code point length of utf8 string
     static size_t utf8StrLen(const char* utf8);
 
-    // uppercase a unicode code point
+    // uppercase a unicode code point (A-Z)
+    static char32_t toUpperAscii(char32_t c);
+    static char32_t toLowerAscii(char32_t c);
+    // uppercase a utf8 string (A-Z)
+    static std::string toUpperAscii(const char* utf8);
+    static std::string toLowerAscii(const char* utf8);
+
+    // true Unicode conversion - might be slow!
     static char32_t toUpper(char32_t c);
     static char32_t toLower(char32_t c);
-
-    // uppercase a utf8 string
     static std::string toUpper(const char* utf8);
     static std::string toLower(const char* utf8);
 

@@ -39,7 +39,6 @@ add_compile_definitions(BA67_GRAPHICS_ENABLE_OPENGL_OFF)
 endif()
 
 
-
 # Minimum required variables/pathes
 set(APP_NAME              "BA67") # only set here. Better not change it, then.
 message("===========================================================")

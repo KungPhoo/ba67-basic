@@ -201,6 +201,7 @@ void cmdCOLOR(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 void cmdCHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
+    // TODO #error ARM is big endian?
     char32_t codePoint = 0;
     uint64_t bytes8;
     static std::array<uint8_t, 32> bytes;
@@ -383,7 +384,7 @@ void cmdFIND(Basic* basic, const std::vector<Basic::Value>& values) {
 
     std::u32string find32;
     Unicode::toU32String(
-        Unicode::toLower(
+        Unicode::toLowerAscii(
             ("*" + basic->valueToString(values[0]) + "*").c_str())
             .c_str(),
         find32);
@@ -393,7 +394,7 @@ void cmdFIND(Basic* basic, const std::vector<Basic::Value>& values) {
     for (auto& ln : basic->currentModule().listing)
     {
         if (ln.first < 0) { continue; }
-        Unicode::toU32String(Unicode::toLower(ln.second.c_str()).c_str(), u32);
+        Unicode::toU32String(Unicode::toLowerAscii(ln.second.c_str()).c_str(), u32);
 
         if (!Unicode::wildcardMatch(u32.c_str(), find32.c_str())) { continue; }
 
@@ -433,7 +434,7 @@ void cmdSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     {
         basic->printUtf8String("FILE EXISTS. OVERWRITE (Y/N)? ");
         std::string yesno = basic->inputLine(false);
-        if (yesno.length() == 0 || Unicode::toUpper(yesno[0]) != u'Y') { return; }
+        if (yesno.length() == 0 || Unicode::toUpperAscii(yesno[0]) != u'Y') { return; }
     }
 
     basic->printUtf8String("SAVING          \n");
@@ -2736,7 +2737,7 @@ void Basic::handleHELP(std::vector<Token>& tokens) {
         if (i > 1) { cmd += " "; }
         cmd += tokens[i].value;
     }
-    cmd = Unicode::toUpper(cmd.c_str());
+    cmd = Unicode::toUpperAscii(cmd.c_str());
     std::string usg = Help::getUsage(cmd) + " \n";
     printUtf8String(usg);
 }
@@ -3185,7 +3186,7 @@ void Basic::uppercaseProgram(std::string& codeline) {
             if (c == char32_t('\"')) { quotes = !quotes; }
             if (!quotes)
             {
-                u32.at(i) = Unicode::toUpper(c);
+                u32.at(i) = Unicode::toUpperAscii(c);
             }
         }
         codeline = Unicode::toUtf8String(u32.c_str());

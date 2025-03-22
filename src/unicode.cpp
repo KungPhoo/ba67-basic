@@ -197,27 +197,45 @@ size_t Unicode::utf8StrLen(const char* utf8) {
     return len;
 }
 
-char32_t Unicode::toUpper(char32_t c) {
-#if defined(_WIN32)
-    if (c < 0x41) { return c; }
-    static std::locale loc("");
-    return std::toupper(c, loc);  // seems to work on unicode even w/o locale
-#else
+char32_t Unicode::toUpperAscii(char32_t c) {
     if (c >= 'a' && c <= 'z') { c += 'A' - 'a'; }
     return c;
-#endif
 }
-char32_t Unicode::toLower(char32_t c) {
-#if defined(_WIN32)
-    if (c < 0x41) { return c; }
-    static std::locale loc("");
-    return std::tolower(c, loc);
-#else
+char32_t Unicode::toLowerAscii(char32_t c) {
     if (c >= 'A' && c <= 'Z') { c += 'a' - 'A'; }
     return c;
-#endif
+}
+std::string Unicode::toUpperAscii(const char* utf8) {
+    std::string str;
+    while (*utf8 != '\0')
+    {
+        char32_t cp = parseNextUtf8(utf8);
+        if (cp == 0) { break; }
+        appendAsUtf8(str, Unicode::toUpperAscii(cp));
+    }
+    return str;
 }
 
+std::string Unicode::toLowerAscii(const char* utf8) {
+    std::string str;
+    while (*utf8 != '\0')
+    {
+        char32_t cp = parseNextUtf8(utf8);
+        if (cp == 0) { break; }
+        appendAsUtf8(str, Unicode::toLowerAscii(cp));
+    }
+    return str;
+}
+
+extern char32_t ucase32(char32_t p);
+extern char32_t lcase32(char32_t p);
+
+char32_t Unicode::toUpper(char32_t c) {
+    return ucase32(c);
+}
+char32_t Unicode::toLower(char32_t c) {
+    return lcase32(c);
+}
 std::string Unicode::toUpper(const char* utf8) {
     std::string str;
     while (*utf8 != '\0')

@@ -66,7 +66,9 @@ int main(int argc, char** argv) {
 #endif
 
 #ifdef _DEBUG
-    args = {"--video", "opengl", "--fullscreen"};
+    args = {
+        "--video", "opengl"  // , "--fullscreen"
+    };
 #endif
 
     auto& sets = Os::settings;
