@@ -1,0 +1,6 @@
+[submodule "soloud"]
+	path = soloud
+	url = https://github.com/jarikomppa/soloud.git
+[submodule "miniaudio"]
+	path = miniaudio
+	url = https://github.com/mackron/miniaudio.git

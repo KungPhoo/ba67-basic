@@ -1,0 +1,154 @@
+﻿/* C64 BASIC Screen Style */
+
+@font-face {
+    font-family: "C64 Pro Mono";
+    src: url("c64_pro/C64_Pro_Mono-STYLE.woff2");
+}
+
+
+body {
+    font-family: "C64 Pro Mono", monospace;
+    font-size: 16px;
+    background-color: #91ff84;
+    background-image: url("bg_ltgreen.png");
+    color: #91ff84; /* Light green */
+    margin: 0px;
+}
+
+li{
+    list-style-type: square;
+}
+
+a{
+    color: #91ff84; /* Light green */
+}
+a:hover{
+    color: #ffffff; /* White */
+    background-color: #787878; /* Medium gray */
+}
+
+h1, h2, h3 {
+    text-transform: uppercase;
+    color: #ffffff; /* White */
+}
+
+hr {
+    border: 4px solid #aeaeae;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    image-rendering: optimizeQuality;
+}
+
+/* Main Markdown Content */
+#content {
+    background-color: #474747; /* Dark gray */
+    background-image: url("bg_gray.png");
+    max-width: 800px;
+    margin: auto;
+    padding: 16px;
+    /* white-space: pre-wrap; */
+}
+
+/* Inline code */
+pre{
+    overflow-x: auto; /* scrollbar if required */
+
+}
+code{
+    font-family: "C64 Pro Mono", monospace;
+    color: #ffffff; /* White */
+    overflow-x: auto; /* scrollbar if required */
+}
+
+/* Code Blocks for BASIC */
+code.basic {
+    display: block;
+    color: #6864ff; /* Light blue */
+    background-color: #2724c4; /* Blue */
+    padding: 5px;
+    border: 8px solid #6864ff;
+    overflow-x: inherit; /* scrollbar from parent <pre> */
+}
+
+
+
+/* Navigation Menu */
+.c64-menu {
+    background-color: #474747; /* Dark gray */
+    background-image: url("bg_gray.png");
+    padding: 10px 0px 10px 0px;
+    
+    text-align: center;
+    position: relative;
+}
+
+/* Desktop Menu List */
+.menu-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+}
+
+.menu-list li {
+    list-style-type: none;
+    margin: 0 15px;
+}
+
+.menu-list a {
+    text-decoration: none;
+    color: var(--c64-yellow);
+    padding: 8px 12px;
+    border: 2px solid #91ff84; /* Light green */
+    display: inline-block;
+}
+
+.menu-list a:hover {
+    background-color: #474747; /* Dark gray */
+    color: #ffffff;
+}
+
+/* Mobile Menu (Hidden by Default) */
+.menu-toggle {
+    display: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 10px;
+    background-color: #474747; /* Dark gray */
+    background-image: url("bg_gray.png");
+    color: #91ff84; /* Light green */
+    border: 2px solid #91ff84; /* Light green */
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .menu-list {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        background-color: #787878; /* Medium gray */
+        position: absolute;
+        top: 100%;
+        left: 0;
+    }
+
+    .menu-list li {
+        list-style-type: none;
+        margin: 10px 0;
+    }
+
+    .menu-toggle {
+        display: block;
+    }
+
+    /* Show menu when active */
+    .menu-list.active {
+        display: flex;
+    }
+}
+
+

@@ -1,0 +1,59 @@
+﻿# FIDES DV-Partner Code Style converted to ClangFormat
+# https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+
+BasedOnStyle: Google    # Default to a style close to Astyle's "Java"
+IndentWidth: 4          # Use 4 spaces for indentation
+UseTab: Never           # Convert tabs to spaces
+ColumnLimit: 0          # Disable line length limit (no line wrapping)
+AccessModifierOffset: 0 # indent public: and private
+TabWidth: 4
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4
+
+# Whitespace and Padding
+SpacesInParentheses: false     # No spaces inside parentheses
+SpaceAfterCStyleCast: false    # No space after C-style cast
+SpaceAfterTemplateKeyword: false
+SpaceBeforeParens: ControlStatements  # Space before parentheses in control statements (e.g., if, while)
+# SpaceBeforeComma: false
+# SpaceAfterComma: true          # Add padding after commas
+
+# Pointer and Reference Alignment
+PointerAlignment: Left        # Align pointer '*' with the type (similar to Astyle's --align-pointer=type)
+ReferenceAlignment: Left      # Align reference '&' with the type (similar to Astyle's --align-reference=type)
+
+# Indentation Rules
+BreakBeforeBraces: Attach
+BraceWrapping:
+  AfterClass: false
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  IndentBraces: false         # Don't indent braces
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+
+IndentCaseLabels: true             # Indent case labels in switch statements
+
+# Preprocessor
+IndentPPDirectives: BeforeHash      # Indent preprocessor directives, similar to --indent-preproc-define
+SortIncludes: false
+
+# One-liners
+AllowShortBlocksOnASingleLine: true
+AllowShortFunctionsOnASingleLine: Inline    # Keep short functions on a single line
+AllowShortLoopsOnASingleLine: true          # Keep short loops on a single line
+AllowShortIfStatementsOnASingleLine: true   # Keep short if statements on a single line
+# AllowShortCompoundRequirementOnASingleLine: true
+AllowShortLambdasOnASingleLine: true
+
+# Miscellaneous
+# UseCRLF: true  # Use Windows line endings (CRLF)
+LineEnding: DeriveCRLF # Prefer Windows line endings (CRLF)
+
+# File-saving options
+# ClangFormat doesn't have suffix or preserve date options

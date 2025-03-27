@@ -1,0 +1,13 @@
+[Unit]
+Description=Set BA67 Virtual Terminal Colors
+After=multi-user.target
+
+[Service]
+ExecStart=/usr/local/bin/vt_colors.sh
+StandardOutput=journal
+StandardError=journal
+Type=oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
