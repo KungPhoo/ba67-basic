@@ -475,14 +475,14 @@ void OsFPL::updateKeyboardBuffer() {
             keyPress.holdShift = event.keyboard.modifiers & fplKeyboardModifierFlags_LShift;
             keyPress.holdCtrl = event.keyboard.modifiers & fplKeyboardModifierFlags_LCtrl;
             keyPress.holdAlt = event.keyboard.modifiers & fplKeyboardModifierFlags_LAlt;
-            keyPress.code = uint32_t(event.keyboard.keyCode);
+            keyPress.code = uint32_t(event.keyboard.keyCode);  // has umlaut characters
 
             if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Release) {
                 lastCharPress.code = 0;
             }
 
             if (event.keyboard.type == fplKeyboardEventType_Input) {
-                printf("input keycode $%x shift %c alt %c ctrl %c \n", keyPress.code, keyPress.holdShift ? 'X' : 'O', keyPress.holdAlt ? 'X' : 'O', keyPress.holdCtrl ? 'X' : 'O');
+                // printf("input keycode $%x shift %c alt %c ctrl %c \n", keyPress.code, keyPress.holdShift ? 'X' : 'O', keyPress.holdAlt ? 'X' : 'O', keyPress.holdCtrl ? 'X' : 'O');
                 if (keyPress.code == 0x7f) {  // DEL (only sent on linux)
                     lastCharPress.code = 0;
                     continue;
@@ -494,6 +494,7 @@ void OsFPL::updateKeyboardBuffer() {
             } else if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Press) {
                 // keyPress.code = 0;
                 keyPress.printable = false;
+                keyPress.code = uint32_t(event.keyboard.mappedKey);  // here, the keyCode on Linux is just wrong
 
                 bool repeatable = false;
                 // these provide character input
@@ -604,7 +605,7 @@ void OsFPL::updateKeyboardBuffer() {
                         break;
                 }
                 if (keyPress.code != 0) {
-                    printf("press mappedkey $%x shift %c alt %c ctrl %c \n", event.keyboard.mappedKey, keyPress.holdShift ? 'X' : 'O', keyPress.holdAlt ? 'X' : 'O', keyPress.holdCtrl ? 'X' : 'O');
+                    printf("press mappedkey $%x keycode: $%x shift %c alt %c ctrl %c \n", event.keyboard.mappedKey, event.keyboard.keyCode, keyPress.holdShift ? 'X' : 'O', keyPress.holdAlt ? 'X' : 'O', keyPress.holdCtrl ? 'X' : 'O');
                     putToKeyboardBuffer(keyPress);
                     if (repeatable) {
                         lastCharPress = keyPress;

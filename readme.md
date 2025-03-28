@@ -124,6 +124,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [Multi-Voice](#multi-voice)
     - [Editors](#editors)
     - [More Features](#more-features)
+  - [C - Developers](#c---developers)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
@@ -246,7 +247,8 @@ command or `CATALOG` on large directories.
 When you press Ctrl+'.', the BA67 starts the emoji-panel
 program if it can find it. Here you can pick an emoji or
 unicode character and insert it at the current cursor
-position.
+position. You can find that program as well on
+[github](https://github.com/KungPhoo/stdout-emoji-panel).
 
 
 -------------------------------------------------------------

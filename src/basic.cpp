@@ -2843,6 +2843,8 @@ std::string Basic::inputLine(bool allowVertical) {
             continue;
         }
 
+        key.debug();
+
         // if shift is pressed and cursor gets moved, a selection is made
         auto startSel = [&]() {
             if (key.holdShift) {
@@ -2861,10 +2863,12 @@ std::string Basic::inputLine(bool allowVertical) {
                     auto str32 = os->screen.getSelectedText(startSelection, os->screen.getCursorPos());
                     std::string clipboard = Unicode::toUtf8String(str32.c_str());
                     if (clipboard.length() > 0) {
+                        printf("copy %s\n", clipboard.c_str());
                         os->setClipboardData(clipboard);
                     }
                 } else if (key.code == U'V') {
                     std::string clipboard = os->getClipboardData();
+                    printf("pasted %s\n", clipboard.c_str());
                     if (clipboard.length() != 0) {
                         const char* utf8 = clipboard.c_str();
                         for (;;) {

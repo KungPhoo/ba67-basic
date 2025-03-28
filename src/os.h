@@ -119,6 +119,11 @@ class Os {
         bool holdShift = false;
         bool holdAlt = false;
         bool holdCtrl = false;
+
+        void debug() {
+            printf("KeyPress: code $%x, printable %c Shift %c Alt %c Ctrl %c\n",
+                   int(code), printable ? 'X' : 'O', holdShift ? 'X' : 'O', holdAlt ? 'X' : 'O', holdCtrl ? 'X' : 'O');
+        }
     };
 
     // returns a unicode character or a KEY_CONSTANT for a pressed key

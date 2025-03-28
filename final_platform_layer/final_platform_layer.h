@@ -17690,15 +17690,126 @@ fpl_platform_api void fplSetWindowTitle(const char* title) {
     x11Api->XFlush(windowState->display);
 }
 
+//---------------------------------
+
+// fplCopyString has src and dst swapped, so here's strcpy/strcat implementations
+static void fplMyStrncpy(char* dst, const char* src, size_t n) {
+    while (*src != '\0' && n != 0) { --n; *dst++ = *src++; }
+    *dst = '\0';
+}
+static void fplMyStrcpy(char* dst, const char* src) { fplMyStrncpy(dst, src, 0x7fffffff); }
+static void fplMyStrcat(char* dst, const char* src) {
+    while (*dst != '\0') { ++dst; }
+    while (*src != '\0') { *dst++ = *src++; }
+    *dst = '\0';
+}
+
+
+// Detect the best clipboard command
+const char* fpl_posix_detect_clipboard_command() {
+#if defined(__APPLE__)
+    return "pbpaste";
+#elif defined(__linux__)
+    if (system("which xclip > /dev/null 2>&1") == 0) {
+        return "xclip -selection clipboard -o";
+    } else if (system("which xsel > /dev/null 2>&1") == 0) {
+        return "xsel --clipboard --output";
+    } else {
+        return NULL;
+    }
+#else
+    return NULL;
+#endif
+}
+
+// First pass: measure clipboard text length
+size_t fpl_posix_get_clipboard_size(const char* cmd) {
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) return 0;
+
+    size_t size = 0;
+    char buffer[128];
+    while (fgets(buffer, sizeof(buffer), pipe)) {
+        size += fplGetStringLength(buffer);
+    }
+    pclose(pipe);
+    return size;
+}
+
+// Second pass: read clipboard into allocated memory
+char* fpl_posix_get_clipboard_text() {
+    const char* cmd = fpl_posix_detect_clipboard_command();
+    printf("%d cmd %s\n", __LINE__, cmd);
+    if (!cmd) {
+        FPL_LOG_ERROR(FPL__MODULE_LINUX, "No clipboard tool found (pbpaste, xclip, or xsel).\n");
+        return NULL;
+    }
+
+    size_t size = fpl_posix_get_clipboard_size(cmd);
+    printf("%d size %d\n", __LINE__, int(size));
+    if (size == 0) {
+        FPL_LOG_ERROR(FPL__MODULE_LINUX, "Clipboard is empty or failed to read.\n");
+        return NULL;
+    }
+
+    char* result = (char*)fplMemoryAllocate(size + 4);
+    if (!result) {
+        FPL_LOG_ERROR(FPL__MODULE_LINUX, "fplMemoryAllocate failed");
+        return NULL;
+    }
+
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) {
+        FPL_LOG_ERROR(FPL__MODULE_LINUX, "popen failed");
+        fplMemoryFree(result);
+        return NULL;
+    }
+
+    fgets(result, size + 1, pipe);
+    result[size] = '\0';
+    printf("%d read '%s'\n", __LINE__, result);
+
+    pclose(pipe);
+    return result;
+}
+
+
+
 fpl_platform_api bool fplGetClipboardText(char* dest, const uint32_t maxDestLen) {
-    // @IMPLEMENT(final/X11): fplGetClipboardText
+    if (!dest) { return false; }
+    if (maxDestLen > 0) { dest[0] = '\0'; }
+    char* txt = fpl_posix_get_clipboard_text();
+    printf("%d txt %s\n", __LINE__, txt);
+    if (txt) {
+        uint32_t len = maxDestLen;
+        uint32_t slen = fplGetStringLength(txt);
+        if (slen < len) { len = slen; }
+        fplMyStrncpy(dest, txt, len); dest[len] = '\0';
+        fplMemoryFree(txt); txt = NULL;
+        return true;
+    }
     return false;
 }
 
 fpl_platform_api bool fplSetClipboardText(const char* text) {
-    // @IMPLEMENT(final/X11): fplSetClipboardText
-    return false;
+    char* cmd = (char*)fplMemoryAllocate(fplGetStringLength(text) + 128);
+#if __APPLE__
+    fplMyStrcpy(cmd, "echo \""); fplMyStrcat(cmd, text); fplMyStrcat(cmd, "\" | pbcopy");
+    int result = system(cmd);
+#else  // Linux / Unix
+    // try xsel
+    fplMyStrcpy(cmd, "echo \""); fplMyStrcat(cmd, text); fplMyStrcat(cmd, "\" | xsel --clipboard");
+    int result = system(cmd);
+    if (result != 0) {
+        // fallback xclip
+        fplMyStrcpy(cmd, "echo \""); fplMyStrcat(cmd, text); fplMyStrcat(cmd, "\" | xclip -selection clipboard");
+        result = system(cmd);
+    }
+#endif
+    fplMemoryFree(cmd); cmd = NULL;
+    return result == 0;
 }
+
 
 fpl_platform_api bool fplPollKeyboardState(fplKeyboardState* outState) {
     FPL__CheckPlatform(false);
