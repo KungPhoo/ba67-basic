@@ -153,10 +153,10 @@ but also features some improvements.
 Here are the key features:
 - Compatible with the famous Commodore's BASIC
 - Variable names can be longer than 2 characters
-- Unicode strings (no PETSCII or other exotic charsets)
-- 64 bit precission for numbers
+- Unicode strings (no PETSCII or other exotic char sets)
+- 64 bit precision for numbers
 - 64 bit integers
-- Direct access to your local filesystem
+- Direct access to your local file system
 - Modular programming (See keyword `MODULE`)
 - Written in C++ (using some C libraries)
 - Very easy to use as a scripting language in your projects
@@ -181,11 +181,11 @@ The goal of this project is to get people to start
 programming.
 
 It aims to provide a BASIC language, that sticks to a very
-widespread standard, keep backwards compatiblity and focus
+widespread standard, keep backwards compatibility and focus
 on an easy to learn language with easy to understand syntax
 and few keywords.
 
-Keeping the backwards compatiblity also enables you to have
+Keeping the backwards compatibility also enables you to have
 AI generators answer your questions.
 
 Complex operators, module definitions, structures and
@@ -204,7 +204,7 @@ Graphics and sound were added.
 For the graphics an 40x25 character graphics with 16 colors
 is set. Each character is monochrome or multicolor.
 Characters can be easily generated with the `CHARDEF`
-command and supports the full unicode range
+command and supports the full Unicode range
 (uses a map internally).
 
 For the sound, the ABC music notation is used. For sound
@@ -222,7 +222,7 @@ Keywords must be separated with spaces, operators or braces.
 The COMMODORE allowed `LETTER=1`, which was interpreted as
 `LET TER=1` instead of `LET LETTER=1`. Also `PRINT LETTER`
 was not possible, because the LET part was interpreted as a
-command instead of the varaible name.
+command instead of the variable name.
 
 In order to avoid confusions, this BASIC requires separating
 commands from variables.
@@ -240,13 +240,13 @@ Use Alt+INS key to toggle between insert mode and overwrite
 mode. Use the INS key alone to insert a single character
 space.
 
-The ScrollLock and the Shift keys can be used to pause
+The Scroll Lock and the Shift keys can be used to pause
 commands, that list large texts to the screen. Try the `LIST`
 command or `CATALOG` on large directories.
 
 When you press Ctrl+'.', the BA67 starts the emoji-panel
 program if it can find it. Here you can pick an emoji or
-unicode character and insert it at the current cursor
+Unicode character and insert it at the current cursor
 position. You can find that program as well on
 [github](https://github.com/KungPhoo/stdout-emoji-panel).
 
@@ -258,7 +258,7 @@ Number constants can be given in scientific notation
 separator is the period symbol, regardless of the computer's
 locale settings.
 
-Intergers can be given up to 64 bits. A prefixed `$` is
+Integers can be given up to 64 bits. A prefixed `$` is
 interpreted as a hex number. `a = $7ffffff`.
 
 -------------------------------------------------------------
@@ -267,8 +267,8 @@ This interpreter has full Unicode support. Even emoji 😀.
 The Windows console, however, cannot display characters
 above 0xffff and will display two characters instead ☹.
 
-LEN, MID$ etc. work with unicode codepoints, so
-LEN("äöü") = 3, even though the parser stores 6 utf-8
+LEN, MID$ etc. work with Unicode code-points, so
+LEN("äöü") = 3, even though the parser stores 6 utf8
 bytes, internally.
 
 
@@ -306,7 +306,7 @@ numerate them automatically.
 
 -------------------------------------------------------------
 ## Keywords, Commands, Functions
-The following is a list of the BASIC hardcoded language
+The following is a list of the BASIC hard-coded language
 tokens you can use to write programs. They are split in 3
 groups, where the first two can be considered as one - only
 if you want to look at the source code, you will find these
@@ -446,7 +446,7 @@ values for each line of the character pixels.
 Reads a variable from the next DATA keyword.
 
 ### RESTORE
-**Usage:** `RESTORE [linenumber]`
+**Usage:** `RESTORE [line]`
 
 Restores the next READ's DATA to the given line number or,
 if omitted, the start of the program.
@@ -473,7 +473,7 @@ FOR I = 1 TO 10 STEP 2
 ### THEN
 Used in conjunction with `IF` to specify the
 action when the condition is true.
-**Usage:** `IF condition THEN expression|line_number_` 
+**Usage:** `IF condition THEN expression|line` 
 
 Example:
 ```basic
@@ -522,7 +522,7 @@ Clears all variables.
 
 ### COLOR
 Set text or background color. The `source` is an indicator
-what colour to change.
+what color to change.
 ```
 0 or 6: Background (C128: 0)
 1 or 5: Text color (C128: 5)
@@ -556,23 +556,23 @@ $00 to $ff.
 **NOTE** If you break the program with the `ESC` key, the
 colors are reset to the defaults.
 
-In order to change the background and text colour for a
+In order to change the background and text color for a
 a text on the screen, one technique is
 
 `COLOR 5, 3 : CHAR 8, 10, 10, "M", 1`
 
 In Detail:
 - Set text color to 3 (red)
-- Invert the colours (last argument of `CHAR`)
+- Invert the colors (last argument of `CHAR`)
 - Print "M" with text color 8 (yellow)
 - Result: yellow M on red background
 
 ### CHDIR
-Change into the given directroy.
+Change into the given directory.
 
-**Usage:** `CHDIR "subdir"`
-The CHDIR command also supports wildcard characters.
-use CHDIR ".." to go one directory level up.
+**Usage:** `CHDIR directory`
+The CHDIR command also supports wild-card characters.
+use `CHDIR ".."` to go one directory level up.
 
 ### CATALOG
 Lists all files and directories of the current directory.
@@ -589,7 +589,7 @@ Other BASICs have a command `LOCATE` or `PRINT AT` for this.
 
 The parameter `color` was ignored on the C128, but here it is
 used as the text color index. See `COLOR` for possible values
-from 0 to 16. The color 0 (or ommiting the parameter) uses
+from 0 to 16. The color 0 (or omitting the parameter) uses
 the current text color.
 
 The command will leave the cursor at the end of the text
@@ -601,7 +601,7 @@ and restore the current text color.
 **Monochrome**
 
 Defines the pixels of a character symbol.
-You can define any unicode character with this command.
+You can define any Unicode character with this command.
 Each parameter is a byte (8 bits), that describe the
 horizontal pixels of a line. You must pass 8 lines.
 
@@ -609,7 +609,7 @@ Alternatively, you can pass all 8 bytes as a single number,
 since BA67 supports 64 bit integers.
 So `CHARDEF "A", $ff22334455667788` is valid.
 
-Use the `CHR$()` command, if you want to give the unicode
+Use the `CHR$()` command, if you want to give the Unicode
 code point as a value.
 
 **Multicolor**
@@ -621,7 +621,7 @@ these 8 values from the 8 bytes of a monochrome character,
 one value must be greater than $ff.
 
 Pay attention: The color values are 0..15 - instead of the
-color values ìn `COLOR`, which are 1 based.
+color values in `COLOR`, which are 1 based.
 
 Example:
 ```basic
@@ -675,8 +675,8 @@ speed. No delay will be added. See also `SLOW`.
 ### FIND
 Searches the current module's program listing for the given
 search string. The search is performed case-insensitive
-and you can use the wildcards '*' and '?'.
-A '*' is appended at the front and the back, internally.
+and you can use the wild-cards `*` and `?`.
+A `*` is appended at the front and the back, internally.
 
 The command will act as `LIST`, but only list the lines where
 the search string was matches.
@@ -713,14 +713,14 @@ Displays the program listing.
 ### LOAD
 Loads a program from the disk drive. You can use the forward
 slash character to specify directories like `dir/file.bas`.
-Wildcard characters '*' and '?' are supported in folders as
+Wild-card characters `*` and `?` are supported in folders as
 well as in file names.
 
 **Usage:** `LOAD "bas*folder/*.bas"`
 
 ### MOVSPR
 Moves a sprite to a given screen location.
-**Usage:** `MOVSPR nr, x, y`
+**Usage:** `MOVSPR number, x, y`
 
 ### NEW
 Clears the current program from memory.
@@ -728,7 +728,7 @@ Clears the current program from memory.
 **Usage:** `NEW`
 
 ### MODULE
-Modules are a great way to modulize complex code and reuse
+Modules are a great way to modularize complex code and reuse
 existing listings. The interpreter holds a list of variable
 spaces for each module as well as a program counter
 (listing execution position) for each module.
@@ -790,10 +790,10 @@ IN MAIN 1
 ```
 
 ### OPEN
-Opens a file for reading or writing. When reading, wildcard
+Opens a file for reading or writing. When reading, wild-card
 characters are supported. The mode "R" for reading or "W"
-for writing must be part of the filename arument and separated
-from the file name with an comma character.
+for writing must be part of the filename argument and
+separated from the file name with an comma character.
 
 **Usage:** `OPEN fileno, "filename , MODE"`
 
@@ -803,7 +803,7 @@ your program. The music string is in ABC music notation.
 
 **Usage:** `PLAY abc_notation$`
 
-See the annex for deatils.
+See the annex for details.
 
 
 #### Technical Background
@@ -813,7 +813,7 @@ be relative to the executable "bin\BA67.exe":
 "..\3rd-party\abcMIDI\bin\abc2midi.exe"
 "..\3rd-party\fluidsynth\bin\fluidsynth.exe"
 
-ABC2MIDI is a GPL software and will thuss not be distributed.
+ABC2MIDI is a GPL software and will thus not be distributed.
 [abcmidi](https://ifdo.ca/~seymour/runabc/top.html) or
 [github](https://github.com/sshlien/abcmidi)
 
@@ -836,10 +836,10 @@ you're probably missing any of the above files.
 ### POKE
 Puts a byte to a virtual memory address. This is only for
 compatibility. The `PEEK` command can retrieve the value.
-Ihe memory has no influence on the machine, screen or other
+The memory has no influence on the machine, screen or other
 devices.
 
-**Usage:** `POKE addr, byte`
+**Usage:** `POKE address, byte`
 
 Example:
 ```basic
@@ -857,7 +857,7 @@ PRINT "Hello, World!"
 ```
 
 ### PRINT USING
-Outputs text or values as a formated string to the screen.
+Outputs text or values as a formatted string to the screen.
 
 **Usage:** `PRINT USING format; expr [, expr ...]`
 
@@ -908,8 +908,8 @@ REM This is a comment
 
 ### RENUMBER
 Renumbers the program lines.
-Where `newstart` specifies the first new line number to
-use. The `oldstart` parameter is the first line of the
+Where `new__start` specifies the first new line number to
+use. The `old__start` parameter is the first line of the
 current listing you want to start renumbering from.
 With `increment`, you specify the leap per line.
 The default is 10.
@@ -919,7 +919,7 @@ number, then. The default is zero - no milestone.
 
 *DO SAVE YOUR WORK* before you renumber the listing.
 
-**Usage:** `RENUMBER [newstart, increment, oldstart, milestone]`
+**Usage:** `RENUMBER [new__start, increment, old__start, milestone]`
 
 **Example:**
 ```basic
@@ -968,7 +968,7 @@ The optional parameter is ignored.
 
 ### SLOW
 Slow mode is enabled. This adds a delay for every
-instruction to aproximately simulate the speed of a C64.
+instruction to approximately simulate the speed of a C64.
 
 **Usage:** `SLOW`
 
@@ -1055,10 +1055,10 @@ In order to define a sprite, first you define characters.
 Then you assign the character images to a sprite number.
 A sprite consists of 3x2 character images.
 You can select any color index to be transparent with the
-3rd parameter. If you ommit it, the sprite will not be
+3rd parameter. If you omit it, the sprite will not be
 transparent.
 
-**Usage:** `SPRDEF nr, chars$`
+**Usage:** `SPRDEF number, chars$`
 
 
 ### SPRITE
@@ -1069,17 +1069,17 @@ If the bitmap is monochrome, the `color` sets the color
 of the sprite. If it's a multicolor sprite, this sets
 the transparent color index 1..16.
 
-The `prio` parameter is currently not used.
+The `priority` parameter is currently not used.
 
 The flags `x2` and `y2` enable 1 or disable 0 the scaling
 of the sprite to twice it's size.
-**Usage:** `SPRITE nr, on, color, prio, x2, y2`
+**Usage:** `SPRITE number, on, color, priority, x2, y2`
 
 Sprites can be moved with `MOVSPR`.
 
 ### STOP
 Stops the program, is if the escape key was pressed with the
-`?BREAK IN linenumber` message.
+`?BREAK IN line__number` message.
 
 **Usage:** `STOP`
 
@@ -1089,9 +1089,10 @@ The string must be quoted. Otherwise we could not use
 variables in the command string.
 If a number is given, the command prints an error message.
 
-**Usage:** `SYS "wget " + CHR$(22) + "www.microsoft.com" + CHR$(22)`
+**Usage:** `SYS "wget " + CHR$(22) + "www.ba67.org" + CHR$(22)`
 
-
+It's required to have the command in quotes, so you can
+use variables.
 
 
 -------------------------------------------------------------
@@ -1144,10 +1145,10 @@ Returns a string representation of an integer number.
 **Usage:** `PRINT HEX$( $ff001234 )`
 
 ### INSTR
-**Usage: `pos=INSTR(haystack$, needle$, [startpos])`
-Returns the first occourence of `needle$` in `haystack$``.
-The first character is the index 1. A value 0f 0 indicates,
-that no match was found.
+**Usage: `position=INSTR(haystack$, needle$, [start__pos])`
+Returns the first occurrence of `needle$` in `haystack$`.
+The first character is the index `1`. A return value of
+`0` indicates, that no match was found.
 
 ### INT
 Returns the integer portion of a number.
@@ -1182,15 +1183,15 @@ Converts the string to lower case.
 
 ### LEFT$
 Returns the leftmost `n` characters of a string. A character
-is a unicode code point.
+is a Unicode code point.
 
-**Usage:** `LEFT$(str, n)`
+**Usage:** `LEFT$(string, n)`
 
 ### LEN
-Returns the length of a string by counting the unicode code
+Returns the length of a string by counting the Unicode code
 points.
 
-**Usage:** `LEN(str)`
+**Usage:** `LEN(string)`
 
 ### LOG
 Returns the natural logarithm of a number.
@@ -1199,14 +1200,14 @@ Returns the natural logarithm of a number.
 
 ### MID$
 Extracts a substring from a string. Each character is a
-unicode code point.
+Unicode code point.
 
-**Usage:** `MID$(str, start, length)`
+**Usage:** `MID$(string, start, length)`
 
 ### PEEK
 Returns the value from a memory address.
 
-**Usage:** `PEEK(addr)`
+**Usage:** `PEEK(address)`
 
 ### POS
 Returns the current horizontal cursor position.
@@ -1224,9 +1225,9 @@ An argument must be passed, is however not evaluated.
 
 ### RIGHT$
 Returns the rightmost `n` characters of a string. A character
-is a unicode code point.
+is a Unicode code point.
 
-**Usage:** `RIGHT$(str, n)`
+**Usage:** `RIGHT$(string, n)`
 
 ### RND
 Returns a random number.
@@ -1276,7 +1277,7 @@ Converts the string to upper case.
 ### VAL
 Converts a string to a number.
 
-**Usage:** `VAL(str)`
+**Usage:** `VAL(string)`
 
 ### XOR
 Binary XOR operator.
@@ -1286,7 +1287,7 @@ Binary XOR operator.
 
 ## Reserved Commands
 Here's a list of commands and constants, that might be
-implemented once. So don't use these as veriable names.
+implemented once. So don't use these as variable names.
 But then, also don't wait for their implementation ;)
 - EL, ER, ERR$, DS, DS$
 - SCRATCH
@@ -1313,7 +1314,7 @@ But then, also don't wait for their implementation ;)
 ## A - Using the Source Code
 ### CHARDEF
 The line height must be a either 8 or 16 pixels.
-If you reimplement BA67 in your own project and your
+If you re-implement BA67 in your own project and your
 character height is defined to 16, but you only pass
 8 lines, each line will be duplicated.
 See ScreenInfo structure in the code.

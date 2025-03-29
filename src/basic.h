@@ -13,7 +13,7 @@ class Os;
 class SoundSystem;
 
 class Basic {
-   public:
+    public:
     Os* os;
 
     Basic(Os& os, SoundSystem* ss = nullptr);
@@ -21,7 +21,7 @@ class Basic {
 
     // Variable types
     class Operator {
-       public:
+        public:
         Operator() = default;
         Operator(const Operator&) = default;
         Operator(const std::string& s) { value = s; }
@@ -92,7 +92,8 @@ class Basic {
         BREAK,
         UNDEFD_MODULE,
         ARGUMENT_COUNT = 101,
-        VARIABLE_UNDEFINED
+        VARIABLE_UNDEFINED,
+        APP_EXIT
     };
 
     std::map<ErrorId, std::string> errorMessages = {
@@ -113,10 +114,9 @@ class Basic {
         {ErrorId::VARIABLE_UNDEFINED, "VARIABLE UNDEFINED ERROR"}};
 
     class Error {
-       public:
+        public:
         Error(ErrorId id) {
-            if (id != ErrorId::BREAK)
-            {
+            if (id != ErrorId::BREAK) {
                 int stop = 1;
             }
             ID = id;
@@ -126,7 +126,7 @@ class Basic {
         ErrorId ID;
     };
 
-   protected:
+    protected:
     std::set<std::string> keywords;
 
     // Token types
@@ -153,7 +153,7 @@ class Basic {
         std::string value;
     };
 
-   public:
+    public:
     using cmdpointer = std::function<void(Basic*, const std::vector<Value>&)>;   // PRINT
     using fktpointer = std::function<Value(Basic*, const std::vector<Value>&)>;  // MID$()
 
@@ -200,12 +200,11 @@ class Basic {
     };
 
     class FileHandle {
-       public:
+        public:
         FileHandle()
             : pfile(nullptr) {}
         virtual ~FileHandle() {
-            if (pfile)
-            {
+            if (pfile) {
                 fclose(pfile);
                 pfile = nullptr;
             }
@@ -216,7 +215,7 @@ class Basic {
     size_t currentFileNo = 0;
 
     class Module {
-       public:
+        public:
         // listing[-2] = immediate mode argument
         // listing[-1] = "END"
         std::string filenameQSAVE;
@@ -275,7 +274,7 @@ class Basic {
     std::map<int, std::string>& currentListing() { return moduleListingStack.back()->second.listing; }
     ProgramCounter& programCounter() { return moduleListingStack.back()->second.programCounter; }
 
-   public:
+    public:
     // Represent value as string
     static std::string valueToString(const Value& v);
     static double valueToDouble(const Value& v);
@@ -289,7 +288,7 @@ class Basic {
     static bool parseInt(const char*& str, int64_t* number = nullptr);  // int - not a double! "1.23" returns false
     static bool parseFileHandle(const char*& str, std::string* number = nullptr);
     static int64_t strToInt(const std::string& str);  // parses "255" and "$ff"
-   protected:
+    protected:
     bool parseKeyword(const char*& str, std::string* keyword = nullptr);
     bool parseCommand(const char*& str, std::string* command = nullptr);
     bool parseString(const char*& str, std::string* stringUnquoted);
@@ -359,7 +358,7 @@ class Basic {
     std::array<std::string, 12> keyShortcuts;  // F1..F12 key shortcuts. Set with KEY command
     bool insertMode = false;                   // insert/overwrite Shift+INS
 
-   public:
+    public:
     bool isCursorActive = true;
 
     void uppercaseProgram(std::string& line);

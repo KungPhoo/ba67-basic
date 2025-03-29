@@ -1204,7 +1204,7 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
         const char* pcBeforeParse = pc;
         if (parseKeyword(pc, &str)) {
             tokens.push_back({TokenType::KEYWORD, str});
-            if (str.length() == 3 && str == "REM") {  // REM ans SYS are special
+            if (str.length() == 3 && str == "REM") {  // REM is special. SYS is not!
                 tokens.push_back({TokenType::STRING, pc});
                 while (*pc != '\0') { ++pc; }
             }
@@ -2090,12 +2090,6 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
 }
 
 void Basic::handleINPUT(const std::vector<Token>& tokens) {
-    // TODO:
-    // INPUT "string"; a,b,c
-    // string? 1234
-    // ?? 456
-    // ?? 789
-
     bool firstInput = true;
     for (size_t itk = 1; itk < tokens.size(); ++itk) {
         auto& tk = tokens[itk];
@@ -3339,9 +3333,9 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
     doNEW();
 
     fseek(file, 0, SEEK_END);
-    size_t length = ftell(file);  // TODO Here, m_Length is the number of bytes. Better use a local var.
+    size_t length = ftell(file);
 
-    // strip optional utf-8 BOM
+    // strip optional utf8 BOM
     uint8_t bom[4] = {0, 0, 0, 0};
     fseek(file, 0, SEEK_SET);
     if (length > 2) {
@@ -3370,7 +3364,6 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
     char* line = strtok_r(buff, "\r\n", &next_token);
 
     std::string str;
-    // Note: strtok is deprecated; consider using strtok_r instead
     auto& listmodule = moduleListingStack.back()->second;
     int iline = 0;
     bool rv = true;

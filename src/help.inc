@@ -14,16 +14,16 @@
 ,{"NEXT", R"RAW(NEXT [var])RAW"}
 ,{"RCHARDEF", R"RAW(RCHARDEF char$, mono, bits1, bits2, ..., bits8)RAW"}
 ,{"READ", R"RAW(READ var[, var [, var2] ])RAW"}
-,{"RESTORE", R"RAW(RESTORE [linenumber])RAW"}
+,{"RESTORE", R"RAW(RESTORE [line])RAW"}
 ,{"RETURN", R"RAW(RETURN)RAW"}
 ,{"STEP", R"RAW(FOR var=start TO end STEP increment)RAW"}
-,{"THEN", R"RAW(IF condition THEN expression|line_number_)RAW"}
+,{"THEN", R"RAW(IF condition THEN expression|line)RAW"}
 ,{"TO", R"RAW(FOR var=start TO end [STEP increment])RAW"}
 ,{"AUTO", R"RAW(AUTO [n])RAW"}
 ,{"CLOSE", R"RAW(CLOSE fileno)RAW"}
 ,{"CLR", R"RAW(CLR)RAW"}
 ,{"COLOR", R"RAW(COLOR source, color)RAW"}
-,{"CHDIR", R"RAW(CHDIR "subdir")RAW"}
+,{"CHDIR", R"RAW(CHDIR directory)RAW"}
 ,{"CATALOG", R"RAW(CATALOG)RAW"}
 ,{"CHAR", R"RAW(CHAR color, column, line, text$[, inverse])RAW"}
 ,{"CHARDEF", R"RAW(CHARDEF char$, bytes, [more bytes])RAW"}
@@ -35,27 +35,27 @@
 ,{"INPUT", R"RAW(INPUT var)RAW"}
 ,{"LIST", R"RAW(LIST)RAW"}
 ,{"LOAD", R"RAW(LOAD "bas*folder/*.bas")RAW"}
-,{"MOVSPR", R"RAW(MOVSPR nr, x, y)RAW"}
+,{"MOVSPR", R"RAW(MOVSPR number, x, y)RAW"}
 ,{"NEW", R"RAW(NEW)RAW"}
 ,{"MODULE", R"RAW(MODULE name)RAW"}
 ,{"OPEN", R"RAW(OPEN fileno, "filename , MODE")RAW"}
 ,{"PLAY", R"RAW(PLAY abc_notation$)RAW"}
-,{"POKE", R"RAW(POKE addr, byte)RAW"}
+,{"POKE", R"RAW(POKE address, byte)RAW"}
 ,{"PRINT", R"RAW(PRINT expr [[,|;| ] expr ...])RAW"}
 ,{"PRINT USING", R"RAW(PRINT USING format; expr [, expr ...])RAW"}
 ,{"QUIT", R"RAW(QUIT)RAW"}
 ,{"QSAVE", R"RAW(QSAVE)RAW"}
 ,{"REM", R"RAW(REM comment)RAW"}
-,{"RENUMBER", R"RAW(RENUMBER [newstart, increment, oldstart, milestone])RAW"}
+,{"RENUMBER", R"RAW(RENUMBER [new__start, increment, old__start, milestone])RAW"}
 ,{"RUN", R"RAW(RUN [start_line_number])RAW"}
 ,{"SAVE", R"RAW(SAVE "test.bas")RAW"}
 ,{"SCNCLR", R"RAW(SCNCLR [n])RAW"}
 ,{"SLOW", R"RAW(SLOW)RAW"}
 ,{"SOUND", R"RAW(SOUND voice, play$)RAW"}
-,{"SPRDEF", R"RAW(SPRDEF nr, chars$)RAW"}
-,{"SPRITE", R"RAW(SPRITE nr, on, color, prio, x2, y2)RAW"}
+,{"SPRDEF", R"RAW(SPRDEF number, chars$)RAW"}
+,{"SPRITE", R"RAW(SPRITE number, on, color, priority, x2, y2)RAW"}
 ,{"STOP", R"RAW(STOP)RAW"}
-,{"SYS", R"RAW(SYS "wget " + CHR$(22) + "www.microsoft.com" + CHR$(22))RAW"}
+,{"SYS", R"RAW(SYS "wget " + CHR$(22) + "www.ba67.org" + CHR$(22))RAW"}
 ,{"ABS", R"RAW(ABS(expr))RAW"}
 ,{"ASC", R"RAW(ASC("char"))RAW"}
 ,{"ATN", R"RAW(ATN(expr))RAW"}
@@ -68,14 +68,14 @@
 ,{"INT", R"RAW(INT(expr))RAW"}
 ,{"JOY", R"RAW(J = JOY(port))RAW"}
 ,{"LCASE$", R"RAW(LCASE$(s$))RAW"}
-,{"LEFT$", R"RAW(LEFT$(str, n))RAW"}
-,{"LEN", R"RAW(LEN(str))RAW"}
+,{"LEFT$", R"RAW(LEFT$(string, n))RAW"}
+,{"LEN", R"RAW(LEN(string))RAW"}
 ,{"LOG", R"RAW(LOG(expr))RAW"}
-,{"MID$", R"RAW(MID$(str, start, length))RAW"}
-,{"PEEK", R"RAW(PEEK(addr))RAW"}
+,{"MID$", R"RAW(MID$(string, start, length))RAW"}
+,{"PEEK", R"RAW(PEEK(address))RAW"}
 ,{"POS", R"RAW(POS(0))RAW"}
 ,{"POSY", R"RAW(POSY(0))RAW"}
-,{"RIGHT$", R"RAW(RIGHT$(str, n))RAW"}
+,{"RIGHT$", R"RAW(RIGHT$(string, n))RAW"}
 ,{"RND", R"RAW(RND(expr))RAW"}
 ,{"SGN", R"RAW(SGN(expr))RAW"}
 ,{"SIN", R"RAW(SIN(expr))RAW"}
@@ -85,5 +85,5 @@
 ,{"TAB", R"RAW(TAB(n))RAW"}
 ,{"TAN", R"RAW(TAN(expr))RAW"}
 ,{"UCASE$", R"RAW(UCASE$(s$))RAW"}
-,{"VAL", R"RAW(VAL(str))RAW"}
+,{"VAL", R"RAW(VAL(string))RAW"}
 ,{"XOR", R"RAW(A = XOR(3,2))RAW"}

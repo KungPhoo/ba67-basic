@@ -30,6 +30,7 @@ OsFPL::~OsFPL() {
     screenLock.lock();
     buffered.stopThread = true;
     screenLock.unlock();
+    fplWindowShutdown();
 }
 
 bool OsFPL::init(Basic* basic, SoundSystem* sound) {
@@ -174,7 +175,6 @@ void displayUpdateThread(OsFPL* fpl) {
 
     static int passes = 0;
     bool cursorVisible = true;
-    // for (int inthread = 1; inthread == 1; ++inthread) {
     for (;;) {
         // == UPDATE STATE ==
         fpl->screenLock.lock();
@@ -254,7 +254,7 @@ void displayUpdateThread(OsFPL* fpl) {
 #ifdef BA67_GRAPHICS_CRT_EMULATION_ON
         for (size_t p = 0; p < 6; ++p) {
             const double facDark = 0.7;                           // factor for darker scanlines
-            const double facNeigbour = 0.6, facNeighbour2 = 0.6;  // factor for neighboured r,g,b channels. On true CRT screen, that would be 0.0
+            const double facNeigbour = 0.6, facNeighbour2 = 0.6;  // factor for neighbored r,g,b channels. On true CRT screen, that would be 0.0
             double r = 1.0, g = 1.0, b = 1.0, darken = 1.0;       // factor for r,g,b channels
             if (p == 0 || p == 3) {
                 r = 1.0;
@@ -289,7 +289,7 @@ void displayUpdateThread(OsFPL* fpl) {
         }
 #endif
 
-        // we don't access the RGB buffer - we use the colour indices
+        // we don't access the RGB buffer - we use the color indices
         // screen.updateScreenBitmap();
 
         // Compute scaling factors
@@ -344,8 +344,12 @@ void OsFPL::presentScreen() {
     updateKeyboardBuffer();
     updateGamepadState();
     fplEvent ev;
-    while (fplPollEvent(&ev)) {}  // pump messages
-    if (!fplWindowUpdate()) {
+    while (fplPollEvent(&ev)) {}      // pump messages
+    if (!fplWindowUpdate()) {         // window might be minimized
+        if (!fplIsWindowRunning()) {  // window was closed
+            exit(0);
+        }
+
         // TODO minimizing the window exits
         return;
     }
@@ -450,10 +454,9 @@ void OsFPL::updateKeyboardBuffer() {
 
     fplWindowSize sz{0, 0};
     fplGetWindowSize(&sz);
-
     // it seems fplWindowEventType_Closed is never fired
     if (sz.width == 0) {
-        exit(0);
+        return;  // window minimized
     }
 
     static KeyPress lastCharPress = {};
@@ -483,7 +486,7 @@ void OsFPL::updateKeyboardBuffer() {
 
             if (event.keyboard.type == fplKeyboardEventType_Input) {
                 // printf("input keycode $%x shift %c alt %c ctrl %c \n", keyPress.code, keyPress.holdShift ? 'X' : 'O', keyPress.holdAlt ? 'X' : 'O', keyPress.holdCtrl ? 'X' : 'O');
-                if (keyPress.code == 0x7f) {  // DEL (only sent on linux)
+                if (keyPress.code == 0x7f) {  // DEL (only sent on Linux)
                     lastCharPress.code = 0;
                     continue;
                 }
@@ -504,7 +507,7 @@ void OsFPL::updateKeyboardBuffer() {
                 // case fplKey_Escape:   keyPress.code = uint32_t(KeyConstant::ESCAPE); break;
                 switch (event.keyboard.mappedKey) {
                     case fplKey_Delete:
-                        keyPress.code = uint32_t(KeyConstant::DEL);  // linux sends this AND input 0x7f. Windows just this.
+                        keyPress.code = uint32_t(KeyConstant::DEL);  // Linux sends this AND input 0x7f. Windows just this.
                         repeatable = true;
                         break;
                     case fplKey_F1:
@@ -584,7 +587,7 @@ void OsFPL::updateKeyboardBuffer() {
                         keyPress.code = uint32_t(KeyConstant::PAUSE);
                         break;
 
-                        // these do not create keypress buffer entries
+                        // these do not create key-press buffer entries
                     case fplKey_Alt:
                     case fplKey_Control:
                     case fplKey_Shift:
@@ -605,7 +608,7 @@ void OsFPL::updateKeyboardBuffer() {
                         break;
                 }
                 if (keyPress.code != 0) {
-                    printf("press mappedkey $%x keycode: $%x shift %c alt %c ctrl %c \n", event.keyboard.mappedKey, event.keyboard.keyCode, keyPress.holdShift ? 'X' : 'O', keyPress.holdAlt ? 'X' : 'O', keyPress.holdCtrl ? 'X' : 'O');
+                    // printf("press mappedkey $%x keycode: $%x shift %c alt %c ctrl %c \n", int(event.keyboard.mappedKey), int(event.keyboard.keyCode), keyPress.holdShift ? 'X' : 'O', keyPress.holdAlt ? 'X' : 'O', keyPress.holdCtrl ? 'X' : 'O');
                     putToKeyboardBuffer(keyPress);
                     if (repeatable) {
                         lastCharPress = keyPress;
@@ -841,7 +844,7 @@ static void linuxScanAndConnectBTgamepad() {
 
 static fplGamepadStates gamepadStates = {};
 void OsFPL::updateGamepadState() {
-#if 0  // def FPL_PLATFORM_LINUX // TODO: find a way to connect bt gamepads
+#if 0  // def FPL_PLATFORM_LINUX // TODO: find a way to connect Bluetooth gamepads
     static auto lastTick = tick();
     auto tickNow = tick();
     auto deltaTick = tickNow - lastTick;
