@@ -24,6 +24,7 @@ class BA68settings {
     };
     RenderMode renderMode = Software;
     bool emulateCRT = true;
+    bool demoMode = false;  // slowly process the input buffer for creating videos
 };
 
 class Os {
@@ -36,7 +37,7 @@ class Os {
     virtual uint64_t tick() const = 0;
 
     // delay for some time
-    virtual void delay(int ms) const;
+    virtual void delay(int ms);
 
     enum class KeyConstant : uint32_t {
         ESCAPE = 27,
@@ -132,7 +133,7 @@ class Os {
     virtual KeyPress getFromKeyboardBuffer();
 
     // pushes a keypress to the keyboard buffer. Drops overflow keys.
-    virtual void putToKeyboardBuffer(Os::KeyPress key);
+    virtual void putToKeyboardBuffer(Os::KeyPress key, bool applyBufferLimit = true);
 
     // get/set utf8 clipbard text data
     virtual std::string getClipboardData() { return {}; }

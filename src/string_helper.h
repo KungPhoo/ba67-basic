@@ -8,4 +8,6 @@ class StringHelper {
     static void trimLeft(std::string& str, const char* delims);
 
     static void trimRight(std::string& str, const char* delims);
+
+    static bool replace(std::string& s, const std::string& fnd, const std::string& repl);
 };

@@ -92,8 +92,7 @@ class Basic {
         BREAK,
         UNDEFD_MODULE,
         ARGUMENT_COUNT = 101,
-        VARIABLE_UNDEFINED,
-        APP_EXIT
+        VARIABLE_UNDEFINED
     };
 
     std::map<ErrorId, std::string> errorMessages = {
@@ -127,8 +126,6 @@ class Basic {
     };
 
     protected:
-    std::set<std::string> keywords;
-
     // Token types
     enum class TokenType {
         NUMBER,
@@ -153,6 +150,8 @@ class Basic {
         std::string value;
     };
 
+    std::set<std::string> keywords;
+
     public:
     using cmdpointer = std::function<void(Basic*, const std::vector<Value>&)>;   // PRINT
     using fktpointer = std::function<Value(Basic*, const std::vector<Value>&)>;  // MID$()
@@ -161,6 +160,7 @@ class Basic {
     std::unordered_map<std::string, fktpointer> functions;
     std::array<uint8_t, 0x1000> memory;  // for PEEK&POKE - no other use
 
+    // Arrays
     struct ArrayIndex {
         ArrayIndex() = default;
         ArrayIndex(const ArrayIndex&) = default;
@@ -194,11 +194,13 @@ class Basic {
         size_t char_position;
     };
 
+    // Def Fn
     struct FunctionDefinition {
         std::vector<Token> parameters;
         std::vector<Token> body;
     };
 
+    // Files
     class FileHandle {
         public:
         FileHandle()
@@ -214,6 +216,7 @@ class Basic {
     std::array<FileHandle, 255> openFiles;
     size_t currentFileNo = 0;
 
+    // Modules
     class Module {
         public:
         // listing[-2] = immediate mode argument

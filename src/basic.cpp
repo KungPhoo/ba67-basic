@@ -2096,7 +2096,6 @@ void Basic::handleINPUT(const std::vector<Token>& tokens) {
         if (itk == 1 && tk.type == TokenType::STRING) {
             printUtf8String(tk.value);
             if (itk + 1 < tokens.size() && tokens[itk + 1].value != ";") {
-                ++itk;
                 printUtf8String("\n");
             }
         } else if (tk.type != TokenType::COMMA && tk.type != TokenType::OPERATOR) {
@@ -2806,6 +2805,10 @@ void Basic::printUtf8String(const char* utf8) {
 }
 
 std::string Basic::inputLine(bool allowVertical) {
+    if (os->settings.demoMode) {
+        os->delay(2000);
+    }
+
     isCursorActive = true;
     bool movedVertical = false;
 
@@ -2818,7 +2821,7 @@ std::string Basic::inputLine(bool allowVertical) {
 
     auto startCrsr = os->screen.getCursorPos();
     if (allowVertical) {
-        // anything in the prorgammed line matters as input
+        // anything in the programmed line matters as input
         // the AUTO command will put the x position after the line number
         startCrsr.x = 0;
     }
@@ -2864,11 +2867,21 @@ std::string Basic::inputLine(bool allowVertical) {
                     std::string clipboard = os->getClipboardData();
                     printf("pasted %s\n", clipboard.c_str());
                     if (clipboard.length() != 0) {
-                        const char* utf8 = clipboard.c_str();
+                        std::string cliptext = clipboard;
+
+                        // remove \r, escape in string
+                        StringHelper::replace(cliptext, "\r\n", "\n");
+                        StringHelper::replace(cliptext, "\r", "\n");
+
+                        Os::KeyPress kp = {};
+                        kp.printable = true;
+                        const char* utf8 = cliptext.c_str();
                         for (;;) {
                             char32_t c = Unicode::parseNextUtf8(utf8);
                             if (c == 0) { break; }
-                            os->screen.putC(c);
+
+                            kp.code = c;
+                            os->putToKeyboardBuffer(kp, false);  // can copy/paste listings etc.
                         }
                     }
                 } else if (key.code == U'.' || key.code == 190) {
@@ -2956,19 +2969,14 @@ std::string Basic::inputLine(bool allowVertical) {
                     startSel();
                     {
                         auto crsr = os->screen.getEndOfLineAt(os->screen.getCursorPos());  // that's the '\n' character
-                        // auto crsr = os->screen.getCursorAtPos(iend);
                         os->screen.setCursorPos(crsr);
                     }
                     continue;
             }
-        }
+        }  // not printable
 
         uint32_t ch = key.code;
         if (ch == '\r' || ch == '\n') { break; }
-
-        // if (ch == uint32_t(Os::KeyConstant::CRSR_UP)) {
-        //     os->setCaretPos(os->caretPositionX(), std::max(0, os->caretPositionY() - 1));
-        // }
 
         if (key.printable) {
             if (insertMode) {
@@ -2982,8 +2990,7 @@ std::string Basic::inputLine(bool allowVertical) {
     ScreenBuffer::Cursor istart{}, iend{};
 
     std::u32string screenchars;
-    if (cursorAtStartOfInput.y != crsr.y)  // movedVertical)
-    {
+    if (cursorAtStartOfInput.y != crsr.y) {
         // Moved a line up
         startCrsr = crsr;
         startCrsr.x = 0;
@@ -3006,6 +3013,10 @@ std::string Basic::inputLine(bool allowVertical) {
     std::string str;
     for (auto ch : screenchars) {
         Unicode::appendAsUtf8(str, ch);
+    }
+
+    if (os->settings.demoMode) {
+        os->delay(1000);
     }
 
     isCursorActive = false;
@@ -3042,9 +3053,9 @@ void Basic::restoreColorsAndCursor(bool resetFont) {
         printUtf8String("\n");
     }
     // clear keyboard buffer (ESC key mainly)
-    while (os->keyboardBufferHasData()) {
-        os->getFromKeyboardBuffer();
-    }
+    // while (os->keyboardBufferHasData()) {
+    //     os->getFromKeyboardBuffer();
+    // }
 }
 
 Basic::ParseStatus Basic::parseInput(const char* pline) {
@@ -3138,6 +3149,7 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
             handleEscapeKey();
         }
     } catch (Error e) {
+        if (e.ID == ErrorId::BREAK) { throw e; }
         currentFileNo = 0;
         // dumpVariables();
 
@@ -3212,6 +3224,10 @@ void Basic::runInterpreter() {
             while (os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
                 os->updateKeyboardBuffer();
                 os->delay(100);
+                // clear keyboard buffer
+                while (os->keyboardBufferHasData()) {
+                    os->getFromKeyboardBuffer();
+                }
             }
         }
         // debug("MODULE VARS "); debug(moduleVariableStack.back()->first.c_str()); debug("\n");

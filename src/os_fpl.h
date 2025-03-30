@@ -8,7 +8,7 @@ class OsFPL : public Os {
     virtual ~OsFPL();
     bool init(Basic* basic, SoundSystem* sound) override;
     uint64_t tick() const override;
-    void delay(int ms) const override;
+    void delay(int ms) override;
     size_t getFreeMemoryInBytes() override;
 
     void presentScreen() override;
@@ -22,7 +22,7 @@ class OsFPL : public Os {
 
     const bool isKeyPressed(uint32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false) const override;
 
-    void putToKeyboardBuffer(Os::KeyPress key) override;
+    void putToKeyboardBuffer(Os::KeyPress key, bool applyLimit = true) override;
 
     std::string getClipboardData() override;
     void setClipboardData(const std::string utf8) override;

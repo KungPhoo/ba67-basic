@@ -26,3 +26,20 @@ void StringHelper::trimLeft(std::string& str, const char* delims = " \r\n\t") {
 void StringHelper::trimRight(std::string& str, const char* delims = " \r\n\t") {
     str.erase(str.find_last_not_of(delims) + 1);
 }
+
+bool StringHelper::replace(std::string& s, const std::string& fnd, const std::string& repl) {
+    if (fnd.empty()) { return false; }
+
+    bool brepl = false;
+    size_t b = 0;
+    size_t fndsz = fnd.size();
+    size_t repsz = repl.size();
+    for (;;) {
+        b = s.find(fnd, b);
+        if (b == s.npos) { break; }
+        s.replace(b, fndsz, repl);
+        b += repsz;
+        brepl = true;
+    }
+    return brepl;
+}

@@ -4,6 +4,7 @@
 #include <vector>
 #include <regex>
 #include "markdown_parser.h"
+#include "string_helper.h"
 
 MarkdownParser::MarkdownParser(const std::string& filename)
     : filename(filename) {}
@@ -98,23 +99,6 @@ void MarkdownParser::updateTOC() {
     outFile << fileContent;
 }
 
-static bool str_replace(std::string& s, const std::string& fnd, const std::string& repl) {
-    if (fnd.empty()) { return false; }
-
-    bool brepl = false;
-    size_t b = 0;
-    size_t fndsz = fnd.size();
-    size_t repsz = repl.size();
-    for (;;) {
-        b = s.find(fnd, b);
-        if (b == s.npos) { break; }
-        s.replace(b, fndsz, repl);
-        b += repsz;
-        brepl = true;
-    }
-    return brepl;
-}
-
 void MarkdownParser::writeHelpInclude(const std::string& path) {
     std::ofstream help(path);
     if (!help) {
@@ -136,9 +120,9 @@ void MarkdownParser::writeHelpInclude(const std::string& path) {
 
         std::string usage = entry.second;
         // remove \r, escape in string
-        str_replace(usage, "\r\n", "\n");
-        str_replace(usage, "\r", "");
-        str_replace(usage, "\n", "\\n");
+        StringHelper::replace(usage, "\r\n", "\n");
+        StringHelper::replace(usage, "\r", "");
+        StringHelper::replace(usage, "\n", "\\n");
         help << "{\"" << entry.first << "\", R\"RAW(" << usage << ")RAW\"}";
         help << "\n";
     }

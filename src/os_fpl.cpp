@@ -123,7 +123,13 @@ uint64_t OsFPL::tick() const {
     return fplMillisecondsQuery() - start;
 }
 
-void OsFPL::delay(int ms) const {
+void OsFPL::delay(int ms) {
+    while (ms > 20) {
+        presentScreen();
+        ms -= 20;
+        fplThreadSleep(18);
+    }
+
     fplThreadSleep(ms);
 }
 
@@ -726,8 +732,8 @@ const bool OsFPL::isKeyPressed(uint32_t index, bool withShift, bool withAlt, boo
     return (keyboardState.buttonStatesMapped[index] >= fplButtonState_Press);
 }
 
-void OsFPL::putToKeyboardBuffer(Os::KeyPress key) {
-    Os::putToKeyboardBuffer(key);
+void OsFPL::putToKeyboardBuffer(Os::KeyPress key, bool applyLimit) {
+    Os::putToKeyboardBuffer(key, applyLimit);
 }
 
 std::string OsFPL::getClipboardData() {

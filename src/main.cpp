@@ -67,7 +67,8 @@ int main(int argc, char** argv) {
 #ifdef _DEBUG
     args = {
         "--video", "opengl",  // "--fullscreen"
-        // "--crtemulation", "false",
+        "--crtemulation", "false",
+        "--demo", "true",
         ""};
 #endif
 
@@ -91,6 +92,13 @@ int main(int argc, char** argv) {
                 sets.emulateCRT = true;
             } else {
                 sets.emulateCRT = false;
+            }
+        }
+        if (args[i] == "--demo") {
+            if (args[i + 1] == "true") {
+                sets.demoMode = true;
+            } else {
+                sets.demoMode = false;
             }
         }
     }
@@ -132,4 +140,6 @@ void printfHelp() {
     printf("               opengl       Use OpenGL 1.1 glDrawPixels\n");
     printf("--crtemulation true         (default) enable the CRT RGB emulation\n");
     printf("               false        disable the CRT RGB emulation\n");
+    printf("--demo         true         demo mode - slow typing\n");
+    printf("               false        (default) normal mode\n");
 }

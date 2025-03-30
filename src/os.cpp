@@ -13,14 +13,19 @@ Os::KeyPress Os::getFromKeyboardBuffer() {
     }
     auto k = keyboardBuffer.back();
     keyboardBuffer.pop_back();
+
+    if (settings.demoMode) {
+        delay(200);
+    }
+
     return k;
 }
 
-void Os::putToKeyboardBuffer(Os::KeyPress key) {
+void Os::putToKeyboardBuffer(Os::KeyPress key, bool applyBufferLimit) {
     keyboardBuffer.insert(keyboardBuffer.begin(), key);
 
     // Keep buffer size limited
-    if (keyboardBuffer.size() > 128 * 1024) {
+    if (applyBufferLimit && keyboardBuffer.size() > 128 * 1024) {
         keyboardBuffer.pop_back();
     }
 }
@@ -87,9 +92,13 @@ char32_t Os::getc() {
 }
 
 // delay for some time
-void Os::delay(int ms) const {
+void Os::delay(int ms) {
     uint64_t t = tick() + ms;
-    while (tick() < t) {}
+    while (tick() < t) {
+        if (ms > 100) {
+            presentScreen();
+        }
+    }
 }
 
 // init your operating sepecific data

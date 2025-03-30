@@ -355,8 +355,8 @@ std::u32string ScreenBuffer::getSelectedText(Cursor start, Cursor end) const {
                 if (y + 1 == end.y) { endx = end.x; }
                 break;
             }
-#if _DEBUG
-            // inverse colors for debugging
+#if 0  //  _DEBUG
+       // inverse colors for debugging
             sc.col = (sc.col << 4) | (sc.col >> 4);
 #endif
             mid += sc.ch;

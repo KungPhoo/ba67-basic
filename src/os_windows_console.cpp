@@ -105,10 +105,6 @@ uint64_t OsWindowsConsole::tick() const {
     return GetTickCount64() - tick0;
 }
 
-void OsWindowsConsole::delay(int ms) const {
-    ::Sleep(ms);
-}
-
 bool OsWindowsConsole::init(Basic* basic, SoundSystem* ss) {
     Os::init(basic, ss);
 

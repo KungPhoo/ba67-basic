@@ -3,7 +3,6 @@
     #include "os.h"
 class OsWindowsConsole : public Os {
     uint64_t tick() const override;
-    void delay(int ms) const override;
 
     bool init(Basic* basic, SoundSystem* ss) override;
     size_t getFreeMemoryInBytes() override;
