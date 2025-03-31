@@ -121,7 +121,7 @@ class Os {
         bool holdAlt = false;
         bool holdCtrl = false;
 
-        void debug() {
+        void debug() const {
             printf("KeyPress: code $%x, printable %c Shift %c Alt %c Ctrl %c\n",
                    int(code), printable ? 'X' : 'O', holdShift ? 'X' : 'O', holdAlt ? 'X' : 'O', holdCtrl ? 'X' : 'O');
         }

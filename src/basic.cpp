@@ -2840,7 +2840,7 @@ std::string Basic::inputLine(bool allowVertical) {
             continue;
         }
 
-        key.debug();
+        // key.debug();
 
         // if shift is pressed and cursor gets moved, a selection is made
         auto startSel = [&]() {
