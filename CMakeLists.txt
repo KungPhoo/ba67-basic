@@ -59,6 +59,18 @@ endif()
 add_compile_definitions(_CRT_SECURE_NO_WARNINGS=1)
 add_compile_definitions(_UNICODE=1 UNICODE=1) # Windows needs this
 
+# CMake defines NDEBUG for release builds
+add_compile_options("$<$<CONFIG:DEBUG>:-DDEBUG -D_DEBUG>")
+
+# Hide all warnings for release builds
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    if (MSVC)
+        add_compile_options(/W0)
+    else()
+        add_compile_options(-w)
+    endif()
+endif()
+
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/lib")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/bin")
@@ -148,12 +160,6 @@ endif()
 # find_package() can use cmake/FindXXXX.cmake
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-
-# CMake defines NDEBUG for release builds
-# add_compile_options("$<$<CONFIG:Debug>:-DDEBUG>")  # #ifdef DEBUG
-# add_compile_options("$<$<CONFIG:Debug>:-D_DEBUG>") # #ifdef _DEBUG <-- that's what Fides used so far
-
-# add_compile_options("$<$<CONFIG:DEBUG>:-DDEBUG -D_DEBUG>")
 
 # OpenMP (parallel computing)
 find_package(OpenMP)

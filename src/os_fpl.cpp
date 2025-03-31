@@ -133,10 +133,68 @@ void OsFPL::delay(int ms) {
     fplThreadSleep(ms);
 }
 
+#if !defined(_WIN32)
+    #include <cstdio>
+    #include <cstring>
+// Return the amount of free memory in kilobytes.
+// Returns -1 if something went wrong.
+// https://stackoverflow.com/a/17518259/2721136
+int getFreeMemoryProcMeminfo() {
+    int returnValue;
+    const int BUFFER_SIZE = 1000;
+    char buffer[BUFFER_SIZE];
+    FILE* fInput;
+    int loop;
+    int len;
+    char ch;
+    returnValue = 0;
+    fInput = fopen("/proc/meminfo", "r");
+    if (fInput != NULL) {
+        while (!feof(fInput)) {
+            fgets(buffer, BUFFER_SIZE - 1, fInput);
+            if (feof(fInput)) {
+                break;
+            }
+            buffer[BUFFER_SIZE - 1] = 0;
+            // Look for serial number
+            if (strncmp(buffer, "MemFree:", 8) == 0) {
+                // Extract mem free from the line.
+                for (loop = 0; loop < BUFFER_SIZE; loop++) {
+                    ch = buffer[loop];
+                    if (ch == ':') {
+                        returnValue = 0;
+                        continue;
+                    }
+                    if (ch == 0) {
+                        break;
+                    }
+                    if (returnValue >= 0) {
+                        if (ch >= 'A') {
+                            break;
+                        }
+                        if ((ch >= '0') && (ch <= '9')) {
+                            returnValue = returnValue * 10 + (ch - '0');
+                        }
+                    }
+                }
+                break;
+            }
+        }
+        fclose(fInput);
+    }
+    return returnValue;
+}
+#endif
+
 size_t OsFPL::getFreeMemoryInBytes() {
     fplMemoryInfos mem = {};
-    fplMemoryGetInfos(&mem);
-    return mem.freePhysicalSize;
+    if (fplMemoryGetInfos(&mem)) {
+        return mem.freePhysicalSize;
+    }
+#if !defined(_WIN32)
+    return 1024 * size_t(getFreeMemoryProcMeminfo());
+#endif
+    return 128 * 1024;
 }
 
 static uint32_t emphasizeRGB(uint32_t color, double facR, double facG, double facB, double facDark) {
