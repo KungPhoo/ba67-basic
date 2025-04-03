@@ -23,6 +23,8 @@
             const response = await fetch('readme.md'); // Change the filename if needed
             const markdownText = await response.text();
             const converter = new showdown.Converter();
+            converter.setOption('tables', true);
+            converter.setOption('moreStyling', true);
             document.getElementById('content').innerHTML = converter.makeHtml(markdownText);
         }
 

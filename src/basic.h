@@ -14,10 +14,10 @@ class SoundSystem;
 
 class Basic {
     public:
-    Os* os;
+    std::string version() { return "7.01"; }
 
-    Basic(Os& os, SoundSystem* ss = nullptr);
-    std::string version();
+    Os* os;
+    Basic(Os* os, SoundSystem* ss = nullptr);
 
     // Variable types
     class Operator {
@@ -334,11 +334,8 @@ class Basic {
 
     char valuePostfix(const Token& t) const;  // returns '#', '%', '$'
 
-    // find asignable value from 'a' or arr(1+3). returns nullptr on error
+    // find assignable value from 'a' or arr(1+3). returns nullptr on error
     Value* findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr);
-
-    // assign value, take care of conversion
-    void assignValue(Value* dest, const Value& src);
 
     void doGOTO(int line, bool isGoSub);
     void handleGOTO(std::vector<Token>& tokens);

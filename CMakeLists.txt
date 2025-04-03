@@ -78,11 +78,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/bin")
 
 
 
-if (WIN32)
-    #################### ICON ################
-    add_library(windows_resource_lib OBJECT "resources/resource.rc")
-endif()
-
 # === App Source ===
 file(GLOB APP_SOURCES # cpp files
     "src/*.cpp"
@@ -105,19 +100,17 @@ file(GLOB SOLOUD_H
 add_compile_definitions(WITH_MINIAUDIO=1)
 add_library(lib_soloud OBJECT "${SOLOUD_CPP}")
 
-# if (WIN32)
-#     add_executable(${APP_NAME} WIN32 "${APP_SOURCES}" "${APP_HEADERS}" $<TARGET_OBJECTS:windows_resource_lib>)
-#     # Console Window: GCC flags: -mconsole
-#     # set_target_properties(${APP_NAME} PROPERTIES LINK_FLAGS -mconsole)
-#     # target_link_options(${APP_NAME} PRIVATE "/SUBSYSTEM:CONSOLE")
-#     target_link_options(${APP_NAME} PRIVATE "/SUBSYSTEM:WINDOWS")
-# else()
-#     add_executable(${APP_NAME} "${APP_SOURCES}" "${APP_HEADERS}")
-# endif()
+
 
 # FPL takes care of wWinMain and calls main
 add_executable(${APP_NAME} "${APP_SOURCES}" "${APP_HEADERS}")
 target_link_libraries(${APP_NAME} PUBLIC lib_soloud)
+
+if (WIN32)
+    #################### ICON ################
+    add_library(windows_resource_lib OBJECT "resources/resource.rc")
+    target_link_libraries(${APP_NAME} PUBLIC windows_resource_lib)
+endif()
 
 # OpenGL
 if(${BA67_GRAPHICS_ENABLE_OPENGL} STREQUAL "ON" )

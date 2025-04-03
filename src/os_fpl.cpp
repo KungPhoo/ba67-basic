@@ -1,4 +1,4 @@
-#include "os_fpl.h"
+﻿#include "os_fpl.h"
 
 // https://libfpl.org/docs/page_categories.html
 #define FPL_IMPLEMENTATION
@@ -47,6 +47,8 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     settings.video.isAutoSize = false;  // we resize ourself
 
     settings.window.isFullscreen = false;
+    settings.window.isScreenSaverPrevented = true;
+    settings.window.isMonitorPowerPrevented = true;
 
     settings.input.controllerDetectionFrequency = 5000;
 
@@ -55,12 +57,17 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
         // Use Legacy OpenGL (1.1)
         settings.video.backend = fplVideoBackendType_OpenGL;
         settings.video.graphics.opengl.compabilityFlags = fplOpenGLCompabilityFlags_Legacy;
+        settings.video.isVSync = true;
     } else
 #endif
     {
         settings.video.backend = fplVideoBackendType_Software;
     }
-    // settings.window.icons[0] // TODO icons
+    // settings.window.icons[0] // TODO: icons
+    // settings.window.icons[0].data = icon16Data;
+    // settings.window.icons[0].width = iconW;
+    // settings.window.icons[0].height = iconH;
+    // settings.window.icons[0].type = fplImageType_RGBA;
 
     if (!fplPlatformInit(
             /*fplInitFlags_Console | fplInitFlags_Audio |*/ fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_GameController,
@@ -124,13 +131,20 @@ uint64_t OsFPL::tick() const {
 }
 
 void OsFPL::delay(int ms) {
-    while (ms > 20) {
-        presentScreen();
-        ms -= 20;
-        fplThreadSleep(18);
+    if (ms > 20) {
+        auto endTick = tick() + ms;
+        while (ms > 20) {
+            presentScreen();
+            ms -= 20;
+            fplThreadSleep(18);
+        }
+        uint64_t now = tick();
+        if (now + 5 < endTick) {
+            fplThreadSleep(uint32_t(endTick - now) - 4);
+        }
+    } else {
+        fplThreadSleep(ms);
     }
-
-    fplThreadSleep(ms);
 }
 
 #if !defined(_WIN32)
@@ -231,10 +245,13 @@ void displayUpdateThread(OsFPL* fpl) {
     constexpr size_t srcWidth = ScreenInfo::pixX;   // ScreenBitmap width (80x8)
     constexpr size_t srcHeight = ScreenInfo::pixY;  // ScreenBitmap height (25x16)
 
+    uint64_t sleepAfter = 0;
+
     static int passes = 0;
     bool cursorVisible = true;
     for (;;) {
         // == UPDATE STATE ==
+        uint64_t now = fplMillisecondsQuery();
         fpl->screenLock.lock();
         if (fpl->buffered.stopThread) {
             fpl->screenLock.unlock();
@@ -246,6 +263,7 @@ void displayUpdateThread(OsFPL* fpl) {
             state = fpl->buffered;  // copy to thread data - this way we don't need to lock the main thread for drawing
             fpl->buffered.screen.dirtyFlag = false;
             nextShowCursor = 0;
+            sleepAfter = now + 500;
         }
         if (state.videoH * state.videoW != fpl->pixelsVideo.size()) {
             fpl->pixelsVideo.resize(state.videoH * state.videoW);
@@ -255,7 +273,6 @@ void displayUpdateThread(OsFPL* fpl) {
 
         // overwrite cursor box
         const uint64_t flashSpeed = 560;
-        uint64_t now = fplMillisecondsQuery();
 
         if (now > nextShowCursor) {
             nextShowCursor = now + flashSpeed;
@@ -264,7 +281,9 @@ void displayUpdateThread(OsFPL* fpl) {
         }
 
         if (!dirty) {
-            fplThreadSleep(5);
+            if (sleepAfter < now) {
+                fplThreadSleep(50);
+            }
             continue;
         }
 

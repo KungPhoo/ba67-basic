@@ -66,9 +66,9 @@ int main(int argc, char** argv) {
 
 #ifdef _DEBUG
     args = {
-        "--video", "opengl",  // "--fullscreen"
-        "--crtemulation", "false",
-        "--demo", "true",
+        // "--video", "opengl",  // "--fullscreen"
+        // "--crtemulation", "false",
+        // "--demo", "true",
         ""};
 #endif
 
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
     OsFPL os;
 
     SoundSystemSoLoud soloud;
-    Basic basic(os, &soloud);
+    Basic basic(&os, &soloud);
 
     // load boot.bas
     try {

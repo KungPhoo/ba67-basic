@@ -9,6 +9,9 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
   - [About](#about)
   - [Goal](#goal)
   - [Syntax](#syntax)
+    - [Case Sensitive](#case-sensitive)
+    - [Spacing](#spacing)
+    - [Quotes](#quotes)
   - [Editor](#editor)
   - [Numbers](#numbers)
   - [Unicode](#unicode)
@@ -215,9 +218,11 @@ effects, DrPetter's SFXR is used. See `PLAY` and `SOUND`.
 This interpreter tries to imitate and extend
 COMMODORE's BASIC V7.
 
+### Case Sensitive
 The parser is case sensitive, but the line input uppercases
 everything outside of quotes for convenience.
 
+### Spacing
 Keywords must be separated with spaces, operators or braces.
 The COMMODORE allowed `LETTER=1`, which was interpreted as
 `LET TER=1` instead of `LET LETTER=1`. Also `PRINT LETTER`
@@ -227,9 +232,20 @@ command instead of the variable name.
 In order to avoid confusions, this BASIC requires separating
 commands from variables.
 
+### Quotes
+You can use double and single quotes. This way it's easier
+to use quotes in a string. The following is perfectly legal,
+but breaks compatibility with Commodore BASIC V7.0 code:
+```
+PRINT "Print 'single quotes' is easy"
+PRINT 'but: "double quotes" is, too.'
+```
+In BASIC V7.0, only double quotes are accepted. To escape
+these, you'd have to print `CHR$(34)`.
+
 -------------------------------------------------------------
 ## Editor
-The editor imitates the C64/C128 text editor. Use the ESC
+The editor imitates the C64/C128 text editor. Use the `ESC`
 key to abort a program execution or the listing of `CATALOG`
 or `LIST`.
 
@@ -290,9 +306,9 @@ each statement is evaluated. These are:
 | TI        | current system time in 1/60 sec. |
 
 ## Files
-The class that derives from `Os` should set the start
-directory to a location, where BASIC programs are to
-be stored.
+The class that derives from the C++ class `Os` should set
+the start directory to a location, where BASIC programs are
+to be saved.
 
 When starting, the interpreter will load and run the
 file "boot.bas" from the start directory and call `NEW`

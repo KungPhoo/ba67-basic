@@ -770,13 +770,13 @@ Basic::Value& Basic::Array::at(const Basic::ArrayIndex& ix) {
     throw Error(ErrorId::BAD_SUBSCRIPT);  // DIM a(5): a(6) = 1: REM a is defined (0..5)
 }
 
-Basic::Basic(Os& os, SoundSystem* ss) {
+Basic::Basic(Os* os, SoundSystem* ss) {
     Module mainmodule;
     modules[""] = mainmodule;
     moduleVariableStack.push_back(modules.begin());  // create a module with no name and push it on the stack
     moduleListingStack.push_back(modules.begin());
 
-    this->os = &os;
+    this->os = os;
     std::string charLogo = Unicode::toUtf8String(U"🌈");
     cmdCHARDEF(this, {
                          Value(charLogo),
@@ -790,9 +790,9 @@ Basic::Basic(Os& os, SoundSystem* ss) {
                          Value(int64_t(0xeeeeeeeeeeeeeeeeLL)),  // blue
                      });
 
-    os.init(this, ss);
-    os.screen.setColors(13, 11);
-    os.screen.setBorderColor(13);
+    os->init(this, ss);
+    os->screen.setColors(13, 11);
+    os->screen.setBorderColor(13);
 
     keyShortcuts[1 - 1] = "\"CHDIR\"";
     keyShortcuts[2 - 1] = "\"LOAD \"";
@@ -903,9 +903,9 @@ Basic::Basic(Os& os, SoundSystem* ss) {
     size_t centerx = 3;
     printUtf8String("\n");
     printUtf8String(
-        std::string(centerx, ' ') + std::string(" ****    BA67 BASIC ") + "V" + version() + charLogo + ("   ****\n"));
+        std::string(centerx, ' ') + std::string(" ****    BA67 BASIC") + charLogo + " V" + version() + ("   ****\n"));
 
-    std::string strmem = " " + valueToString(int64_t(os.getFreeMemoryInBytes())) + std::string(" BASIC BYTES FREE");
+    std::string strmem = " " + valueToString(int64_t(os->getFreeMemoryInBytes())) + std::string(" BASIC BYTES FREE");
     while (strmem.length() < 31) {
         strmem.insert(strmem.begin(), ' ');
     }
@@ -913,8 +913,10 @@ Basic::Basic(Os& os, SoundSystem* ss) {
         std::string(centerx, ' ') + strmem + "\n" + std::string(centerx, ' ') + "       (C)2025 DREAM DESIGN.\n");
 }
 
+#if 0
 std::string Basic::version() {
-    char mnames[] = {"JanFebMarAprMayJunJulAugSepOctNovDec"};
+    return "1.07";
+    char mnames[] = {"JanFebMarAprMayJunJulAugSepOctNovDec" };
     // char today[16];
     char temp[8];
     int day, month, year;
@@ -954,6 +956,7 @@ std::string Basic::version() {
     version += valueToString(d);
     return version;
 }
+#endif
 
 int Basic::colorForModule(const std::string& str) const {
     int col = 0;
@@ -1127,8 +1130,9 @@ inline bool Basic::parseCommand(const char*& str, std::string* command) {
 
 inline bool Basic::parseString(const char*& str, std::string* stringUnquoted) {
     skipWhite(str);
-    if (*str == '\"') {
-        const char* end = strchr(str + 1, '\"');
+    if (*str == '\"' || *str == '\'') {
+        // char quoteChar = *str;
+        const char* end = strchr(str + 1, *str /* quoteChar */);
         if (end == nullptr) { throw Error(ErrorId::SYNTAX); }
         if (stringUnquoted) { *stringUnquoted = std::string(str + 1, end); }
         str = end + 1;
@@ -2770,13 +2774,19 @@ void Basic::executeTokens(std::vector<Token>& tokens) {
 }
 
 void Basic::uppercaseProgram(std::string& codeline) {
-    bool quotes = false;
+    char32_t quotes = U'\0';
     std::u32string u32;
     if (Unicode::toU32String(codeline.c_str(), u32)) {
         for (size_t i = 0; i < u32.length(); ++i) {
             char32_t c = u32[i];
-            if (c == char32_t('\"')) { quotes = !quotes; }
-            if (!quotes) {
+            if (c == U'\"' || c == U'\'') {
+                if (quotes == '\0') {
+                    quotes = c;
+                } else if (c == quotes) {
+                    quotes = '\0';
+                }
+            }
+            if (quotes == U'\0') {
                 u32.at(i) = Unicode::toUpperAscii(c);
             }
         }
