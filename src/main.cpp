@@ -4,10 +4,10 @@
     #include <Windows.h>
 #endif
 
-#include <vector>
 #include "basic.h"
-#include <iostream>
 #include "unicode.h"
+#include <iostream>
+#include <vector>
 
 #if _DEBUG
     #include "markdown_parser.h"
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
 #endif
 
     // ARGV to UTF-8
-    std::vector<std::string> args;  // utf-8
+    std::vector<std::string> args; // utf-8
 #ifdef _WIN32
     (void)argc;
     (void)argv;
@@ -57,11 +57,15 @@ int main(int argc, char** argv) {
     if (NULL == szArglist) {
         return printf("CommandLineToArgvW failed\n");
     }
-    for (int i = 0; i < nArgs; i++) { args.push_back(Unicode::toUtf8String(reinterpret_cast<const char16_t*>(szArglist[i]))); }
+    for (int i = 0; i < nArgs; i++) {
+        args.push_back(Unicode::toUtf8String(reinterpret_cast<const char16_t*>(szArglist[i])));
+    }
     LocalFree(szArglist);
     szArglist = nullptr;
 #else
-    for (int i = 0; i < argc; ++i) { args.emplace_back(argv[i]); }
+    for (int i = 0; i < argc; ++i) {
+        args.emplace_back(argv[i]);
+    }
 #endif
 
 #ifdef _DEBUG
@@ -69,16 +73,19 @@ int main(int argc, char** argv) {
         // "--video", "opengl",  // "--fullscreen"
         // "--crtemulation", "false",
         // "--demo", "true",
-        ""};
+        ""
+    };
 #endif
 
     auto& sets = Os::settings;
-    args.push_back("");  // ensure [i] and [i+1]
+    args.push_back(""); // ensure [i] and [i+1]
     for (size_t i = 1; i + 1 < args.size(); ++i) {
         if (args[i] == "--help") {
             printfHelp();
         }
-        if (args[i] == "--fullscreen") { sets.fullscreen = true; }
+        if (args[i] == "--fullscreen") {
+            sets.fullscreen = true;
+        }
         if (args[i] == "--video") {
             if (args[i + 1] == "opengl") {
                 sets.renderMode = BA68settings::OpenGL;
@@ -115,14 +122,13 @@ int main(int argc, char** argv) {
             basic.parseInput("RUN");
             basic.parseInput("NEW");
         }
-    } catch (...) {}
+    } catch (...) {
+    }
 
     // run bas program from command line
     for (size_t i = 1; i < args.size(); ++i) {
         if (
-            (args[i].ends_with(".bas") ||
-             args[i].ends_with(".ba67")) &&
-            basic.loadProgram(args[i])) {
+            (args[i].ends_with(".bas") || args[i].ends_with(".ba67")) && basic.loadProgram(args[i])) {
             basic.parseInput("RUN");
             break;
         }

@@ -1,13 +1,13 @@
 #pragma once
+#include "screen_buffer.h"
+#include <bitset>
 #include <string>
 #include <vector>
-#include <bitset>
-#include "screen_buffer.h"
 
 class Basic;
 class Os;
 class SoundSystem {
-    public:
+public:
     Os* os = nullptr;
     // play a SFXR sound string in the backgroud
     virtual bool SOUND(int voice, const std::string& parameters) = 0;
@@ -16,20 +16,20 @@ class SoundSystem {
 };
 
 class BA68settings {
-    public:
+public:
     bool fullscreen = false;
     enum RenderMode {
         Software = 0,
-        OpenGL = 1
+        OpenGL   = 1
     };
     RenderMode renderMode = Software;
-    bool emulateCRT = true;
-    bool demoMode = false;  // slowly process the input buffer for creating videos
+    bool emulateCRT       = true;
+    bool demoMode         = false; // slowly process the input buffer for creating videos
 };
 
 class Os {
-    public:
-    virtual ~Os() {}
+public:
+    virtual ~Os() { }
 
     static BA68settings settings;
 
@@ -40,38 +40,38 @@ class Os {
     virtual void delay(int ms);
 
     enum class KeyConstant : uint32_t {
-        ESCAPE = 27,
-        BACKSPACE = '\b',  // 8
-        RETURN = '\r',     // 13
-        NUM_ENTER = '\n',  // 10
+        ESCAPE    = 27,
+        BACKSPACE = '\b', // 8
+        RETURN    = '\r', // 13
+        NUM_ENTER = '\n', // 10
         // 65..126 printable ASCII characters
-        DEL = 127,  // WinNt.h defines DELETE
-        F1 = 128,
-        F2 = 129,
-        F3 = 130,
-        F4 = 131,
-        F5 = 132,
-        F6 = 133,
-        F7 = 134,
-        F8 = 135,
-        F9 = 136,
+        DEL = 127, // WinNt.h defines DELETE
+        F1  = 128,
+        F2  = 129,
+        F3  = 130,
+        F4  = 131,
+        F5  = 132,
+        F6  = 133,
+        F7  = 134,
+        F8  = 135,
+        F9  = 136,
         F10 = 137,
         F11 = 138,
         F12 = 139,
 
-        HOME = 140,
-        INSERT = 141,
-        END = 142,
-        PG_UP = 143,
-        PG_DOWN = 144,
-        CRSR_UP = 145,
-        CRSR_DOWN = 146,
-        CRSR_LEFT = 147,
+        HOME       = 140,
+        INSERT     = 141,
+        END        = 142,
+        PG_UP      = 143,
+        PG_DOWN    = 144,
+        CRSR_UP    = 145,
+        CRSR_DOWN  = 146,
+        CRSR_LEFT  = 147,
         CRSR_RIGHT = 148,
 
-        SCROLL = 149,
-        PAUSE = 150,
-        SHIFT_LEFT = 151,
+        SCROLL      = 149,
+        PAUSE       = 150,
+        SHIFT_LEFT  = 151,
         SHIFT_RIGHT = 152
 
         // 161 start of visible characters in unicode
@@ -83,9 +83,9 @@ class Os {
 
     // --- SCREEN ---
     // Screen buffer
-    ScreenBuffer screen{};
-    virtual void presentScreen() = 0;  // copy offscreen buffer to visible window
-    virtual void setBorderColor(int colorIndex) {};
+    ScreenBuffer screen {};
+    virtual void presentScreen() = 0; // copy offscreen buffer to visible window
+    virtual void setBorderColor(int colorIndex) { };
     virtual size_t getFreeMemoryInBytes() { return 122365; }
 
     // --- KEYBOARD ---
@@ -103,23 +103,23 @@ class Os {
     virtual bool keyboardBufferHasData();
 
     class KeyPress {
-        public:
-        KeyPress() = default;
-        KeyPress(const KeyPress&) = default;
+    public:
+        KeyPress()                           = default;
+        KeyPress(const KeyPress&)            = default;
         KeyPress& operator=(const KeyPress&) = default;
         KeyPress(uint32_t character)
             : KeyPress() {
-            code = character;
+            code      = character;
             printable = true;
         }
 
         // utf32 representation of the input character, or one of KeyConstant.
         // Provides both, upper and lowercase.
-        uint32_t code = 0;
-        bool printable = false;  // true: visible character, false: cursor keys etc.
+        uint32_t code  = 0;
+        bool printable = false; // true: visible character, false: cursor keys etc.
         bool holdShift = false;
-        bool holdAlt = false;
-        bool holdCtrl = false;
+        bool holdAlt   = false;
+        bool holdCtrl  = false;
 
         void debug() const {
             printf("KeyPress: code $%x, printable %c Shift %c Alt %c Ctrl %c\n",
@@ -148,9 +148,11 @@ class Os {
     struct FileInfo {
         std::string name;
         uint64_t filesize = 0;
-        bool isDirectory = false;
+        bool isDirectory  = false;
         bool operator<(const FileInfo& i) const {
-            if (isDirectory != i.isDirectory) { return isDirectory; }
+            if (isDirectory != i.isDirectory) {
+                return isDirectory;
+            }
             return name < i.name;
         }
     };
@@ -166,27 +168,27 @@ class Os {
 
     // --- JOYPADS ---
     struct GamepadState {
-        bool connected = false;
+        bool connected   = false;
         const char* name = nullptr;
         std::bitset<32> buttons;
         struct DPad {
-            int8_t x = 0, y = 0;  // x and y axis -1,/0/1
+            int8_t x = 0, y = 0; // x and y axis -1,/0/1
         } dpad = {};
         struct Analog {
-            double x = 0.0, y = 0.0;  // x and y axis [-1 .. 1.0]
+            double x = 0.0, y = 0.0; // x and y axis [-1 .. 1.0]
         } analogLeft = {}, analogRight = {};
     };
-    virtual void updateGamepadState() {}
-    virtual const GamepadState& getGamepadState(int index);  // index 0..8
+    virtual void updateGamepadState() { }
+    virtual const GamepadState& getGamepadState(int index); // index 0..8
 
-    protected:
+protected:
     Basic* basic = nullptr;
     int foregnd = 1, bkgnd = 0;
     std::vector<Os::KeyPress> keyboardBuffer;
     SoundSystem* sound = nullptr;
 
-    private:
-    char32_t getc();  // for systemCall
+private:
+    char32_t getc(); // for systemCall
 
     bool initialized = false;
 };

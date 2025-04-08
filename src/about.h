@@ -1,5 +1,5 @@
 #pragma once
 class about {
-    public:
+public:
     static const char* text();
 };

@@ -17,7 +17,7 @@ class OsWindowsConsole : public Os {
     KeyPress getFromKeyboardBuffer() override;
     void setCursorVisibility(bool visible);
 
-    private:
+private:
     void setTextColor(int index);
     void setBackgroundColor(int index);
     void updateKeyboardBuffer();
@@ -25,4 +25,4 @@ class OsWindowsConsole : public Os {
     std::string colors;
 };
 
-#endif  // _WIN32
+#endif // _WIN32

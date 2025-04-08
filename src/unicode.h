@@ -2,7 +2,7 @@
 #include <string>
 
 class Unicode {
-    public:
+public:
     // parses next unicode code point from utf8 string. Advances 'utf8'. Returns 0 on error.
     static char32_t parseNextUtf8(const char*& utf8);
 

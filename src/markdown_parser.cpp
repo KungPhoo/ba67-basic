@@ -1,13 +1,14 @@
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <regex>
 #include "markdown_parser.h"
 #include "string_helper.h"
+#include <fstream>
+#include <iostream>
+#include <regex>
+#include <sstream>
+#include <vector>
 
 MarkdownParser::MarkdownParser(const std::string& filename)
-    : filename(filename) {}
+    : filename(filename) {
+}
 
 void MarkdownParser::readMarkdown() {
     std::ifstream file(filename);
@@ -28,9 +29,9 @@ void MarkdownParser::extractHeadingsAndUsage() {
     std::istringstream stream(fileContent);
     std::string line;
     std::string lastHeading;
-    int lastLevel = 0;
+    int lastLevel        = 0;
     bool captureNextCode = false;
-    bool insideTOC = false;
+    bool insideTOC       = false;
     std::string pendingCode;
     bool insideBlockCode = false;
 
@@ -43,11 +44,12 @@ void MarkdownParser::extractHeadingsAndUsage() {
             insideTOC = false;
             continue;
         }
-        if (insideTOC) continue;  // Skip TOC lines
+        if (insideTOC)
+            continue; // Skip TOC lines
 
         std::smatch match;
         if (std::regex_match(line, match, headingRegex)) {
-            lastLevel = int(match[1].str().length());
+            lastLevel   = int(match[1].str().length());
             lastHeading = match[2].str();
             headings.emplace_back(lastHeading, lastLevel);
             captureNextCode = false;
@@ -61,11 +63,11 @@ void MarkdownParser::extractHeadingsAndUsage() {
             if (std::regex_search(line, codeMatch, inlineCodeRegex)) {
                 usageSections.emplace_back(lastHeading, codeMatch[1].str());
                 captureNextCode = false;
-            } else if (line.rfind("```", 0) == 0) {  // Detect block code start
+            } else if (line.rfind("```", 0) == 0) { // Detect block code start
                 insideBlockCode = true;
                 pendingCode.clear();
             } else if (insideBlockCode) {
-                if (line.rfind("```", 0) == 0) {  // Detect block code end
+                if (line.rfind("```", 0) == 0) { // Detect block code end
                     usageSections.emplace_back(lastHeading, pendingCode);
                     captureNextCode = false;
                     insideBlockCode = false;
@@ -131,9 +133,9 @@ void MarkdownParser::writeHelpInclude(const std::string& path) {
 void MarkdownParser::ParseAndApplyManual() {
     std::string sep(1, std::filesystem::path::preferred_separator);
     std::filesystem::path path = __FILE__;
-    std::string dir = path.parent_path().parent_path().string() + sep;
-    std::string markdown = dir + "readme.md";
-    std::string helpfile = dir + "src" + sep + "help.inc";
+    std::string dir            = path.parent_path().parent_path().string() + sep;
+    std::string markdown       = dir + "readme.md";
+    std::string helpfile       = dir + "src" + sep + "help.inc";
 
     MarkdownParser parser(markdown);
     parser.readMarkdown();

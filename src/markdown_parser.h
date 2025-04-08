@@ -1,15 +1,15 @@
-#include <iostream>
+#include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <regex>
 #include <sstream>
 #include <vector>
-#include <regex>
-#include <filesystem>
 
 class MarkdownParser {
-    public:
+public:
     MarkdownParser(const std::string& filename);
 
-    private:
+private:
     std::string filename;
     std::vector<std::pair<std::string, int>> headings;
     std::vector<std::pair<std::string, std::string>> usageSections;
@@ -23,6 +23,6 @@ class MarkdownParser {
 
     void writeHelpInclude(const std::string& path);
 
-    public:
+public:
     static void ParseAndApplyManual();
 };

@@ -1,12 +1,12 @@
 #include "soundsystem_soloud.h"
 
 #include "soloud.h"
-#include "soloud_wav.h"
 #include "soloud_sfxr.h"
-#include "unicode.h"
+#include "soloud_wav.h"
 #include "string_helper.h"
-#include <stdexcept>
+#include "unicode.h"
 #include <filesystem>
+#include <stdexcept>
 
 #ifdef _WIN32
     #include <tchar.h>
@@ -95,7 +95,7 @@ sound_vol       :
 
     for (size_t i = 0; i + 1 < toks.size(); ++i) {
         std::string& tok = toks[i];
-        float value = float(atof(toks[i + 1].c_str()));
+        float value      = float(atof(toks[i + 1].c_str()));
         if (tok == "wave_type") {
             // 0 = square
             // 1 = sawtooth
@@ -208,7 +208,7 @@ bool SoundSystemSoLoud::PLAY(const std::string& music) {
 
     std::string pathAbc2Midi("abc2midi");
     std::string fluidsynth("fluidsynth");
-    std::string soundfont;  // use default soundfont on linux ("FluidR3_GM.sf2");
+    std::string soundfont; // use default soundfont on linux ("FluidR3_GM.sf2");
 
     std::string temp = (const char*)std::filesystem::temp_directory_path().u8string().c_str();
 
@@ -221,16 +221,16 @@ bool SoundSystemSoLoud::PLAY(const std::string& music) {
     if (GetModuleFileNameW(NULL, exepath, 1023) < 1023) {
         WCHAR* pEnd = wcsrchr(exepath, L'\\');
         if (pEnd != nullptr) {
-            *pEnd = L'\0';
+            *pEnd       = L'\0';
             WCHAR* pEnd = wcsrchr(exepath, L'\\');
             if (pEnd != nullptr) {
-                *pEnd = L'\0';
+                *pEnd            = L'\0';
                 std::wstring abc = exepath;
                 // for (auto& c : abc) {
                 //     if (c == L'\\') { c = L'/'; }
                 // }
                 std::string binpath = Unicode::toUtf8String(reinterpret_cast<const char16_t*>(abc.c_str()));
-                pathAbc2Midi = binpath;
+                pathAbc2Midi        = binpath;
                 pathAbc2Midi += "\\3rd-party\\abcMIDI\\bin\\abc2midi.exe";
                 fluidsynth = binpath;
                 fluidsynth += "\\3rd-party\\fluidsynth\\bin\\fluidsynth.exe";
@@ -243,7 +243,9 @@ bool SoundSystemSoLoud::PLAY(const std::string& music) {
     // substitute ';' with '\n'
     std::string ms = "X:1\nT:Song\nM:4/4\nL:1/4\nK:C\n" + music;
     for (auto& c : ms) {
-        if (c == ';') { c = '\n'; }
+        if (c == ';') {
+            c = '\n';
+        }
     }
 
     if (os->doesFileExist(pathAbc2Midi) && os->doesFileExist(pathAbc2Midi) && os->doesFileExist(pathAbc2Midi)) {
@@ -256,8 +258,8 @@ bool SoundSystemSoLoud::PLAY(const std::string& music) {
         fclose(pf);
         pf = nullptr;
 
-        bool printOutput = true;  // true for debugging if PLAY fails
-        std::string cmd = std::string("\"") + pathAbc2Midi + "\" \"" + tempfileAbc + "\" -o \"" + tempfileMidi + "\"";
+        bool printOutput = true; // true for debugging if PLAY fails
+        std::string cmd  = std::string("\"") + pathAbc2Midi + "\" \"" + tempfileAbc + "\" -o \"" + tempfileMidi + "\"";
         os->systemCall(cmd.c_str(), printOutput);
         cmd = std::string("\"") + fluidsynth + "\" -ni \"" + soundfont + "\" \"" + tempfileMidi + "\" -F \"" + tempfileWav + "\" -r 44100";
         os->systemCall(cmd.c_str(), printOutput);

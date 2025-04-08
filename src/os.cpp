@@ -1,7 +1,7 @@
 #include "os.h"
-#include <filesystem>
-#include <algorithm>
 #include "unicode.h"
+#include <algorithm>
+#include <filesystem>
 
 // static instance
 BA68settings Os::settings = {};
@@ -38,7 +38,7 @@ bool Os::setCurrentDirectory(const std::string& dir) {
     // TODU umlaut does not work, yet.
     std::error_code ec;
     std::filesystem::current_path(dir, ec);
-    return !ec;  // Returns true if no error occurred
+    return !ec; // Returns true if no error occurred
 }
 
 std::vector<Os::FileInfo> Os::listCurrentDirectory() {
@@ -46,8 +46,8 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
     Os::FileInfo info = {};
     for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path())) {
         info.isDirectory = entry.is_directory();
-        info.filesize = info.isDirectory ? 0 : entry.file_size();
-        info.name = (const char*)(entry.path().filename().u8string().c_str());
+        info.filesize    = info.isDirectory ? 0 : entry.file_size();
+        info.name        = (const char*)(entry.path().filename().u8string().c_str());
         files.push_back(info);
     }
     std::sort(files.begin(), files.end());
@@ -63,7 +63,7 @@ bool Os::isDirectory(const std::string& path) {
 }
 
 class NullSoundSystem : public SoundSystem {
-    public:
+public:
     // play a SFXR sound string in the backgroud
     bool SOUND(int voice, const std::string& parameters) override { return true; }
     // play an ABC music notation string in the background
@@ -103,8 +103,8 @@ void Os::delay(int ms) {
 
 // init your operating sepecific data
 bool Os::init(Basic* basic, SoundSystem* ss) {
-    sound = ss;
-    sound->os = this;
+    sound       = ss;
+    sound->os   = this;
     this->basic = basic;
     return true;
 }
@@ -129,7 +129,9 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
     auto flushUtf8 = [&]() {
         if (printOutput) {
             const char* pc = utf8.c_str();
-            if (*pc == '\0') { return; }
+            if (*pc == '\0') {
+                return;
+            }
             for (char32_t c32 = Unicode::parseNextUtf8(pc); c32 != 0; c32 = Unicode::parseNextUtf8(pc)) {
                 this->screen.putC(c32);
             }
@@ -143,24 +145,23 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
         return -1;
     }
 
-    SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
+    SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
     HANDLE hReadOutput, hWriteOutput;
     HANDLE hReadInput, hWriteInput;
 
     if (!CreatePipe(&hReadOutput, &hWriteOutput, &sa, 0) || !CreatePipe(&hReadInput, &hWriteInput, &sa, 0)) {
         return -1;
     }
-    if (!SetHandleInformation(hReadOutput, HANDLE_FLAG_INHERIT, 0) ||
-        !SetHandleInformation(hWriteInput, HANDLE_FLAG_INHERIT, 0)) {
+    if (!SetHandleInformation(hReadOutput, HANDLE_FLAG_INHERIT, 0) || !SetHandleInformation(hWriteInput, HANDLE_FLAG_INHERIT, 0)) {
         return -1;
     }
 
-    PROCESS_INFORMATION pi = {0};
-    STARTUPINFOW si = {sizeof(STARTUPINFOW)};
-    si.dwFlags = STARTF_USESTDHANDLES;
-    si.hStdOutput = hWriteOutput;
-    si.hStdError = hWriteOutput;
-    si.hStdInput = hReadInput;
+    PROCESS_INFORMATION pi = { 0 };
+    STARTUPINFOW si        = { sizeof(STARTUPINFOW) };
+    si.dwFlags             = STARTF_USESTDHANDLES;
+    si.hStdOutput          = hWriteOutput;
+    si.hStdError           = hWriteOutput;
+    si.hStdInput           = hReadInput;
 
     if (!CreateProcessW(NULL, LPWSTR(&cmd_w[0]), NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
         CloseHandle(hReadOutput);
@@ -190,10 +191,13 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
 
         // **Check for user input**
         while (true) {
-            char32_t c32s[2] = {0, 0};
-            c32s[0] = this->getc();
-            if (c32s[0] == '\r') { c32s[0] = '\n'; }
-            if (c32s[0] == 0) break;  // No input available
+            char32_t c32s[2] = { 0, 0 };
+            c32s[0]          = this->getc();
+            if (c32s[0] == '\r') {
+                c32s[0] = '\n';
+            }
+            if (c32s[0] == 0)
+                break; // No input available
 
             this->updateKeyboardBuffer();
             this->screen.putC(c32s[0]);
@@ -211,7 +215,7 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
         }
 
         this->presentScreen();
-        Sleep(10);  // Prevent 100% CPU usage by adding a small delay
+        Sleep(10); // Prevent 100% CPU usage by adding a small delay
     }
 
     CloseHandle(hReadOutput);
@@ -228,15 +232,15 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
 #endif
 
 #if !defined(_WIN32)
+    #include <errno.h>
+    #include <fcntl.h>
     #include <iostream>
+    #include <poll.h>
     #include <string>
-    #include <vector>
-    #include <unistd.h>
     #include <sys/types.h>
     #include <sys/wait.h>
-    #include <fcntl.h>
-    #include <poll.h>
-    #include <errno.h>
+    #include <unistd.h>
+    #include <vector>
 
 int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
     int stdoutPipe[2], stdinPipe[2];
@@ -245,15 +249,15 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
     }
 
     pid_t pid = fork();
-    if (pid == -1) {  // fork failed
+    if (pid == -1) { // fork failed
 
         return -1;
     }
 
-    if (pid == 0) {  // Child process
+    if (pid == 0) { // Child process
 
-        close(stdoutPipe[0]);  // Close read end of stdout pipe
-        close(stdinPipe[1]);   // Close write end of stdin pipe
+        close(stdoutPipe[0]); // Close read end of stdout pipe
+        close(stdinPipe[1]); // Close write end of stdin pipe
 
         dup2(stdoutPipe[1], STDOUT_FILENO);
         dup2(stdoutPipe[1], STDERR_FILENO);
@@ -274,7 +278,8 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
                 temp += c;
             }
         }
-        if (!temp.empty()) args.push_back(temp);
+        if (!temp.empty())
+            args.push_back(temp);
 
         std::vector<char*> argv;
         for (auto& arg : args) {
@@ -283,23 +288,24 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
         argv.push_back(nullptr);
 
         execvp(argv[0], argv.data());
-        exit(EXIT_FAILURE);  // exit child
+        exit(EXIT_FAILURE); // exit child
     }
 
     // Main program thread
-    close(stdoutPipe[1]);  // Close write end of stdout pipe
-    close(stdinPipe[0]);   // Close read end of stdin pipe
+    close(stdoutPipe[1]); // Close write end of stdout pipe
+    close(stdinPipe[0]); // Close read end of stdin pipe
 
     char buffer[512];
     std::string utf8;
     struct pollfd fds[] = {
-        {stdoutPipe[0], POLLIN, 0},
-        {STDIN_FILENO, POLLIN, 0}};
+        { stdoutPipe[0], POLLIN, 0 },
+        {  STDIN_FILENO, POLLIN, 0 }
+    };
 
     bool running = true;
     while (running) {
         if (poll(fds, 2, 10) > 0) {
-            if (fds[0].revents & POLLIN) {  // Check process output
+            if (fds[0].revents & POLLIN) { // Check process output
                 ssize_t bytesRead = read(stdoutPipe[0], buffer, sizeof(buffer) - 1);
                 if (bytesRead > 0) {
                     buffer[bytesRead] = '\0';
@@ -315,9 +321,10 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
                 }
             }
 
-            if (fds[1].revents & POLLIN) {  // Check for user input
+            if (fds[1].revents & POLLIN) { // Check for user input
                 char32_t c32 = this->getc();
-                if (c32 == '\r') c32 = '\n';
+                if (c32 == '\r')
+                    c32 = '\n';
                 if (c32 != 0) {
                     this->updateKeyboardBuffer();
                     this->screen.putC(c32);

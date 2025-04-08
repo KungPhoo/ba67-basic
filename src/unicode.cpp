@@ -1,7 +1,7 @@
 #include "unicode.h"
-#include <locale>
 #include <codecvt>
 #include <cstring>
+#include <locale>
 
 char32_t Unicode::parseNextUtf8(const char*& utf8) {
     char32_t codepoint = 0;
@@ -13,7 +13,9 @@ char32_t Unicode::parseNextUtf8(const char*& utf8) {
         // 2-byte sequence
         codepoint = static_cast<unsigned char>(*utf8) & 0x1F;
         ++utf8;
-        if ((static_cast<unsigned char>(*utf8) & 0xC0) != 0x80) { return 0; }  // Invalid UTF-8 sequence
+        if ((static_cast<unsigned char>(*utf8) & 0xC0) != 0x80) {
+            return 0;
+        } // Invalid UTF-8 sequence
         codepoint = (codepoint << 6) | (static_cast<unsigned char>(*utf8) & 0x3F);
         ++utf8;
     } else if ((static_cast<unsigned char>(*utf8) & 0xF0) == 0xE0) {
@@ -21,7 +23,9 @@ char32_t Unicode::parseNextUtf8(const char*& utf8) {
         codepoint = static_cast<unsigned char>(*utf8) & 0x0F;
         ++utf8;
         for (int i = 0; i < 2; ++i) {
-            if ((static_cast<unsigned char>(*utf8) & 0xC0) != 0x80) { return 0; }  // Invalid UTF-8 sequence
+            if ((static_cast<unsigned char>(*utf8) & 0xC0) != 0x80) {
+                return 0;
+            } // Invalid UTF-8 sequence
             codepoint = (codepoint << 6) | (static_cast<unsigned char>(*utf8) & 0x3F);
             ++utf8;
         }
@@ -30,13 +34,17 @@ char32_t Unicode::parseNextUtf8(const char*& utf8) {
         codepoint = static_cast<unsigned char>(*utf8) & 0x07;
         ++utf8;
         for (int i = 0; i < 3; ++i) {
-            if ((static_cast<unsigned char>(*utf8) & 0xC0) != 0x80) { return 0; }  // Invalid UTF-8 sequence
+            if ((static_cast<unsigned char>(*utf8) & 0xC0) != 0x80) {
+                return 0;
+            } // Invalid UTF-8 sequence
             codepoint = (codepoint << 6) | (static_cast<unsigned char>(*utf8) & 0x3F);
             ++utf8;
         }
     } else {
-        if (*utf8 != '\0') { ++utf8; }
-        return U'?';  // Invalid UTF-8 sequence
+        if (*utf8 != '\0') {
+            ++utf8;
+        }
+        return U'?'; // Invalid UTF-8 sequence
     }
 
     return codepoint;
@@ -69,20 +77,21 @@ std::string Unicode::toUtf8String(const char32_t* str) {
 }
 
 std::string Unicode::toUtf8String(const char16_t* str) {
-    if (!str) return std::string();
+    if (!str)
+        return std::string();
 
     std::string utf8;
     while (*str) {
         char32_t codepoint;
 
         // Decode UTF-16 to codepoint
-        if (*str >= 0xD800 && *str <= 0xDBFF) {  // High surrogate
+        if (*str >= 0xD800 && *str <= 0xDBFF) { // High surrogate
             char16_t high = *str++;
-            if (*str >= 0xDC00 && *str <= 0xDFFF) {  // Low surrogate
+            if (*str >= 0xDC00 && *str <= 0xDFFF) { // Low surrogate
                 char16_t low = *str++;
-                codepoint = 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00);
+                codepoint    = 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00);
             } else {
-                return "";  // Invalid UTF-16 sequence
+                return ""; // Invalid UTF-16 sequence
             }
         } else {
             codepoint = *str++;
@@ -115,7 +124,9 @@ bool Unicode::toU32String(const char* utf8String, std::u32string& result) {
     }
     while (*utf8String != 0) {
         char32_t codepoint = parseNextUtf8(utf8String);
-        if (codepoint == 0) { return false; }
+        if (codepoint == 0) {
+            return false;
+        }
         result.push_back(codepoint);
     }
     return true;
@@ -130,7 +141,9 @@ bool Unicode::toU16String(const char* utf8String, std::u16string& result) {
 
     while (*utf8String != 0) {
         char32_t codepoint = parseNextUtf8(utf8String);
-        if (codepoint == 0) { return false; }
+        if (codepoint == 0) {
+            return false;
+        }
 
         if (codepoint <= 0xFFFF) {
             // Directly store BMP characters
@@ -138,10 +151,10 @@ bool Unicode::toU16String(const char* utf8String, std::u16string& result) {
         } else if (codepoint <= 0x10FFFF) {
             // Convert to surrogate pair
             codepoint -= 0x10000;
-            result.push_back(static_cast<char16_t>((codepoint >> 10) + 0xD800));    // High surrogate
-            result.push_back(static_cast<char16_t>((codepoint & 0x3FF) + 0xDC00));  // Low surrogate
+            result.push_back(static_cast<char16_t>((codepoint >> 10) + 0xD800)); // High surrogate
+            result.push_back(static_cast<char16_t>((codepoint & 0x3FF) + 0xDC00)); // Low surrogate
         } else {
-            return false;  // Invalid UTF-8 sequence
+            return false; // Invalid UTF-8 sequence
         }
     }
 
@@ -151,25 +164,33 @@ bool Unicode::toU16String(const char* utf8String, std::u16string& result) {
 size_t Unicode::utf8StrLen(const char* utf8) {
     size_t len = 0;
     while (*utf8 != '\0') {
-        if (parseNextUtf8(utf8) == 0) { break; }
+        if (parseNextUtf8(utf8) == 0) {
+            break;
+        }
         ++len;
     }
     return len;
 }
 
 char32_t Unicode::toUpperAscii(char32_t c) {
-    if (c >= 'a' && c <= 'z') { c += 'A' - 'a'; }
+    if (c >= 'a' && c <= 'z') {
+        c += 'A' - 'a';
+    }
     return c;
 }
 char32_t Unicode::toLowerAscii(char32_t c) {
-    if (c >= 'A' && c <= 'Z') { c += 'a' - 'A'; }
+    if (c >= 'A' && c <= 'Z') {
+        c += 'a' - 'A';
+    }
     return c;
 }
 std::string Unicode::toUpperAscii(const char* utf8) {
     std::string str;
     while (*utf8 != '\0') {
         char32_t cp = parseNextUtf8(utf8);
-        if (cp == 0) { break; }
+        if (cp == 0) {
+            break;
+        }
         appendAsUtf8(str, Unicode::toUpperAscii(cp));
     }
     return str;
@@ -179,7 +200,9 @@ std::string Unicode::toLowerAscii(const char* utf8) {
     std::string str;
     while (*utf8 != '\0') {
         char32_t cp = parseNextUtf8(utf8);
-        if (cp == 0) { break; }
+        if (cp == 0) {
+            break;
+        }
         appendAsUtf8(str, Unicode::toLowerAscii(cp));
     }
     return str;
@@ -198,7 +221,9 @@ std::string Unicode::toUpper(const char* utf8) {
     std::string str;
     while (*utf8 != '\0') {
         char32_t cp = parseNextUtf8(utf8);
-        if (cp == 0) { break; }
+        if (cp == 0) {
+            break;
+        }
         appendAsUtf8(str, Unicode::toUpper(cp));
     }
     return str;
@@ -208,7 +233,9 @@ std::string Unicode::toLower(const char* utf8) {
     std::string str;
     while (*utf8 != '\0') {
         char32_t cp = parseNextUtf8(utf8);
-        if (cp == 0) { break; }
+        if (cp == 0) {
+            break;
+        }
         appendAsUtf8(str, Unicode::toLower(cp));
     }
     return str;
@@ -216,7 +243,8 @@ std::string Unicode::toLower(const char* utf8) {
 
 // Finds utf8Find in utf8 starting at a specific Unicode code point index.
 std::string::size_type Unicode::strstr(const std::string& utf8, const std::string& utf8Find, size_t startCodePoint) {
-    if (utf8Find.empty()) return 0;  // Empty substring matches at start
+    if (utf8Find.empty())
+        return 0; // Empty substring matches at start
 
     const char* search = utf8.c_str();
     const char* target = utf8Find.c_str();
@@ -224,18 +252,19 @@ std::string::size_type Unicode::strstr(const std::string& utf8, const std::strin
     // Advance search to startCodePoint
     size_t currentCodePoint = 0;
     while (*search && currentCodePoint < startCodePoint) {
-        if (!parseNextUtf8(search)) return std::string::npos;
+        if (!parseNextUtf8(search))
+            return std::string::npos;
         currentCodePoint++;
     }
 
     while (*search) {
         const char* searchPos = search;
-        const char* findPos = target;
+        const char* findPos   = target;
 
         while (*findPos) {
             const char* tempSearch = searchPos;
-            char32_t searchCp = parseNextUtf8(tempSearch);
-            char32_t findCp = parseNextUtf8(findPos);
+            char32_t searchCp      = parseNextUtf8(tempSearch);
+            char32_t findCp        = parseNextUtf8(findPos);
 
             if (searchCp == 0 || searchCp != findCp) {
                 break;
@@ -243,12 +272,13 @@ std::string::size_type Unicode::strstr(const std::string& utf8, const std::strin
             searchPos = tempSearch;
         }
 
-        if (*findPos == '\0') {       // Found match
-            return currentCodePoint;  // search - utf8.c_str();
+        if (*findPos == '\0') { // Found match
+            return currentCodePoint; // search - utf8.c_str();
         }
 
         // Move to next code point in search string
-        if (!parseNextUtf8(search)) break;
+        if (!parseNextUtf8(search))
+            break;
         ++currentCodePoint;
     }
 
@@ -260,7 +290,9 @@ std::string Unicode::substr(const std::string& utf8, size_t startCodePoint, size
     const char* str = utf8.c_str();
     for (size_t i = 0; *str != '\0'; ++i) {
         char32_t c = parseNextUtf8(str);
-        if (c == 0) { break; }
+        if (c == 0) {
+            break;
+        }
         if (i >= startCodePoint && i - startCodePoint < length) {
             appendAsUtf8(rv, c);
         }
@@ -280,7 +312,7 @@ bool Unicode::wildcardMatch(const char32_t* str, const char32_t* pattern) {
             str++;
         } else if (p) {
             pattern = p + 1;
-            str = ++s;
+            str     = ++s;
         } else {
             return false;
         }
