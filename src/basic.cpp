@@ -3384,6 +3384,10 @@ void Basic::restoreColorsAndCursor(bool resetFont) {
     os->screen.setBackgroundColor(11);
     os->screen.setTextColor(colorForModule(moduleVariableStack.back()->first));
 
+    for (auto& s : os->screen.sprites) {
+        s.enabled = false;
+    }
+
     if (os->screen.getCursorPos().x != 0) {
         printUtf8String("\n");
     }
@@ -3488,9 +3492,6 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
             handleEscapeKey();
         }
     } catch (Error e) {
-        if (e.ID == ErrorId::BREAK) {
-            throw e;
-        }
         currentFileNo = 0;
         // dumpVariables();
 
@@ -3501,7 +3502,8 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
             std::string msg = "?" + errorMessages[e.ID] + " IN " + valueToString(iline);
             msg += std::string(os->screen.width - msg.length() - 1, ' ') + "\n";
             printUtf8String(msg);
-            if (iline >= 0) {
+
+            if (e.ID != ErrorId::BREAK && iline >= 0) {
                 parseInput((std::string("LIST ") + valueToString(iline) + " - " + valueToString(iline)).c_str());
             }
         } else {
@@ -3525,7 +3527,9 @@ void Basic::handleEscapeKey(bool allowPauseWithShift) {
         return;
     }
     while (
-        os->isKeyPressed(Os::KeyConstant::SCROLL) || os->isKeyPressed(Os::KeyConstant::SHIFT_LEFT) || os->isKeyPressed(Os::KeyConstant::SHIFT_RIGHT)) {
+        os->isKeyPressed(Os::KeyConstant::SCROLL)
+        || os->isKeyPressed(Os::KeyConstant::SHIFT_LEFT)
+        || os->isKeyPressed(Os::KeyConstant::SHIFT_RIGHT)) {
         if (os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
             throw Error(ErrorId::BREAK);
         }

@@ -8,8 +8,7 @@ BA68settings Os::settings = {};
 
 Os::KeyPress Os::getFromKeyboardBuffer() {
     while (!keyboardBufferHasData()) {
-        presentScreen();
-        delay(50);
+        delay(150);
     }
     auto k = keyboardBuffer.back();
     keyboardBuffer.pop_back();

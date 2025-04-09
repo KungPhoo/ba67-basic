@@ -33,6 +33,7 @@ public:
 
     // thread buffered window update
     std::mutex screenLock, videoLock;
+    std::condition_variable cv;
     std::vector<uint32_t> pixelsVideo;
     struct Buffered {
         ScreenBuffer screen; // this one is only accessed in the drawing thread

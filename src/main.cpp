@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 
     auto& sets = Os::settings;
     args.push_back(""); // ensure [i] and [i+1]
-    for (size_t i = 1; i + 1 < args.size(); ++i) {
+    for (size_t i = 0; i + 1 < args.size(); ++i) {
         if (args[i] == "--help") {
             printfHelp();
         }

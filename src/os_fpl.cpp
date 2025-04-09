@@ -13,6 +13,7 @@
 #include <cstring>
 #include <filesystem>
 #include <thread>
+#include <chrono>
 
 #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
     #include <GL/gl.h>
@@ -133,12 +134,12 @@ uint64_t OsFPL::tick() const {
 }
 
 void OsFPL::delay(int ms) {
-    if (ms > 20) {
+    if (ms > 100) {
         auto endTick = tick() + ms;
-        while (ms > 20) {
+        while (ms > 100) {
             presentScreen();
-            ms -= 20;
-            fplThreadSleep(18);
+            ms -= 100;
+            fplThreadSleep(98);
         }
         uint64_t now = tick();
         if (now + 5 < endTick) {
@@ -242,18 +243,26 @@ void displayUpdateThread(OsFPL* fpl) {
     OsFPL::Buffered state;
     // std::vector<uint8_t> pixelsPal; // what's actually drawn
 
-    bool oldCursorVisible      = false;
-    uint64_t nextShowCursor    = 0; // blink time
-    constexpr size_t srcWidth  = ScreenInfo::pixX; // ScreenBitmap width (80x8)
-    constexpr size_t srcHeight = ScreenInfo::pixY; // ScreenBitmap height (25x16)
+    bool oldCursorVisible                                = false;
+    std::chrono::steady_clock::time_point nextShowCursor = std::chrono::steady_clock::now(); // blink time
+    constexpr size_t srcWidth                            = ScreenInfo::pixX; // ScreenBitmap width (80x8)
+    constexpr size_t srcHeight                           = ScreenInfo::pixY; // ScreenBitmap height (25x16)
 
-    uint64_t sleepAfter = 0;
+    // uint64_t sleepAfter = 0;
 
     static int passes  = 0;
     bool cursorVisible = true;
     for (;;) {
         // == UPDATE STATE ==
-        uint64_t now = fplMillisecondsQuery();
+
+        std::chrono::milliseconds flashSpeed(2560);
+        auto nextCursorToggle = std::chrono::steady_clock::now() + flashSpeed;
+        {
+            std::unique_lock<std::mutex> lock(fpl->screenLock);
+            fpl->cv.wait_until(lock, nextCursorToggle, [&] { return fpl->buffered.screen.dirtyFlag || fpl->buffered.stopThread; });
+        }
+
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         fpl->screenLock.lock();
         if (fpl->buffered.stopThread) {
             fpl->screenLock.unlock();
@@ -266,8 +275,9 @@ void displayUpdateThread(OsFPL* fpl) {
         if (dirty) {
             state                          = fpl->buffered; // copy to thread data - this way we don't need to lock the main thread for drawing
             fpl->buffered.screen.dirtyFlag = false;
-            nextShowCursor                 = 0;
-            sleepAfter                     = now + 500;
+            nextShowCursor                 = now + flashSpeed;
+            cursorVisible                  = true;
+            // sleepAfter                     = now + 500;
         }
         if (state.videoH * state.videoW != fpl->pixelsVideo.size()) {
             fpl->pixelsVideo.resize(state.videoH * state.videoW);
@@ -276,7 +286,7 @@ void displayUpdateThread(OsFPL* fpl) {
         fpl->screenLock.unlock();
 
         // overwrite cursor box
-        const uint64_t flashSpeed = 560;
+        // const uint64_t flashSpeed = 560;
 
         if (now > nextShowCursor) {
             nextShowCursor = now + flashSpeed;
@@ -284,12 +294,12 @@ void displayUpdateThread(OsFPL* fpl) {
             dirty          = true;
         }
 
-        if (!dirty) {
-            if (sleepAfter < now) {
-                fplThreadSleep(50);
-            }
-            continue;
-        }
+        // if (!dirty) {
+        //     if (sleepAfter < now) {
+        //         fplThreadSleep(50);
+        //     }
+        //     continue;
+        // }
 
         // render chars and sprites to palette based buffer
         state.screen.updateScreenPixelsPalette();
@@ -395,6 +405,7 @@ void displayUpdateThread(OsFPL* fpl) {
 
         // Nearest-neighbor scaling loop
         fpl->videoLock.lock();
+#pragma omp parallel for
         for (int y = 0; y < int(state.videoH); ++y) {
             uint32_t* pdest = &fpl->pixelsVideo[0] + y * state.videoW;
 
@@ -449,7 +460,9 @@ void OsFPL::presentScreen() {
     }
     nextPresend = now + 50;
 
+    bool mustNotify = false;
     screenLock.lock();
+
     buffered.crtEmulation = settings.emulateCRT;
     switch (settings.renderMode) {
     case BA68settings::OpenGL:
@@ -465,9 +478,14 @@ void OsFPL::presentScreen() {
     if (screen.dirtyFlag) {
         ScreenBuffer::copyWithLock(buffered.screen, screen);
         screen.dirtyFlag = false;
+        mustNotify       = true;
     }
     buffered.isCursorActive = basic->isCursorActive;
+
     screenLock.unlock();
+    if (mustNotify) {
+        cv.notify_one();
+    }
 }
 
 void OsFPL::renderSoftware() {
@@ -697,7 +715,7 @@ void OsFPL::updateKeyboardBuffer() {
                     break;
                 }
                 if (keyPress.code != 0) {
-                    // printf("press mappedkey $%x keycode: $%x shift %c alt %c ctrl %c \n", int(event.keyboard.mappedKey), int(event.keyboard.keyCode), keyPress.holdShift ? 'X' : 'O', keyPress.holdAlt ? 'X' : 'O', keyPress.holdCtrl ? 'X' : 'O');
+                    // printf("press mapped key $%x key code: $%x shift %c alt %c ctrl %c \n", int(event.keyboard.mappedKey), int(event.keyboard.keyCode), keyPress.holdShift ? 'X' : 'O', keyPress.holdAlt ? 'X' : 'O', keyPress.holdCtrl ? 'X' : 'O');
                     putToKeyboardBuffer(keyPress);
                     if (repeatable) {
                         lastCharPress = keyPress;
