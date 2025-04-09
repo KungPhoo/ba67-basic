@@ -2,6 +2,7 @@
 
 #include "os.h"
 #include <mutex>
+#include <condition_variable>
 
 class OsFPL : public Os {
 public:
