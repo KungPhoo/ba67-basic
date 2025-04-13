@@ -533,7 +533,9 @@ void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
 
     auto& listing = basic->currentModule().listing;
     // Create mapping of old line numbers to new ones
-    for (auto& [oldLine, code] : listing) {
+    for (auto itlst = listing.begin(); itlst != listing.end(); ++itlst) {
+        auto oldLine = itlst->first;
+        auto& code   = itlst->second;
         if (oldLine >= 0 && oldLine >= startFromLine) {
             if (lastLineNumber > newLineNumber) {
                 basic->printUtf8String("LINE NUMBERS WOULD OVERLAP! \n");
@@ -554,7 +556,9 @@ void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
 
     // Update the lines and renumber references in GOTO, GOSUB, THEN
     std::regex lineRefRegex("\\b(GOTO|GOSUB|THEN)\\s+(\\d+)");
-    for (auto& [oldLine, code] : listing) {
+    for (auto itlst = listing.begin(); itlst != listing.end(); ++itlst) {
+        auto oldLine = itlst->first;
+        auto& code   = itlst->second;
         std::string updatedCode;
         std::sregex_iterator it(code.begin(), code.end(), lineRefRegex);
         std::sregex_iterator end;
@@ -812,6 +816,24 @@ Basic::Value fktSPC(Basic* basic, const std::vector<Basic::Value>& args) {
     return std::string();
 }
 
+
+Basic::Value fktPEN(Basic* basic, const std::vector<Basic::Value>& args) {
+    if (args.size() != 1) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    int64_t index = basic->valueToInt(args[0]);
+    auto mouse    = basic->os->getMouseStatus();
+    switch (index) {
+    case 0:
+    case 2: return { int64_t(mouse.x) };
+    case 1:
+    case 3: return { int64_t(mouse.y) };
+    case 4: return { int64_t(mouse.buttonBits) };
+    }
+    throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+}
+
+
 void Basic::Array::dim(size_t i0, size_t i1, size_t i2, size_t i3) {
     dim({ i0, i1, i2, i3 });
 }
@@ -952,6 +974,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "MOD", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 3); auto div = basic->valueToInt(args[2]); if (div == 0) { throw Error(ErrorId::ILLEGAL_QUANTITY); }return basic->valueToInt(args[0]) % div; } },
         { "MID$", fktMID$ },
         { "PEEK", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(memory[basic->valueToInt(args[0])]); } },
+        { "PEN", fktPEN },
         { "POS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().x); } },
         { "POSY", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().y); } },
         { "RIGHT$", fktRIGHT$ },

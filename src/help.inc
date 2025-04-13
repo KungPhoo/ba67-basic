@@ -73,6 +73,7 @@
 ,{"LOG", R"RAW(LOG(expr))RAW"}
 ,{"MID$", R"RAW(MID$(string, start, length))RAW"}
 ,{"PEEK", R"RAW(PEEK(address))RAW"}
+,{"PEN", R"RAW(PEN(XYXYB))RAW"}
 ,{"POS", R"RAW(POS(0))RAW"}
 ,{"POSY", R"RAW(POSY(0))RAW"}
 ,{"RIGHT$", R"RAW(RIGHT$(string, n))RAW"}

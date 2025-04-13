@@ -269,6 +269,8 @@ void displayUpdateThread(OsFPL* fpl) {
             return;
         }
 
+
+
         if (!dirty) {
             dirty = fpl->buffered.screen.dirtyFlag;
         }
@@ -403,6 +405,15 @@ void displayUpdateThread(OsFPL* fpl) {
         size_t offsetX      = (state.videoW - scaledWidth) / 2;
         size_t offsetY      = (state.videoH - scaledHeight) / 2;
 
+
+        fpl->screenLock.lock();
+        auto& wipx      = fpl->buffered.screen.windowPixels;
+        wipx.borderx    = int(offsetX);
+        wipx.bordery    = int(offsetY);
+        wipx.pixelscale = int(scale);
+        fpl->screenLock.unlock();
+
+
         // Nearest-neighbor scaling loop
         fpl->videoLock.lock();
 #pragma omp parallel for
@@ -482,6 +493,7 @@ void OsFPL::presentScreen() {
     }
     buffered.isCursorActive = basic->isCursorActive;
 
+    screen.windowPixels = buffered.screen.windowPixels; // read from thread
     screenLock.unlock();
     if (mustNotify) {
         cv.notify_one();
@@ -999,5 +1011,22 @@ const Os::GamepadState& OsFPL::getGamepadState(int index) {
     }
     st.dpad.x = g.dpadLeft.isDown ? -1 : (g.dpadRight.isDown ? 1 : 0);
     st.dpad.y = g.dpadUp.isDown ? -1 : (g.dpadDown.isDown ? 1 : 0);
+    return st;
+}
+
+Os::MouseStatus OsFPL::getMouseStatus() {
+    static Os::MouseStatus st = {};
+
+    fplMouseState fst;
+    if (fplPollMouseState(&fst)) {
+        if (screen.windowPixels.pixelscale == 0) {
+            screen.windowPixels.pixelscale = 1;
+        }
+        st.x          = (fst.x - screen.windowPixels.borderx) / screen.windowPixels.pixelscale - 50;
+        st.y          = (fst.y - screen.windowPixels.bordery) / screen.windowPixels.pixelscale - 50;
+        st.buttonBits = (fst.buttonStates[0] == fplButtonState_Release ? 0 : 1)
+                      + (fst.buttonStates[1] == fplButtonState_Release ? 0 : 2)
+                      + (fst.buttonStates[2] == fplButtonState_Release ? 0 : 4);
+    }
     return st;
 }

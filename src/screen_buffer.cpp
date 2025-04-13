@@ -428,9 +428,10 @@ void ScreenBuffer::copyWithLock(ScreenBuffer& dst, const ScreenBuffer& src) {
     dst.color       = src.color;
     // dst.height = src.height;
     // dst.width = src.width;
-    dst.cursor  = src.cursor;
-    dst.palette = src.palette;
-    dst.sprites = src.sprites;
+    dst.cursor       = src.cursor;
+    dst.palette      = src.palette;
+    dst.sprites      = src.sprites;
+    dst.windowPixels = src.windowPixels;
 
     dst.lock.unlock();
     src.lock.unlock();

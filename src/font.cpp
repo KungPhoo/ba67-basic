@@ -126,6 +126,9 @@ void createCharmap(CharMap& charmap, char32_t from, char32_t to) {
     }
 
     charmap.unicode = {
+#if defined(BA67_GRAPHICS_ENABLE_EMOJI)
+    #include "emoji.inc"
+#endif
         // Latin-1
         {    0xa0,                 { 0, 0, 0, 0, 0, 0, 0, 0 } },
         {    0xa1,                 { 0, 8, 0, 0, 8, 8, 8, 8 } },

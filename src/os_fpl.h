@@ -32,6 +32,9 @@ public:
     void updateGamepadState() override;
     const GamepadState& getGamepadState(int index) override;
 
+    MouseStatus getMouseStatus() override;
+
+
     // thread buffered window update
     std::mutex screenLock, videoLock;
     std::condition_variable cv;

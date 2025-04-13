@@ -98,6 +98,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [LOG](#log)
     - [MID$](#mid-)
     - [PEEK](#peek)
+    - [PEN](#pen)
     - [POS](#pos)
     - [POSY](#posy)
     - [RIGHT$](#right-)
@@ -627,6 +628,9 @@ So `CHARDEF "A", $ff22334455667788` is valid.
 
 Use the `CHR$()` command, if you want to give the Unicode
 code point as a value.
+
+Here's an online generator for monochrome chars:
+[matrix-emoji](https://jorydotcom.github.io/matrix-emoji/).
 
 **Multicolor**
 
@@ -1224,6 +1228,20 @@ Unicode code point.
 Returns the value from a memory address.
 
 **Usage:** `PEEK(address)`
+
+### PEN
+Returns the light pen position on the screen. In BA67, this
+presents the mouse cursor positions on the screen. BA67 returns
+-50,-50 for the top-left pixel of the first character on the screen.
+
+The return value depends on the argument value that is passed:
+- `0` X position
+- `1` Y position
+- `2` X position (again)
+- `3` Y position
+- `4` Mouse button bits: 1, 2 and 4.
+
+**Usage:** `PEN(XYXYB)`
 
 ### POS
 Returns the current horizontal cursor position.

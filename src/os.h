@@ -181,6 +181,15 @@ public:
     virtual void updateGamepadState() { }
     virtual const GamepadState& getGamepadState(int index); // index 0..8
 
+    // MOUSE (Light-PEN)
+    // return x,y coordinates of the screen -{50,50}, if the mouse is clicked
+    struct MouseStatus {
+        int x, y;
+        uint8_t buttonBits;
+    };
+    virtual MouseStatus getMouseStatus() { return {}; }
+
+
 protected:
     Basic* basic = nullptr;
     int foregnd = 1, bkgnd = 0;

@@ -208,6 +208,13 @@ public:
     static const size_t width  = ScreenInfo::charsX;
     static const size_t height = ScreenInfo::charsY;
 
+    // pixel site of borders
+    struct WindowPixels {
+        int borderx = 0, bordery = 0; // pixels of borders
+        int pixelscale = 1; // number of screen pixels for one BA67 pixel
+    } windowPixels = {};
+
+
     // at current cursor position
     void putC(char32_t c);
     void defineChar(char32_t codePoint, const CharBitmap& bits);

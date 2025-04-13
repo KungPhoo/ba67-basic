@@ -41,6 +41,13 @@ else()
 add_compile_definitions(BA67_GRAPHICS_ENABLE_OPENGL_OFF)
 endif()
 
+set(BA67_GRAPHICS_ENABLE_EMOJI "ON" CACHE STRING "Enable Emoji font: ON, OFF")
+set_property(CACHE BA67_GRAPHICS_ENABLE_EMOJI PROPERTY STRINGS "ON" "OFF")
+if(${BA67_GRAPHICS_ENABLE_EMOJI} STREQUAL "ON" )
+add_compile_definitions(BA67_GRAPHICS_ENABLE_EMOJI)
+else()
+add_compile_definitions(BA67_GRAPHICS_ENABLE_EMOJI)
+endif()
 
 # Minimum required variables/pathes
 set(APP_NAME              "BA67") # only set here. Better not change it, then.
