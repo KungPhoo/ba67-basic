@@ -35,7 +35,7 @@
 ,{"INPUT", R"RAW(INPUT var)RAW"}
 ,{"LIST", R"RAW(LIST)RAW"}
 ,{"LOAD", R"RAW(LOAD "bas*folder/*.bas")RAW"}
-,{"MOVSPR", R"RAW(MOVSPR number, x, y)RAW"}
+,{"MOVSPR", R"RAW(MOVSPR number, x25, y50)RAW"}
 ,{"NEW", R"RAW(NEW)RAW"}
 ,{"MODULE", R"RAW(MODULE name)RAW"}
 ,{"OPEN", R"RAW(OPEN fileno, "filename , MODE")RAW"}

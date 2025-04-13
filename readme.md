@@ -739,8 +739,11 @@ well as in file names.
 **Usage:** `LOAD "bas*folder/*.bas"`
 
 ### MOVSPR
-Moves a sprite to a given screen location.
-**Usage:** `MOVSPR number, x, y`
+Moves a sprite to a given screen location. The position
+(0, 0), however is in the border. The top left coordinate
+of the first visible character is (25, 50).
+
+**Usage:** `MOVSPR number, x25, y50`
 
 ### NEW
 Clears the current program from memory.
@@ -1093,9 +1096,10 @@ The `priority` parameter is currently not used.
 
 The flags `x2` and `y2` enable 1 or disable 0 the scaling
 of the sprite to twice it's size.
-**Usage:** `SPRITE number, on, color, priority, x2, y2`
 
 Sprites can be moved with `MOVSPR`.
+
+**Usage:** `SPRITE number, on, color, priority, x2, y2`
 
 ### STOP
 Stops the program, is if the escape key was pressed with the
@@ -1232,7 +1236,8 @@ Returns the value from a memory address.
 ### PEN
 Returns the light pen position on the screen. In BA67, this
 presents the mouse cursor positions on the screen. BA67 returns
--50,-50 for the top-left pixel of the first character on the screen.
+-25,-50 for the top-left pixel of the first character on the screen.
+The same coordinate system, that's used for sprites.
 
 The return value depends on the argument value that is passed:
 - `0` X position

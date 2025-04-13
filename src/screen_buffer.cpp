@@ -308,12 +308,15 @@ void ScreenBuffer::updateScreenPixelsPalette() {
             continue;
         }
 
-        drawSprPal(sp.x + 0, sp.y, sp.charmap[0], sp.color);
-        drawSprPal(sp.x + 8, sp.y, sp.charmap[1], sp.color);
-        drawSprPal(sp.x + 16, sp.y, sp.charmap[2], sp.color);
-        drawSprPal(sp.x + 0, sp.y + 8, sp.charmap[3], sp.color);
-        drawSprPal(sp.x + 8, sp.y + 8, sp.charmap[4], sp.color);
-        drawSprPal(sp.x + 16, sp.y + 8, sp.charmap[5], sp.color);
+        // C64/C128 sprite coordinates are relative to the screen - 0,0 is in the border
+        const int sprbx = 25;
+        const int sprby = 50;
+        drawSprPal(sp.x + 0 - sprbx, sp.y + sprby, sp.charmap[0], sp.color);
+        drawSprPal(sp.x + 8 - sprbx, sp.y + sprby, sp.charmap[1], sp.color);
+        drawSprPal(sp.x + 16 - sprbx, sp.y + sprby, sp.charmap[2], sp.color);
+        drawSprPal(sp.x + 0 - sprbx, sp.y + 8 + sprby, sp.charmap[3], sp.color);
+        drawSprPal(sp.x + 8 - sprbx, sp.y + 8 + sprby, sp.charmap[4], sp.color);
+        drawSprPal(sp.x + 16 - sprbx, sp.y + 8 + sprby, sp.charmap[5], sp.color);
     }
 }
 

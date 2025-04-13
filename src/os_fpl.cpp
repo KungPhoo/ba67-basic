@@ -1022,7 +1022,7 @@ Os::MouseStatus OsFPL::getMouseStatus() {
         if (screen.windowPixels.pixelscale == 0) {
             screen.windowPixels.pixelscale = 1;
         }
-        st.x          = (fst.x - screen.windowPixels.borderx) / screen.windowPixels.pixelscale - 50;
+        st.x          = (fst.x - screen.windowPixels.borderx) / screen.windowPixels.pixelscale - 25;
         st.y          = (fst.y - screen.windowPixels.bordery) / screen.windowPixels.pixelscale - 50;
         st.buttonBits = (fst.buttonStates[0] == fplButtonState_Release ? 0 : 1)
                       + (fst.buttonStates[1] == fplButtonState_Release ? 0 : 2)
