@@ -8,8 +8,16 @@
 #include <string>
 #include <vector>
 
+
+// by default we have a screen 80x25 chars with 8x8 characters
+// the screen, however can switch width=40 or 80. So part of
+// the reserved screen buffer is just unused.
+// however, in 80x25 mode, when drawing the graphics to the window,
+// the vertical scanlines are doubled to look like 8x16 characters.
+// If you want true 8x16 characters, define it here, but then DEFCHAR etc.
+// will behave differently.
 struct ScreenInfo {
-    static const size_t charsX = 40, charsY = 25;
+    static const size_t charsX = 80, charsY = 25;
     static const size_t charPixX = 8 /*don't change!*/, charPixY = 8 /*8 or 16*/;
     static const size_t pixX = charsX * charPixX;
     static const size_t pixY = charsY * charPixY;
@@ -111,7 +119,7 @@ public:
     // pixels in AABBGGRR little endian format.
     // 80x25 chars, each 8x16 pixels = 640x400 pixels
     std::vector<uint32_t> pixelsRGB;
-    std::vector<uint8_t> pixelsPal; // pixel index in colour palette
+    std::vector<uint8_t> pixelsPal; // pixel index in color palette
     void clear() {
         for (auto& p : pixelsRGB) {
             p = 0;
@@ -204,14 +212,18 @@ public:
 
     void clear();
 
-    // character size of screen
-    static const size_t width  = ScreenInfo::charsX;
-    static const size_t height = ScreenInfo::charsY;
+    // maximum possible size of screen in characters
+    static const size_t maxWidth  = ScreenInfo::charsX;
+    static const size_t maxHeight = ScreenInfo::charsY;
+
+    // current screen mode's screen size in characters
+    size_t width  = 40;
+    size_t height = maxHeight;
 
     // pixel site of borders
     struct WindowPixels {
         int borderx = 0, bordery = 0; // pixels of borders
-        int pixelscale = 1; // number of screen pixels for one BA67 pixel
+        int pixelscalex = 1, pixelscaley = 1; // number of screen pixels for one BA67 pixel
     } windowPixels = {};
 
 
@@ -226,8 +238,6 @@ public:
 
     // Cursor <-> Position
     Cursor getCursorPos() const;
-    // Cursor getCursorAtPos(size_t pos) const;
-    // size_t getPosAtCursor(Cursor crsr);
 
     // these return position in buffer
     const Cursor& setCursorPos(Cursor crsr);
@@ -238,7 +248,7 @@ public:
     // buffer to print to a console
     // void getPrintBuffer(std::u32string& chars, std::string& colors) const;
 
-    // puffer colour indices per pixel
+    // puffer color indices per pixel
     void updateScreenPixelsPalette();
     // buffer to draw on a bitmap
     void updateScreenBitmap();
@@ -292,12 +302,8 @@ protected:
 
     static void deepCopyLines(std::vector<std::shared_ptr<Line>>& dest, const std::vector<std::shared_ptr<Line>>& src);
 
-    // std::u32string buffer;
-    // mutable std::basic_string<SChar> buffer;
     uint8_t color; // color&0x0f = foreground, color>>4 = background
     uint8_t borderColor;
-    // size_t cursorPos;
-    // size_t cursorPos(){return
 
     void dropFirstLine();
     void manageOverflow();

@@ -301,7 +301,7 @@ std::string Unicode::substr(const std::string& utf8, size_t startCodePoint, size
 }
 
 bool Unicode::wildcardMatch(const char32_t* str, const char32_t* pattern) {
-    const char32_t *s = NULL, *p = NULL;
+    const char32_t *s = nullptr, *p = nullptr;
 
     while (*str) {
         if (*pattern == U'*') {
@@ -310,7 +310,31 @@ bool Unicode::wildcardMatch(const char32_t* str, const char32_t* pattern) {
         } else if (*pattern == U'?' || *pattern == *str) {
             pattern++;
             str++;
-        } else if (p) {
+        } else if (p != nullptr) {
+            pattern = p + 1;
+            str     = ++s;
+        } else {
+            return false;
+        }
+    }
+
+    while (*pattern == U'*') {
+        pattern++;
+    }
+    return *pattern == U'\0';
+}
+
+bool Unicode::wildcardMatchNoCase(const char32_t* str, const char32_t* pattern) {
+    const char32_t *s = nullptr, *p = nullptr;
+
+    while (*str) {
+        if (*pattern == U'*') {
+            p = pattern++;
+            s = str;
+        } else if (*pattern == U'?' || toLower(*pattern) == toLower(*str)) {
+            pattern++;
+            str++;
+        } else if (p != nullptr) {
             pattern = p + 1;
             str     = ++s;
         } else {

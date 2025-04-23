@@ -53,6 +53,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [FAST](#fast)
     - [FIND](#find)
     - [GET](#get)
+    - [GRAPHIC](#graphic)
     - [HELP](#help)
     - [INPUT](#input)
     - [LIST](#list)
@@ -708,6 +709,19 @@ Gets a key press from the keyboard buffer. Will return
 an empty string, if the buffer is empty.
 
 **Usage:** `GET a$ [, b$, ...]`
+
+
+### GRAPHIC
+Changes the current graphics mode. Currently only two modes
+are supported:
+ - `1..4` Switches back to default 40 column mode
+ - `5`    Switches to 80 column mode
+
+In the 80 column mode, each character still is 8x8 pixels.
+However, the display is scaled to it looks like they're 8x16
+pixels. You can change that in the code. See also `CHARDEF`.
+
+**Usage:** `GRAPHIC mode5`
 
 ### HELP
 Prints a small information about how to use the command.
@@ -1462,6 +1476,7 @@ Here's just a quick list of notes not to forget when
 this chapter will be filled.
 - Os::emojiPicker
 - ScreenBuffer::copyWithLock
+- ScreenInfo::charPixY
 
 -------------------------------------------------------------
 # Disclaimer

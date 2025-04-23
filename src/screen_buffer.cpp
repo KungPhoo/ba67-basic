@@ -16,7 +16,7 @@ static CharMap& charMap() {
 
 ScreenBuffer::ScreenBuffer()
     : cursor {} {
-    resize(width, height);
+    resize(maxWidth, maxHeight);
 
     resetDefaultColors();
     setColors(1, 0);
@@ -296,9 +296,6 @@ void ScreenBuffer::updateScreenPixelsPalette() {
         }
         if (ln->wrapps) {
             drawLineContinuationPal(y);
-            // #if _DEBUG
-            //             drawCharPal(ScreenInfo::pixX - ScreenInfo::charPixX, y * ScreenInfo::charPixY, U'~', 7, 0);
-            // #endif
         }
     }
 
@@ -427,10 +424,10 @@ void ScreenBuffer::copyWithLock(ScreenBuffer& dst, const ScreenBuffer& src) {
 
     ScreenBuffer::deepCopyLines(dst.lines, src.lines);
 
-    dst.borderColor = src.borderColor;
-    dst.color       = src.color;
-    // dst.height = src.height;
-    // dst.width = src.width;
+    dst.borderColor  = src.borderColor;
+    dst.color        = src.color;
+    dst.height       = src.height;
+    dst.width        = src.width;
     dst.cursor       = src.cursor;
     dst.palette      = src.palette;
     dst.sprites      = src.sprites;

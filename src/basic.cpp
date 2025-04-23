@@ -390,6 +390,19 @@ void cmdFIND(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
+void cmdGRAPHIC(Basic* basic, const std::vector<Basic::Value>& values) {
+    int code = 0;
+    if (values.size() == 1) {
+        code = int(Basic::valueToInt(values[0]));
+        if (code == 5) {
+            basic->os->screen.width = 80;
+        } else {
+            basic->os->screen.width = 40;
+        }
+    }
+}
+
+
 void cmdLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -927,6 +940,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "MOVSPR", cmdMOVSPR },
         { "QUIT", cmdQUIT },
         { "FIND", cmdFIND },
+        { "GRAPHIC", cmdGRAPHIC },
         { "LOAD", cmdLOAD },
         { "OPEN", cmdOPEN },
         { "CLOSE", cmdCLOSE },
@@ -1434,11 +1448,6 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
     }
     debug("\n");
 #endif
-
-    if (!moduleVariableStack.back()->second.fastMode) {
-        int delay = int(15 * tokens.size());
-        os->delay(delay);
-    }
 
     return tokens;
 }
@@ -3022,6 +3031,16 @@ void Basic::updateConstantVariables() {
 }
 
 void Basic::executeTokens(std::vector<Token>& tokens) {
+    if (!moduleVariableStack.back()->second.fastMode) {
+        static int tokenDelay = 0;
+        tokenDelay += int(tokens.size());
+        const int delayThreshold = 20;
+        if (tokenDelay > delayThreshold) {
+            tokenDelay -= delayThreshold;
+            os->delay(5);
+        }
+    }
+
     auto& modl = currentModule();
     if (tokens[0].type == TokenType::COMMAND) {
         auto cmd = commands.find(tokens[0].value);
@@ -3286,7 +3305,8 @@ std::string Basic::inputLine(bool allowVertical) {
                 continue;
             case uint32_t(Os::KeyConstant::INSERT):
                 if (key.holdAlt) {
-                    insertMode = !insertMode;
+                    insertMode           = !insertMode;
+                    os->screen.dirtyFlag = true;
                 } else {
                     os->screen.insertSpace();
                 }
@@ -3421,13 +3441,13 @@ void Basic::restoreColorsAndCursor(bool resetFont) {
 }
 
 Basic::ParseStatus Basic::parseInput(const char* pline) {
-    // program a line
     const char* pc            = pline;
     ParseStatus executeStatus = ParseStatus::PS_EXECUTED;
 
     try {
         int64_t n = 0;
         if (parseInt(pc, &n)) {
+            // program a line
             // debug("program a line\n");
             if (n < 0) {
                 throw Error(ErrorId::SYNTAX);
@@ -3435,14 +3455,21 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
 
             auto& cm = currentModule();
 
-            cm.listing[int(n)]       = skipWhite(pc);
-            cm.lastEnteredLineNumber = n;
+            pc = skipWhite(pc);
+            if (*pc == '\0') {
+                auto itr = cm.listing.find(int(n));
+                if (itr != cm.listing.end()) {
+                    cm.listing.erase(itr);
+                }
+            } else {
+                cm.listing[int(n)]       = pc;
+                cm.lastEnteredLineNumber = n;
 
-            cm.programCounter.line     = cm.listing.find(int(n));
-            cm.programCounter.position = 0;
+                cm.programCounter.line     = cm.listing.find(int(n));
+                cm.programCounter.position = 0;
 
-            while (!tokenize().empty()) { } // check sanity, but don't execute
-
+                while (!tokenize().empty()) { } // check sanity, but don't execute
+            }
             cm.setProgramCounterToEnd();
             return ParseStatus::PS_PROGRAMMED;
         } else {
@@ -3660,7 +3687,7 @@ std::string Basic::findFirstFileNameWildcard(std::string filenameUtf8, bool isDi
         for (auto& f : files) {
             std::u32string fu32;
             if (f.isDirectory == isDirectory && Unicode::toU32String(f.name.c_str(), fu32)) {
-                if (Unicode::wildcardMatch(fu32.c_str(), fileu32.c_str())) {
+                if (Unicode::wildcardMatchNoCase(fu32.c_str(), fileu32.c_str())) {
                     outpath = fixedDirs + f.name;
                     break;
                 }

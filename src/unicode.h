@@ -37,4 +37,5 @@ public:
 
     static std::string::size_type strstr(const std::string& utf8, const std::string& utf8Find, size_t startCodePoint);
     static bool wildcardMatch(const char32_t* str, const char32_t* pattern);
+    static bool wildcardMatchNoCase(const char32_t* str, const char32_t* pattern);
 };

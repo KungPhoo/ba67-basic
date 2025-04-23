@@ -11394,8 +11394,8 @@ LRESULT CALLBACK fpl__Win32MessageProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
 
     case WM_SYSKEYDOWN:
     case WM_SYSKEYUP:
-    case WM_KEYDOWN:
     case WM_KEYUP:
+    case WM_KEYDOWN:
     {
         if (!appState->currentSettings.input.disabledEvents) {
             uint64_t keyCode = wParam;

@@ -38,19 +38,15 @@ public:
     // thread buffered window update
     std::mutex screenLock, videoLock;
     std::condition_variable cv;
-    std::vector<uint32_t> pixelsVideo;
+    std::vector<uint32_t> memBackBuffer; // the thread draws to this back buffer. It's then copied to the real one
     struct Buffered {
         ScreenBuffer screen; // this one is only accessed in the drawing thread
 
         bool stopThread = false;
-        //        std::vector<uint8_t> pixelsPal;
-        size_t videoW = 0, videoH = 0;
+        size_t videoW = 0, videoH = 0; // size of rendering window in pixels
 
-        // std::array<uint32_t, 16> palette;
-        // uint8_t crsrColor = 1;
-        // uint8_t borderColor = 0;
-        // ScreenBuffer::Cursor crsrPos;
         bool isCursorActive;
+        bool insertMode   = false;
         bool imageCreated = false;
         bool crtEmulation = true;
 
@@ -61,6 +57,7 @@ public:
             videoH         = b.videoH;
             stopThread     = b.stopThread;
             isCursorActive = b.isCursorActive;
+            insertMode     = b.insertMode;
             imageCreated   = b.imageCreated;
             return *this;
         }

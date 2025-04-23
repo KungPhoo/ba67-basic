@@ -74,17 +74,17 @@ public:
         SHIFT_LEFT  = 151,
         SHIFT_RIGHT = 152
 
-        // 161 start of visible characters in unicode
+        // 161 start of visible characters in Unicode
         // no more than 255
     };
 
-    // init your operating sepecific data
+    // initialize your operating specific data
     virtual bool init(Basic*, SoundSystem*);
 
     // --- SCREEN ---
     // Screen buffer
     ScreenBuffer screen {};
-    virtual void presentScreen() = 0; // copy offscreen buffer to visible window
+    virtual void presentScreen() = 0; // copy off-screen buffer to visible window
     virtual void setBorderColor(int colorIndex) { };
     virtual size_t getFreeMemoryInBytes() { return 122365; }
 
@@ -127,15 +127,15 @@ public:
         }
     };
 
-    // returns a unicode character or a KEY_CONSTANT for a pressed key
+    // returns a Unicode character or a KEY_CONSTANT for a pressed key
     // of the keyboard buffer. This function should block until a new key
     // is pressed.
     virtual KeyPress getFromKeyboardBuffer();
 
-    // pushes a keypress to the keyboard buffer. Drops overflow keys.
+    // pushes a key-press to the keyboard buffer. Drops overflow keys.
     virtual void putToKeyboardBuffer(Os::KeyPress key, bool applyBufferLimit = true);
 
-    // get/set utf8 clipbard text data
+    // get/set utf8 clipboard text data
     virtual std::string getClipboardData() { return {}; }
     virtual void setClipboardData(const std::string utf8) { (void)utf8; };
     // show emoji keyboard and return selected codepoint(s)
@@ -144,7 +144,7 @@ public:
     }
 
     // --- FILE SYSTEM ---
-    // utf-8 strings. Directory separator is '/'
+    // utf8 strings. Directory separator is '/'
     struct FileInfo {
         std::string name;
         uint64_t filesize = 0;

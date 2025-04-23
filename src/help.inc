@@ -31,6 +31,7 @@
 ,{"FAST", R"RAW(FAST)RAW"}
 ,{"FIND", R"RAW(FIND "print*hello world")RAW"}
 ,{"GET", R"RAW(GET a$ [, b$, ...])RAW"}
+,{"GRAPHIC", R"RAW(GRAPHIC mode5)RAW"}
 ,{"HELP", R"RAW(HELP command)RAW"}
 ,{"INPUT", R"RAW(INPUT var)RAW"}
 ,{"LIST", R"RAW(LIST)RAW"}

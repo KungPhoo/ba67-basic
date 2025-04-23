@@ -245,8 +245,8 @@ void displayUpdateThread(OsFPL* fpl) {
 
     bool oldCursorVisible                                = false;
     std::chrono::steady_clock::time_point nextShowCursor = std::chrono::steady_clock::now(); // blink time
-    constexpr size_t srcWidth                            = ScreenInfo::pixX; // ScreenBitmap width (80x8)
-    constexpr size_t srcHeight                           = ScreenInfo::pixY; // ScreenBitmap height (25x16)
+    size_t srcWidth                                      = ScreenInfo::pixX; // ScreenBitmap width (80x8)
+    size_t srcHeight                                     = ScreenInfo::pixY; // ScreenBitmap height (25x16)
 
     // uint64_t sleepAfter = 0;
 
@@ -255,7 +255,7 @@ void displayUpdateThread(OsFPL* fpl) {
     for (;;) {
         // == UPDATE STATE ==
 
-        std::chrono::milliseconds flashSpeed(2560);
+        std::chrono::milliseconds flashSpeed(400);
         auto nextCursorToggle = std::chrono::steady_clock::now() + flashSpeed;
         {
             std::unique_lock<std::mutex> lock(fpl->screenLock);
@@ -279,10 +279,17 @@ void displayUpdateThread(OsFPL* fpl) {
             fpl->buffered.screen.dirtyFlag = false;
             nextShowCursor                 = now + flashSpeed;
             cursorVisible                  = true;
+
+            if (state.screen.width == 40) {
+                srcWidth = ScreenInfo::pixX / 2;
+            } else {
+                srcWidth = ScreenInfo::pixX;
+            }
+
             // sleepAfter                     = now + 500;
         }
-        if (state.videoH * state.videoW != fpl->pixelsVideo.size()) {
-            fpl->pixelsVideo.resize(state.videoH * state.videoW);
+        if (state.videoH * state.videoW != fpl->memBackBuffer.size()) {
+            fpl->memBackBuffer.resize(state.videoH * state.videoW);
             dirty = true;
         }
         fpl->screenLock.unlock();
@@ -317,7 +324,7 @@ void displayUpdateThread(OsFPL* fpl) {
 
         if (state.isCursorActive) {
             auto crsr = state.screen.getCursorPos();
-            if (cursorVisible && crsr.x < ScreenBuffer::width && crsr.y < ScreenBuffer::height) {
+            if (cursorVisible && crsr.x < state.screen.width && crsr.y < state.screen.height) {
                 auto sc       = state.screen.getLineBuffer()[crsr.y]->cols[crsr.x];
                 uint8_t bkcol = sc.col;
                 uint8_t txcol = bkcol & 0x0f;
@@ -331,9 +338,14 @@ void displayUpdateThread(OsFPL* fpl) {
                     bkcol = 0;
                 }
 
+                size_t crsrWidth = 8;
+                if (state.insertMode) {
+                    crsrWidth = 2;
+                }
                 for (size_t y = 0; y < ScreenInfo::charPixY; ++y) {
-                    uint8_t* pdest = &state.screen.screenBitmap.pixelsPal[(y + crsr.y * ScreenInfo::charPixY) * srcWidth + crsr.x * ScreenInfo::charPixX];
-                    for (size_t x = 0; x < 8; ++x) {
+                    size_t indx    = (y + crsr.y * ScreenInfo::charPixY) * ScreenInfo::pixX + crsr.x * ScreenInfo::charPixX;
+                    uint8_t* pdest = &state.screen.screenBitmap.pixelsPal[indx];
+                    for (size_t x = 0; x < crsrWidth; ++x) {
                         if (*pdest == bkcol) {
                             *pdest = txcol;
                         } else {
@@ -394,23 +406,37 @@ void displayUpdateThread(OsFPL* fpl) {
         // Compute scaling factors
         double scaleX = static_cast<double>(state.videoW) / srcWidth;
         double scaleY = static_cast<double>(state.videoH) / srcHeight;
-        double scale  = std::max(0.25, std::min(scaleX, scaleY)); // Keep aspect ratio
-        if (scale > 1.0) {
-            scale = floor(scale); // scale to full pixels
+
+        if (state.screen.width == 40) {
+            double scale = std::max(0.25, std::min(scaleX, scaleY)); // Keep aspect ratio
+            scaleX = scaleY = scale;
+        } else {
+            double scale = std::max(0.25, std::min(scaleX, scaleY / 2.0)); // Keep aspect ratio
+            scaleX       = scale;
+            scaleY       = scale * 2;
+        }
+
+        // scale to full pixels
+        if (scaleX > 1.0) {
+            scaleX = floor(scaleX);
+        }
+        if (scaleY > 1.0) {
+            scaleY = floor(scaleY);
         }
 
         // Compute offset for centered output
-        size_t scaledWidth  = static_cast<size_t>(srcWidth * scale);
-        size_t scaledHeight = static_cast<size_t>(srcHeight * scale);
+        size_t scaledWidth  = static_cast<size_t>(srcWidth * scaleX);
+        size_t scaledHeight = static_cast<size_t>(srcHeight * scaleY);
         size_t offsetX      = (state.videoW - scaledWidth) / 2;
         size_t offsetY      = (state.videoH - scaledHeight) / 2;
 
 
         fpl->screenLock.lock();
-        auto& wipx      = fpl->buffered.screen.windowPixels;
-        wipx.borderx    = int(offsetX);
-        wipx.bordery    = int(offsetY);
-        wipx.pixelscale = int(scale);
+        auto& wipx       = fpl->buffered.screen.windowPixels;
+        wipx.borderx     = int(offsetX);
+        wipx.bordery     = int(offsetY);
+        wipx.pixelscalex = int(scaleX);
+        wipx.pixelscaley = int(scaleY);
         fpl->screenLock.unlock();
 
 
@@ -418,26 +444,26 @@ void displayUpdateThread(OsFPL* fpl) {
         fpl->videoLock.lock();
 #pragma omp parallel for
         for (int y = 0; y < int(state.videoH); ++y) {
-            uint32_t* pdest = &fpl->pixelsVideo[0] + y * state.videoW;
+            uint32_t* pdest = &fpl->memBackBuffer[0] + y * state.videoW;
 
-            size_t srcY = std::min(static_cast<size_t>((y - offsetY) / scale), srcHeight - 1);
+            size_t srcY = std::min(static_cast<size_t>((y - offsetY) / scaleY), srcHeight - 1);
             for (size_t x = 0; x < state.videoW; ++x) {
                 // Map screen coordinates to original ScreenBitmap using nearest-neighbor
-                size_t srcX = std::min(static_cast<size_t>((x - offsetX) / scale), srcWidth - 1);
+                size_t srcX = std::min(static_cast<size_t>((x - offsetX) / scaleX), srcWidth - 1);
 
                 // Default background if outside scaled region
                 uint8_t color = state.screen.getBorderColor(); // Transparent or black
 
                 // Only sample from ScreenBitmap if inside scaled bounds
                 if (x >= offsetX && x < offsetX + scaledWidth && y >= offsetY && y < offsetY + scaledHeight) {
-                    color = state.screen.screenBitmap.pixelsPal[srcY * srcWidth + srcX];
+                    color = state.screen.screenBitmap.pixelsPal[srcY * ScreenInfo::pixX + srcX];
                 }
 
                 // buffer->pixels[y * buffer->width + x] = color;
                 size_t pal = (x % 3);
                 if ((y % 3) == 2) {
                     pal += 3;
-                } // dark row
+                } // darker row
                 *pdest++ = palettes[pal][color];
             }
         }
@@ -492,6 +518,7 @@ void OsFPL::presentScreen() {
         mustNotify       = true;
     }
     buffered.isCursorActive = basic->isCursorActive;
+    buffered.insertMode     = basic->insertMode;
 
     screen.windowPixels = buffered.screen.windowPixels; // read from thread
     screenLock.unlock();
@@ -504,23 +531,23 @@ void OsFPL::renderSoftware() {
     // window resized?
     fplWindowSize windowsz { 0, 0 };
     fplGetWindowSize(&windowsz);
-    fplVideoBackBuffer* buffer = fplGetVideoBackBuffer();
-    if (buffer != nullptr) {
-        buffered.videoH = buffer->height;
-        buffered.videoW = buffer->width;
-        if (buffer->width != windowsz.width || buffer->height != windowsz.height) {
+    fplVideoBackBuffer* vidBackBuffer = fplGetVideoBackBuffer();
+    if (vidBackBuffer != nullptr) {
+        buffered.videoH = vidBackBuffer->height;
+        buffered.videoW = vidBackBuffer->width;
+        if (vidBackBuffer->width != windowsz.width || vidBackBuffer->height != windowsz.height) {
             screen.dirtyFlag      = true;
             buffered.imageCreated = false;
             fplResizeVideoBackBuffer(windowsz.width, windowsz.height);
-            buffer = fplGetVideoBackBuffer();
+            vidBackBuffer = fplGetVideoBackBuffer();
         }
     }
 
     if (buffered.imageCreated) {
         buffered.imageCreated = false;
         videoLock.lock();
-        if (buffer != nullptr && buffer->pixels != nullptr && buffer->width * buffer->height == pixelsVideo.size()) {
-            memcpy(buffer->pixels, &pixelsVideo[0], sizeof(uint32_t) * pixelsVideo.size());
+        if (vidBackBuffer != nullptr && vidBackBuffer->pixels != nullptr && vidBackBuffer->width * vidBackBuffer->height == memBackBuffer.size()) {
+            memcpy(vidBackBuffer->pixels, &memBackBuffer[0], sizeof(uint32_t) * memBackBuffer.size());
         }
         videoLock.unlock();
         fplVideoFlip();
@@ -544,7 +571,7 @@ void OsFPL::renderOpenGL() {
         return;
     }
 
-    if (winSize.width * winSize.height == pixelsVideo.size()) {
+    if (winSize.width * winSize.height == memBackBuffer.size()) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         // Flip the image vertically
@@ -556,7 +583,7 @@ void OsFPL::renderOpenGL() {
         glRasterPos3f(0, GLfloat(winSize.height - 1), -0.3f);
 
         // Draw pixels
-        glDrawPixels(winSize.width, winSize.height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, pixelsVideo.data());
+        glDrawPixels(winSize.width, winSize.height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, memBackBuffer.data());
 
         fplVideoFlip();
     }
@@ -581,6 +608,7 @@ void OsFPL::updateKeyboardBuffer() {
 
     static KeyPress lastCharPress = {};
 
+    bool forceWindowUpdate = false;
     fplEvent event;
     while (fplPollEvent(&event)) {
         if (event.type == fplEventType_Window) {
@@ -590,6 +618,7 @@ void OsFPL::updateKeyboardBuffer() {
 
             if (event.window.type == fplWindowEventType_Restored || event.window.type == fplWindowEventType_Maximized) {
                 fplResizeVideoBackBuffer(sz.width, sz.height);
+                forceWindowUpdate = true;
             }
         }
 
@@ -742,9 +771,15 @@ void OsFPL::updateKeyboardBuffer() {
             }
         }
     }
+
+    if (forceWindowUpdate) {
+        screen.dirtyFlag = true;
+        presentScreen();
+    }
 }
 
 const bool OsFPL::isKeyPressed(uint32_t index, bool withShift, bool withAlt, bool withCtrl) const {
+    // TODO only if window is active
     fplKeyboardState keyboardState;
     if (!fplPollKeyboardState(&keyboardState)) {
         return false;
@@ -1019,11 +1054,14 @@ Os::MouseStatus OsFPL::getMouseStatus() {
 
     fplMouseState fst;
     if (fplPollMouseState(&fst)) {
-        if (screen.windowPixels.pixelscale == 0) {
-            screen.windowPixels.pixelscale = 1;
+        if (screen.windowPixels.pixelscalex == 0) {
+            screen.windowPixels.pixelscalex = 1;
         }
-        st.x          = (fst.x - screen.windowPixels.borderx) / screen.windowPixels.pixelscale - 25;
-        st.y          = (fst.y - screen.windowPixels.bordery) / screen.windowPixels.pixelscale - 50;
+        if (screen.windowPixels.pixelscaley == 0) {
+            screen.windowPixels.pixelscaley = 1;
+        }
+        st.x          = (fst.x - screen.windowPixels.borderx) / screen.windowPixels.pixelscalex - 25;
+        st.y          = (fst.y - screen.windowPixels.bordery) / screen.windowPixels.pixelscaley - 50;
         st.buttonBits = (fst.buttonStates[0] == fplButtonState_Release ? 0 : 1)
                       + (fst.buttonStates[1] == fplButtonState_Release ? 0 : 2)
                       + (fst.buttonStates[2] == fplButtonState_Release ? 0 : 4);

@@ -359,10 +359,10 @@ protected:
     void executeTokens(std::vector<Token>& tokens);
 
     std::array<std::string, 12> keyShortcuts; // F1..F12 key shortcuts. Set with KEY command
-    bool insertMode = false; // insert/overwrite Shift+INS
 
 public:
     bool isCursorActive = true;
+    bool insertMode     = false; // insert/overwrite Alt+INS
 
     void uppercaseProgram(std::string& line);
 
