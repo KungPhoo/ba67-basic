@@ -72,9 +72,11 @@
 ,{"LEFT$", R"RAW(LEFT$(string, n))RAW"}
 ,{"LEN", R"RAW(LEN(string))RAW"}
 ,{"LOG", R"RAW(LOG(expr))RAW"}
+,{"MAX", R"RAW(n=MAX(a,b [,c] [,d] ...))RAW"}
 ,{"MID$", R"RAW(MID$(string, start, length))RAW"}
+,{"MIN", R"RAW(n=MIN(a,b [,c] [,d] ...))RAW"}
 ,{"PEEK", R"RAW(PEEK(address))RAW"}
-,{"PEN", R"RAW(PEN(XYXYB))RAW"}
+,{"PEN", R"RAW(PEN(X0_Y1_X2_Y3_BT4))RAW"}
 ,{"POS", R"RAW(POS(0))RAW"}
 ,{"POSY", R"RAW(POSY(0))RAW"}
 ,{"RIGHT$", R"RAW(RIGHT$(string, n))RAW"}

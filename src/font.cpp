@@ -125,7 +125,7 @@ void createCharmap(CharMap& charmap, char32_t from, char32_t to) {
         std::swap(charmap.ascii[c.first], c.second);
     }
 
-    charmap.unicode = {
+    *charmap.unicode = {
 #if defined(BA67_GRAPHICS_ENABLE_EMOJI)
     #include "emoji.inc"
 #endif
@@ -1712,7 +1712,7 @@ void createCharmap(CharMap& charmap, char32_t from, char32_t to) {
         { 0x1fbf9,            { 62, 99, 99, 62, 3, 3, 62, 0 } }
     };
 
-    std::map<char32_t, char32_t> synonyms = {
+    std::unordered_map<char32_t, char32_t> synonyms = {
         { 0x203e,   0xaf },
         { 0x2044,   0x2f },
         { 0x220a, 0x2208 },
@@ -2033,7 +2033,7 @@ void createCharmap(CharMap& charmap, char32_t from, char32_t to) {
         { 0x3000,   0x20 },
         { 0xfeff,     -2 }
     };
-    std::map<char32_t, char32_t> substitutes = {
+    std::unordered_map<char32_t, char32_t> substitutes = {
         { 0x1f00,  0x3b1 },
         { 0x1f01,  0x3b1 },
         { 0x1f02,  0x3b1 },

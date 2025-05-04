@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
 #ifdef _DEBUG
     args = {
         // "--video", "opengl",  // "--fullscreen"
-        // "--crtemulation", "false",
+        "--crtemulation", "false",
         // "--demo", "true",
         ""
     };

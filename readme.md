@@ -97,7 +97,9 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [LEFT$](#left-)
     - [LEN](#len)
     - [LOG](#log)
+    - [MAX](#max)
     - [MID$](#mid-)
+    - [MIN](#min)
     - [PEEK](#peek)
     - [PEN](#pen)
     - [POS](#pos)
@@ -1236,11 +1238,21 @@ Returns the natural logarithm of a number.
 
 **Usage:** `LOG(expr)`
 
+### MAX
+Returns the largest of the given argument values.
+
+**Usage:** `n=MAX(a,b [,c] [,d] ...)`
+
 ### MID$
 Extracts a substring from a string. Each character is a
 Unicode code point.
 
 **Usage:** `MID$(string, start, length)`
+
+### MIN
+Returns the smallest of the given argument values.
+
+**Usage:** `n=MIN(a,b [,c] [,d] ...)`
 
 ### PEEK
 Returns the value from a memory address.
@@ -1250,7 +1262,7 @@ Returns the value from a memory address.
 ### PEN
 Returns the light pen position on the screen. In BA67, this
 presents the mouse cursor positions on the screen. BA67 returns
--25,-50 for the top-left pixel of the first character on the screen.
+25,50 for the top-left pixel of the first character on the screen.
 The same coordinate system, that's used for sprites.
 
 The return value depends on the argument value that is passed:
@@ -1260,7 +1272,7 @@ The return value depends on the argument value that is passed:
 - `3` Y position
 - `4` Mouse button bits: 1, 2 and 4.
 
-**Usage:** `PEN(XYXYB)`
+**Usage:** `PEN(X0_Y1_X2_Y3_BT4)`
 
 ### POS
 Returns the current horizontal cursor position.

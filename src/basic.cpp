@@ -236,9 +236,7 @@ void cmdCHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
             bytes[7 - i] = uint8_t((bytes8 >> (8 * i)) & 0xff);
         }
         iarg = 9;
-    }
-
-    if (iarg == 8 + 1 && ScreenInfo::charPixY == 8) {
+    }else if (iarg == 8 + 1 && ScreenInfo::charPixY == 8) {
         bool isMulti = false;
         for (size_t i = 0; i < iarg - 1; ++i) {
             if (dwords[i] > 0xff) {
@@ -752,6 +750,60 @@ Basic::Value fktJOY(Basic* basic, const std::vector<Basic::Value>& args) {
     return joy;
 }
 
+Basic::Value fktMAX(Basic* basic, const std::vector<Basic::Value>& args) {
+    if (args.size() == 0) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+
+    bool gotOne = false;
+    Basic::Value ret;
+    for (auto& a : args) {
+        if (basic->valueIsOperator(a)) {
+            continue;
+        }
+        if (!gotOne) {
+            gotOne = true;
+            ret    = a;
+        }
+
+        if (basic->valueToDouble(a) > basic->valueToDouble(ret)) { // TODO check types
+            ret = a;
+        }
+    }
+
+    if (!gotOne) {
+        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+    }
+    return ret;
+}
+Basic::Value fktMIN(Basic* basic, const std::vector<Basic::Value>& args) {
+    if (args.size() == 0) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+
+    bool gotOne = false;
+    Basic::Value ret;
+    for (auto& a : args) {
+        if (basic->valueIsOperator(a)) {
+            continue;
+        }
+        if (!gotOne) {
+            gotOne = true;
+            ret    = a;
+        }
+
+        if (basic->valueToDouble(a) < basic->valueToDouble(ret)) {
+            ret = a;
+        }
+    }
+
+    if (!gotOne) {
+        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+    }
+    return ret;
+}
+
+
 Basic::Value fktLEFT$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -986,6 +1038,8 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "LEN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return (int64_t)Unicode::utf8StrLen(basic->valueToString(args[0]).c_str()); } },
         { "LOG", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return log(basic->valueToDouble(args[0])); } },
         { "MOD", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 3); auto div = basic->valueToInt(args[2]); if (div == 0) { throw Error(ErrorId::ILLEGAL_QUANTITY); }return basic->valueToInt(args[0]) % div; } },
+        { "MAX", fktMAX },
+        { "MIN", fktMIN },
         { "MID$", fktMID$ },
         { "PEEK", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(memory[basic->valueToInt(args[0])]); } },
         { "PEN", fktPEN },
@@ -1692,7 +1746,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         Value b = values.back();
         values.pop_back();
 
-        if (op == "u-") // unary neagtive sign operator
+        if (op == "u-") // unary negative sign operator
         {
             op = "-";
             a  = Value(0.0);
@@ -2066,7 +2120,7 @@ void Basic::doPrintValue(Value& v) {
     if (valueIsOperator(v)) {
         if (auto op = std::get_if<Basic::Operator>(&v)) {
             if (op->value == ",") {
-                if (currentFileNo = 00) {
+                if (currentFileNo == 0) {
                     auto crsr = os->screen.getCursorPos();
                     os->screen.setCursorPos({ (crsr.x / 10 + 1) * 10, crsr.y });
                 } else {

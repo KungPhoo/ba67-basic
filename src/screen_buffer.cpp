@@ -4,8 +4,8 @@
 #include <stdexcept>
 
 CharMap::CharMap()
-    : ascii {}
-    , unicode {} {
+    : ascii {} {
+    unicode = new std::unordered_map<char32_t, CharBitmap>();
     Font::createCharmap(*this);
 }
 

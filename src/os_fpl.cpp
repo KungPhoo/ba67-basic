@@ -779,11 +779,19 @@ void OsFPL::updateKeyboardBuffer() {
 }
 
 const bool OsFPL::isKeyPressed(uint32_t index, bool withShift, bool withAlt, bool withCtrl) const {
+    static fplKeyboardState keyboardState = {};
+
     // TODO only if window is active
-    fplKeyboardState keyboardState;
-    if (!fplPollKeyboardState(&keyboardState)) {
-        return false;
+
+    static auto lastTick = tick();
+    auto tickNow         = tick();
+    if (tickNow - lastTick >= 16) {
+        lastTick = tickNow;
+        if (!fplPollKeyboardState(&keyboardState)) {
+            return false;
+        }
     }
+
 
     switch (index) {
     case uint32_t(KeyConstant::ESCAPE):
@@ -924,7 +932,7 @@ std::vector<char32_t> OsFPL::emojiPicker() {
     ScreenBuffer::copyWithLock(sb, screen);
     std::string oldCb = this->getClipboardData();
     setClipboardData("");
-    std::string cmd = std::string("\"") + emojiPanelPath + "\" --nomove --nocls --stdin";
+    std::string cmd = std::string("\"") + emojiPanelPath + "\" --nomove --nocls --stdin --ascii";
     Os::systemCall(cmd.c_str(), true);
     std::string newCb = this->getClipboardData();
     std::vector<char32_t> chars;
@@ -1000,6 +1008,14 @@ static void linuxScanAndConnectBTgamepad() {
 
 static fplGamepadStates gamepadStates = {};
 void OsFPL::updateGamepadState() {
+    static auto lastTick = tick();
+    auto tickNow         = tick();
+    if (tickNow - lastTick < 16) {
+        return;
+    }
+    lastTick = tickNow;
+
+
 #if 0 // def FPL_PLATFORM_LINUX // TODO: find a way to connect Bluetooth gamepads
     static auto lastTick = tick();
     auto tickNow = tick();
@@ -1060,8 +1076,8 @@ Os::MouseStatus OsFPL::getMouseStatus() {
         if (screen.windowPixels.pixelscaley == 0) {
             screen.windowPixels.pixelscaley = 1;
         }
-        st.x          = (fst.x - screen.windowPixels.borderx) / screen.windowPixels.pixelscalex - 25;
-        st.y          = (fst.y - screen.windowPixels.bordery) / screen.windowPixels.pixelscaley - 50;
+        st.x          = (fst.x - screen.windowPixels.borderx) / screen.windowPixels.pixelscalex + 25;
+        st.y          = (fst.y - screen.windowPixels.bordery) / screen.windowPixels.pixelscaley + 50;
         st.buttonBits = (fst.buttonStates[0] == fplButtonState_Release ? 0 : 1)
                       + (fst.buttonStates[1] == fplButtonState_Release ? 0 : 2)
                       + (fst.buttonStates[2] == fplButtonState_Release ? 0 : 4);

@@ -2,7 +2,7 @@
 #include <array>
 #include <atomic>
 #include <iostream>
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -132,16 +132,17 @@ public:
 class CharMap {
 public:
     CharMap();
+    ~CharMap() { delete unicode; }
     std::array<CharBitmap, 128> ascii;
-    std::map<char32_t, CharBitmap> unicode;
+    std::unordered_map<char32_t, CharBitmap>* unicode;
 
     const CharBitmap& operator[](char32_t c) const {
         if (c < 128) {
             return ascii[c];
         }
-        auto it = unicode.find(c);
-        if (it == unicode.end()) {
-            return unicode.begin()->second;
+        auto it = unicode->find(c);
+        if (it == unicode->end()) {
+            return unicode->begin()->second;
         }
         return it->second;
     }
@@ -149,8 +150,12 @@ public:
         if (c < 128) {
             return ascii[c];
         }
-        auto it = unicode.find(c);
-        return unicode[c];
+        auto it = unicode->find(c);
+        if (it == unicode->end()) {
+            auto& ref = unicode->insert_or_assign(c, ascii[0]).first->second;
+            return ref;
+        }
+        return it->second;
     }
 };
 
