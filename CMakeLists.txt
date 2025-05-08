@@ -4,15 +4,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-# Enable Hot Reload for MSVC compilers if supported.
-# if (POLICY CMP0141)
-#   cmake_policy(SET CMP0141 NEW)
-#   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<# $<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
-# endif()
-if (MSVC)
-  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "EditAndContinue")  # or "ProgramDatabase"
-endif()
-
 # ==========================================
 # PROJECT CONFIGURATION
 # ==========================================
@@ -61,7 +52,7 @@ else()
     project(${APP_NAME} LANGUAGES CXX C)
 endif()
 
-# set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:EditAndContinue>")
+set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:EditAndContinue>")
 
 add_compile_definitions(_CRT_SECURE_NO_WARNINGS=1)
 add_compile_definitions(_UNICODE=1 UNICODE=1) # Windows needs this

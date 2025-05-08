@@ -834,7 +834,11 @@ characters are supported. The mode "R" for reading or "W"
 for writing must be part of the filename argument and
 separated from the file name with an comma character.
 
-**Usage:** `OPEN fileno, "filename , MODE"`
+Use `PRINT#1` to print to the opened fileno #1.
+
+Don't forget to `CLOSE` the file afterwards.
+
+**Usage:** `OPEN fileno, "filename , MODE_RW"`
 
 ### PLAY
 The PLAY command plays a music score in the background of

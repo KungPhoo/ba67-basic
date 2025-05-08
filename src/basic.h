@@ -366,8 +366,8 @@ public:
 
     void uppercaseProgram(std::string& line);
 
-    void printUtf8String(const char* utf8);
-    inline void printUtf8String(const std::string& utf8) { printUtf8String(utf8.c_str()); }
+    void printUtf8String(const char* utf8, bool applyCtrlCodes = false);
+    inline void printUtf8String(const std::string& utf8, bool applyCtrlCodes = false) { printUtf8String(utf8.c_str(), applyCtrlCodes); }
 
     // List all variables and their values
     void dumpVariables();

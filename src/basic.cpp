@@ -236,7 +236,7 @@ void cmdCHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
             bytes[7 - i] = uint8_t((bytes8 >> (8 * i)) & 0xff);
         }
         iarg = 9;
-    }else if (iarg == 8 + 1 && ScreenInfo::charPixY == 8) {
+    } else if (iarg == 8 + 1 && ScreenInfo::charPixY == 8) {
         bool isMulti = false;
         for (size_t i = 0; i < iarg - 1; ++i) {
             if (dwords[i] > 0xff) {
@@ -1577,7 +1577,7 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
 // Evaluate expression using Shunting-Yard algorithm
 // put endPtr to the next token to process
 // put start to the open brace '(' - endPtr will point to the item after the matching close brace
-// put start to inside the brace '(' - endPtr will point to mathcing the closing brace
+// put start to inside the brace '(' - endPtr will point to matching the closing brace
 std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd) {
     std::vector<Value> output;
 
@@ -2132,7 +2132,7 @@ void Basic::doPrintValue(Value& v) {
         }
     } else {
         if (valueIsString(v)) {
-            printUtf8String(Basic::valueToString(v));
+            printUtf8String(Basic::valueToString(v), true /* apply control characters */);
         } else {
             printUtf8String((" " + Basic::valueToString(v) + " "));
         }
@@ -2140,14 +2140,14 @@ void Basic::doPrintValue(Value& v) {
 }
 
 void Basic::handlePRINT(std::vector<Token>& tokens) {
+    if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
+        currentFileNo = strToInt(tokens[1].value);
+        tokens.erase(tokens.begin() + 1);
+    }
+
     if (tokens.size() < 2) {
         printUtf8String("\n");
         return;
-    }
-
-    if (tokens[1].type == TokenType::FILEHANDLE) {
-        currentFileNo = strToInt(tokens[1].value);
-        tokens.erase(tokens.begin() + 1);
     }
 
     if (tokens[1].type == TokenType::KEYWORD && tokens[1].value == "USING") {
@@ -2340,7 +2340,7 @@ void Basic::handlePRINT_USING(const std::vector<Token>& tokens) {
     if (forceNewline) {
         output += '\n';
     }
-    printUtf8String(output);
+    printUtf8String(output, true /* apply control characters */);
 }
 
 void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
@@ -2634,10 +2634,17 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
                 str = tk.value;
             } else if (tk.type == TokenType::IDENTIFIER) {
                 Value* pval = findLeftValue(currentModule(), tokens, itk, &itk);
-                if (pval == nullptr) {
-                    throw Error(ErrorId::SYNTAX);
+                if (pval != nullptr) {
+                    str = valueToString(*pval);
+                } else {
+                    // RCHARDEF CHR$(1+1), mono, a,b,c,d,e,f,g,h
+                    throw Error(ErrorId::FORMULA_TOO_COMPLEX);
+                    // auto vals = evaluateExpression(tokens, itk + 1, &itk);
+                    // if (vals.size() != 1) {
+                    //     throw Error(ErrorId::SYNTAX);
+                    // }
+                    // str = valueToString(vals[0]);
                 }
-                str = valueToString(*pval);
             } else {
                 throw Error(ErrorId::FORMULA_TOO_COMPLEX);
             }
@@ -3200,12 +3207,56 @@ void Basic::uppercaseProgram(std::string& codeline) {
         throw Error(ErrorId::SYNTAX);
     }
 }
+/*
 
-void Basic::printUtf8String(const char* utf8) {
+
+        { 0x9a,  color (light blue)
+        { 0x9b,  color (light gray)
+        { 0x9f,  color (cyan)
+
+* */
+void Basic::printUtf8String(const char* utf8, bool applyCtrlCodes) {
     if (currentFileNo == 0) {
-        while (*utf8 != '\0') {
-            os->screen.putC(Unicode::parseNextUtf8(utf8));
+        if (applyCtrlCodes) {
+            while (*utf8 != '\0') {
+                char32_t c = Unicode::parseNextUtf8(utf8);
+                switch (c) {
+                case 0x11: os->screen.moveCursorPos(0, 1); break; // cursor down
+                case 0x1d: os->screen.moveCursorPos(1, 0); break; // cursor right
+                case 0x91: os->screen.moveCursorPos(0, -1); break; // cursor up
+                case 0x9d: os->screen.moveCursorPos(-1, 0); break; // cursor left
+                case 0x13: os->screen.setCursorPos({ 0, 0 }); break; // home
+                case 0x14: os->screen.backspaceChar(); break; // delete
+                case 0x93: os->screen.clear(); break; // clear
+                case 0x12: os->screen.inverseColours(); break; // reverse on TODO that's not correct
+                case 0x92: os->screen.inverseColours(); break; // reverse off
+
+                case 0x90: os->screen.setTextColor(0); break; // Black
+                case 0x05: os->screen.setTextColor(1); break; // White
+                case 0x1c: os->screen.setTextColor(2); break; // Red
+                case 0x9f: os->screen.setTextColor(3); break; // Cyan
+                case 0x9c: os->screen.setTextColor(4); break; // Purple
+                case 0x1e: os->screen.setTextColor(5); break; // Green
+                case 0x1f: os->screen.setTextColor(6); break; // Blue
+                case 0x9e: os->screen.setTextColor(7); break; // Yellow
+                case 0x81: os->screen.setTextColor(8); break; // Orange
+                case 0x95: os->screen.setTextColor(9); break; // Brown
+                case 0x96: os->screen.setTextColor(10); break; // Light Red
+                case 0x97: os->screen.setTextColor(11); break; // Dark Gray
+                case 0x98: os->screen.setTextColor(12); break; // Medium Gray
+                case 0x99: os->screen.setTextColor(13); break; // Light Green
+                case 0x9a: os->screen.setTextColor(14); break; // Light Blue
+                case 0x9b: os->screen.setTextColor(15); break; // Light Gray
+                default:
+                    os->screen.putC(c);
+                }
+            }
+        } else {
+            while (*utf8 != '\0') {
+                os->screen.putC(Unicode::parseNextUtf8(utf8));
+            }
         }
+
         os->presentScreen();
     } else {
         FILE* pf = openFiles[currentFileNo].pfile;
@@ -3275,14 +3326,20 @@ std::string Basic::inputLine(bool allowVertical) {
 
         if (!key.printable) {
             if (key.holdCtrl) {
-                if (key.code == U'C') {
+                char32_t ctrlChar = 0;
+
+                switch (key.code) {
+
+                case U'C': {
                     auto str32            = os->screen.getSelectedText(startSelection, os->screen.getCursorPos());
                     std::string clipboard = Unicode::toUtf8String(str32.c_str());
                     if (clipboard.length() > 0) {
                         printf("copy %s\n", clipboard.c_str());
                         os->setClipboardData(clipboard);
                     }
-                } else if (key.code == U'V') {
+                    break;
+                }
+                case U'V': {
                     std::string clipboard = os->getClipboardData();
                     printf("pasted %s\n", clipboard.c_str());
                     if (clipboard.length() != 0) {
@@ -3305,95 +3362,169 @@ std::string Basic::inputLine(bool allowVertical) {
                             os->putToKeyboardBuffer(kp, false); // can copy/paste listings etc.
                         }
                     }
-                } else if (key.code == U'.' || key.code == 190) {
+                    break;
+                }
+                case U'.':
+                case 190:  {
                     auto emoji = os->emojiPicker();
                     for (auto e : emoji) {
                         os->screen.putC(e);
                     }
+                    break;
                 }
-                continue;
+                case u'1': ctrlChar = 0x90; break; // black
+                case u'2': ctrlChar = 0x05; break; // white
+                case u'3': ctrlChar = 0x1c; break; // red
+                case u'4': ctrlChar = 0x9f; break; // cyan
+                case u'5': ctrlChar = 0x9c; break; // purple
+                case u'6': ctrlChar = 0x1e; break; // green
+                case u'7': ctrlChar = 0x1f; break; // blue
+                case u'8': ctrlChar = 0x9e; break; // yellow
+                }
+
+                if (ctrlChar == 0) {
+                    continue;
+                } else {
+                    key.code      = ctrlChar;
+                    key.printable = true;
+                }
             } // ctrl
 
-            switch (key.code) {
-            case uint32_t(Os::KeyConstant::F1):
-                typeString(keyShortcuts[0]);
-                continue;
-            case uint32_t(Os::KeyConstant::F2):
-                typeString(keyShortcuts[1]);
-                continue;
-            case uint32_t(Os::KeyConstant::F3):
-                typeString(keyShortcuts[2]);
-                continue;
-            case uint32_t(Os::KeyConstant::F4):
-                typeString(keyShortcuts[3]);
-                continue;
-            case uint32_t(Os::KeyConstant::F5):
-                typeString(keyShortcuts[4]);
-                continue;
-            case uint32_t(Os::KeyConstant::F6):
-                typeString(keyShortcuts[5]);
-                continue;
-            case uint32_t(Os::KeyConstant::F7):
-                typeString(keyShortcuts[6]);
-                continue;
-            case uint32_t(Os::KeyConstant::F8):
-                typeString(keyShortcuts[7]);
-                continue;
-            case uint32_t(Os::KeyConstant::F9):
-                typeString(keyShortcuts[8]);
-                continue;
-            case uint32_t(Os::KeyConstant::F10):
-                typeString(keyShortcuts[9]);
-                continue;
-            case uint32_t(Os::KeyConstant::F11):
-                typeString(keyShortcuts[10]);
-                continue;
-            case uint32_t(Os::KeyConstant::F12):
-                typeString(keyShortcuts[11]);
-                continue;
-            case uint32_t(Os::KeyConstant::BACKSPACE):
-                os->screen.backspaceChar();
-                continue;
-            case uint32_t(Os::KeyConstant::DEL):
-                os->screen.deleteChar();
-                continue;
-            case uint32_t(Os::KeyConstant::INSERT):
-                if (key.holdAlt) {
-                    insertMode           = !insertMode;
-                    os->screen.dirtyFlag = true;
+            if (key.holdAlt) {
+                char32_t ctrlChar = 0;
+                switch (key.code) {
+                case uint32_t(Os::KeyConstant::BACKSPACE): ctrlChar = 0x14; break;
+                case uint32_t(Os::KeyConstant::DEL):       ctrlChar = 0x14; break;
+                // case uint32_t(Os::KeyConstant::INSERT):ctrlChar = 0x94; break;
+                case uint32_t(Os::KeyConstant::CRSR_LEFT):  ctrlChar = 0x9d; break;
+                case uint32_t(Os::KeyConstant::CRSR_RIGHT): ctrlChar = 0x1d; break;
+                case uint32_t(Os::KeyConstant::CRSR_UP):    ctrlChar = 0x91; break;
+                case uint32_t(Os::KeyConstant::CRSR_DOWN):  ctrlChar = 0x11; break;
+                case uint32_t(Os::KeyConstant::HOME):       ctrlChar = 0x13; break;
+                case uint32_t(Os::KeyConstant::END):        ctrlChar = 0x93; break; // clear
+
+                case u'1': ctrlChar = 0x9b; break; // light gray
+                case u'2': ctrlChar = 0x98; break; // gray
+                case u'3': ctrlChar = 0x97; break; // dark gray
+                case u'4': ctrlChar = 0x99; break; // light green
+                case u'5': ctrlChar = 0x9a; break; // light blue
+                case u'6': ctrlChar = 0x96; break; // pink/light red
+                case u'7': ctrlChar = 0x81; break; // orange
+                case u'8': ctrlChar = 0x95; break; // brown
+                }
+
+                /*
+                    0x90 color (black)
+                    0x05 color (white)
+                    0x1c color (red)
+                    0x9f color (cyan)
+                    0x9c color (purple)
+                    0x1e color (green)
+                    0x1f color (blue)
+                    0x9e color (yellow)
+
+
+                    0x9b color (light gray)
+                    0x98 color (gray)
+                    0x97 color (dark gray)
+                    0x99 color (light green)
+                    0x9a color (light blue)
+                    0x96 color (pink/light red)
+                    0x81 color (orange)
+                    0x95 color (brown)
+
+                */
+
+                if (ctrlChar == 0) {
+                    continue;
                 } else {
-                    os->screen.insertSpace();
+                    key.code      = ctrlChar;
+                    key.printable = true;
                 }
-                continue;
-            case uint32_t(Os::KeyConstant::CRSR_LEFT):
-                startSel();
-                os->screen.moveCursorPos(-1, 0);
-                continue;
-            case uint32_t(Os::KeyConstant::CRSR_RIGHT):
-                startSel();
-                os->screen.moveCursorPos(1, 0);
-                continue;
-            case uint32_t(Os::KeyConstant::CRSR_UP):
-                startSel();
-                os->screen.moveCursorPos(0, -1);
-                movedVertical = true;
-                continue;
-            case uint32_t(Os::KeyConstant::CRSR_DOWN):
-                startSel();
-                os->screen.moveCursorPos(0, 1);
-                movedVertical = true;
-                continue;
-            case uint32_t(Os::KeyConstant::HOME):
-                startSel();
-                os->screen.setCursorPos({ 0, os->screen.getCursorPos().y });
-                continue;
-            case uint32_t(Os::KeyConstant::END):
-                startSel();
-                {
-                    auto crsr = os->screen.getEndOfLineAt(os->screen.getCursorPos()); // that's the '\n' character
-                    os->screen.setCursorPos(crsr);
+            } else { // not alt
+
+                switch (key.code) {
+                case uint32_t(Os::KeyConstant::F1):
+                    typeString(keyShortcuts[0]);
+                    continue;
+                case uint32_t(Os::KeyConstant::F2):
+                    typeString(keyShortcuts[1]);
+                    continue;
+                case uint32_t(Os::KeyConstant::F3):
+                    typeString(keyShortcuts[2]);
+                    continue;
+                case uint32_t(Os::KeyConstant::F4):
+                    typeString(keyShortcuts[3]);
+                    continue;
+                case uint32_t(Os::KeyConstant::F5):
+                    typeString(keyShortcuts[4]);
+                    continue;
+                case uint32_t(Os::KeyConstant::F6):
+                    typeString(keyShortcuts[5]);
+                    continue;
+                case uint32_t(Os::KeyConstant::F7):
+                    typeString(keyShortcuts[6]);
+                    continue;
+                case uint32_t(Os::KeyConstant::F8):
+                    typeString(keyShortcuts[7]);
+                    continue;
+                case uint32_t(Os::KeyConstant::F9):
+                    typeString(keyShortcuts[8]);
+                    continue;
+                case uint32_t(Os::KeyConstant::F10):
+                    typeString(keyShortcuts[9]);
+                    continue;
+                case uint32_t(Os::KeyConstant::F11):
+                    typeString(keyShortcuts[10]);
+                    continue;
+                case uint32_t(Os::KeyConstant::F12):
+                    typeString(keyShortcuts[11]);
+                    continue;
+                case uint32_t(Os::KeyConstant::BACKSPACE):
+                    os->screen.backspaceChar();
+                    continue;
+                case uint32_t(Os::KeyConstant::DEL):
+                    os->screen.deleteChar();
+                    continue;
+                case uint32_t(Os::KeyConstant::INSERT):
+                    if (key.holdAlt) {
+                        insertMode           = !insertMode;
+                        os->screen.dirtyFlag = true;
+                    } else {
+                        os->screen.insertSpace();
+                    }
+                    continue;
+                case uint32_t(Os::KeyConstant::CRSR_LEFT):
+                    startSel();
+                    os->screen.moveCursorPos(-1, 0);
+                    continue;
+                case uint32_t(Os::KeyConstant::CRSR_RIGHT):
+                    startSel();
+                    os->screen.moveCursorPos(1, 0);
+                    continue;
+                case uint32_t(Os::KeyConstant::CRSR_UP):
+                    startSel();
+                    os->screen.moveCursorPos(0, -1);
+                    movedVertical = true;
+                    continue;
+                case uint32_t(Os::KeyConstant::CRSR_DOWN):
+                    startSel();
+                    os->screen.moveCursorPos(0, 1);
+                    movedVertical = true;
+                    continue;
+                case uint32_t(Os::KeyConstant::HOME):
+                    startSel();
+                    os->screen.setCursorPos({ 0, os->screen.getCursorPos().y });
+                    continue;
+                case uint32_t(Os::KeyConstant::END):
+                    startSel();
+                    {
+                        auto crsr = os->screen.getEndOfLineAt(os->screen.getCursorPos()); // that's the '\n' character
+                        os->screen.setCursorPos(crsr);
+                        os->screen.moveCursorPos(1, 0);
+                    }
+                    continue;
                 }
-                continue;
             }
         } // not printable
 

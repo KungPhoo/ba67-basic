@@ -39,7 +39,7 @@
 ,{"MOVSPR", R"RAW(MOVSPR number, x25, y50)RAW"}
 ,{"NEW", R"RAW(NEW)RAW"}
 ,{"MODULE", R"RAW(MODULE name)RAW"}
-,{"OPEN", R"RAW(OPEN fileno, "filename , MODE")RAW"}
+,{"OPEN", R"RAW(OPEN fileno, "filename , MODE_RW")RAW"}
 ,{"PLAY", R"RAW(PLAY abc_notation$)RAW"}
 ,{"POKE", R"RAW(POKE address, byte)RAW"}
 ,{"PRINT", R"RAW(PRINT expr [[,|;| ] expr ...])RAW"}

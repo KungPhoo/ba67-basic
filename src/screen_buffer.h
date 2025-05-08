@@ -133,11 +133,11 @@ class CharMap {
 public:
     CharMap();
     ~CharMap() { delete unicode; }
-    std::array<CharBitmap, 128> ascii;
-    std::unordered_map<char32_t, CharBitmap>* unicode;
+    std::array<CharBitmap, 160> ascii; // ASCII including control codes up to 159/0x9f
+    std::unordered_map<char32_t, CharBitmap>* unicode; // starting from Latin-1 160/0xa0
 
     const CharBitmap& operator[](char32_t c) const {
-        if (c < 128) {
+        if (c < 160) {
             return ascii[c];
         }
         auto it = unicode->find(c);
@@ -147,7 +147,7 @@ public:
         return it->second;
     }
     CharBitmap& at(char32_t c) {
-        if (c < 128) {
+        if (c < 160) {
             return ascii[c];
         }
         auto it = unicode->find(c);
