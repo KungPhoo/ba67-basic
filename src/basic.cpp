@@ -3372,158 +3372,176 @@ std::string Basic::inputLine(bool allowVertical) {
                     }
                     break;
                 }
-                case u'1': ctrlChar = 0x90; break; // black
-                case u'2': ctrlChar = 0x05; break; // white
-                case u'3': ctrlChar = 0x1c; break; // red
-                case u'4': ctrlChar = 0x9f; break; // cyan
-                case u'5': ctrlChar = 0x9c; break; // purple
-                case u'6': ctrlChar = 0x1e; break; // green
-                case u'7': ctrlChar = 0x1f; break; // blue
-                case u'8': ctrlChar = 0x9e; break; // yellow
-                }
-
-                if (ctrlChar == 0) {
-                    continue;
-                } else {
-                    key.code      = ctrlChar;
-                    key.printable = true;
-                }
-            } // ctrl
-
-            if (key.holdAlt) {
-                char32_t ctrlChar = 0;
-                switch (key.code) {
-                case uint32_t(Os::KeyConstant::BACKSPACE): ctrlChar = 0x14; break;
-                case uint32_t(Os::KeyConstant::DEL):       ctrlChar = 0x14; break;
-                // case uint32_t(Os::KeyConstant::INSERT):ctrlChar = 0x94; break;
-                case uint32_t(Os::KeyConstant::CRSR_LEFT):  ctrlChar = 0x9d; break;
-                case uint32_t(Os::KeyConstant::CRSR_RIGHT): ctrlChar = 0x1d; break;
-                case uint32_t(Os::KeyConstant::CRSR_UP):    ctrlChar = 0x91; break;
-                case uint32_t(Os::KeyConstant::CRSR_DOWN):  ctrlChar = 0x11; break;
-                case uint32_t(Os::KeyConstant::HOME):       ctrlChar = 0x13; break;
-                case uint32_t(Os::KeyConstant::END):        ctrlChar = 0x93; break; // clear
-
-                case u'1': ctrlChar = 0x9b; break; // light gray
-                case u'2': ctrlChar = 0x98; break; // gray
-                case u'3': ctrlChar = 0x97; break; // dark gray
-                case u'4': ctrlChar = 0x99; break; // light green
-                case u'5': ctrlChar = 0x9a; break; // light blue
-                case u'6': ctrlChar = 0x96; break; // pink/light red
-                case u'7': ctrlChar = 0x81; break; // orange
-                case u'8': ctrlChar = 0x95; break; // brown
-                }
-
-                /*
-                    0x90 color (black)
-                    0x05 color (white)
-                    0x1c color (red)
-                    0x9f color (cyan)
-                    0x9c color (purple)
-                    0x1e color (green)
-                    0x1f color (blue)
-                    0x9e color (yellow)
-
-
-                    0x9b color (light gray)
-                    0x98 color (gray)
-                    0x97 color (dark gray)
-                    0x99 color (light green)
-                    0x9a color (light blue)
-                    0x96 color (pink/light red)
-                    0x81 color (orange)
-                    0x95 color (brown)
-
-                */
-
-                if (ctrlChar == 0) {
-                    continue;
-                } else {
-                    key.code      = ctrlChar;
-                    key.printable = true;
-                }
-            } else { // not alt
-
-                switch (key.code) {
-                case uint32_t(Os::KeyConstant::F1):
-                    typeString(keyShortcuts[0]);
-                    continue;
-                case uint32_t(Os::KeyConstant::F2):
-                    typeString(keyShortcuts[1]);
-                    continue;
-                case uint32_t(Os::KeyConstant::F3):
-                    typeString(keyShortcuts[2]);
-                    continue;
-                case uint32_t(Os::KeyConstant::F4):
-                    typeString(keyShortcuts[3]);
-                    continue;
-                case uint32_t(Os::KeyConstant::F5):
-                    typeString(keyShortcuts[4]);
-                    continue;
-                case uint32_t(Os::KeyConstant::F6):
-                    typeString(keyShortcuts[5]);
-                    continue;
-                case uint32_t(Os::KeyConstant::F7):
-                    typeString(keyShortcuts[6]);
-                    continue;
-                case uint32_t(Os::KeyConstant::F8):
-                    typeString(keyShortcuts[7]);
-                    continue;
-                case uint32_t(Os::KeyConstant::F9):
-                    typeString(keyShortcuts[8]);
-                    continue;
-                case uint32_t(Os::KeyConstant::F10):
-                    typeString(keyShortcuts[9]);
-                    continue;
-                case uint32_t(Os::KeyConstant::F11):
-                    typeString(keyShortcuts[10]);
-                    continue;
-                case uint32_t(Os::KeyConstant::F12):
-                    typeString(keyShortcuts[11]);
-                    continue;
-                case uint32_t(Os::KeyConstant::BACKSPACE):
-                    os->screen.backspaceChar();
-                    continue;
-                case uint32_t(Os::KeyConstant::DEL):
-                    os->screen.deleteChar();
-                    continue;
-                case uint32_t(Os::KeyConstant::INSERT):
-                    if (key.holdAlt) {
-                        insertMode           = !insertMode;
-                        os->screen.dirtyFlag = true;
+                case u'1':
+                    if (key.holdShift) {
+                        ctrlChar = 0x97; // dark gray
                     } else {
-                        os->screen.insertSpace();
+                        ctrlChar = 0x90; // black
                     }
+                    break;
+                case u'2':
+                    if (key.holdShift) {
+                        ctrlChar = 0x9b; // light gray
+                    } else {
+                        ctrlChar = 0x05; // white
+                    }
+                    break; // gray/ white
+                case u'3':
+                    if (key.holdShift) {
+                        ctrlChar = 0x96; // pink/light red
+                    } else {
+                        ctrlChar = 0x1c; // red
+                    }
+                    break;
+                case u'4':
+                    if (key.holdShift) {
+                        ctrlChar = 0x98; // gray
+                    } else {
+                        ctrlChar = 0x9f; // cyan
+                    }
+                    break;
+                case u'5':
+                    if (key.holdShift) {
+                        ctrlChar = 0x81; // orange
+                    } else {
+                        ctrlChar = 0x9c; // purple
+                    }
+                    break;
+                case u'6':
+                    if (key.holdShift) {
+                        ctrlChar = 0x99; // light green
+                    } else {
+                        ctrlChar = 0x1e; // green
+                    }
+                    break;
+                case u'7':
+                    if (key.holdShift) {
+                        ctrlChar = 0x9a; // light blue
+                    } else {
+                        ctrlChar = 0x1f; // blue
+                    }
+                    break;
+                case u'8':
+                    if (key.holdShift) {
+                        ctrlChar = 0x95; // brown
+                    } else {
+                        ctrlChar = 0x9e; // yellow
+                    }
+                    break;
+                }
+
+                if (ctrlChar == 0) {
                     continue;
-                case uint32_t(Os::KeyConstant::CRSR_LEFT):
-                    startSel();
-                    os->screen.moveCursorPos(-1, 0);
-                    continue;
-                case uint32_t(Os::KeyConstant::CRSR_RIGHT):
-                    startSel();
-                    os->screen.moveCursorPos(1, 0);
-                    continue;
-                case uint32_t(Os::KeyConstant::CRSR_UP):
-                    startSel();
-                    os->screen.moveCursorPos(0, -1);
-                    movedVertical = true;
-                    continue;
-                case uint32_t(Os::KeyConstant::CRSR_DOWN):
-                    startSel();
-                    os->screen.moveCursorPos(0, 1);
-                    movedVertical = true;
-                    continue;
-                case uint32_t(Os::KeyConstant::HOME):
-                    startSel();
-                    os->screen.setCursorPos({ 0, os->screen.getCursorPos().y });
-                    continue;
-                case uint32_t(Os::KeyConstant::END):
-                    startSel();
-                    {
-                        auto crsr = os->screen.getEndOfLineAt(os->screen.getCursorPos()); // that's the '\n' character
-                        os->screen.setCursorPos(crsr);
+                } else {
+                    key.code      = ctrlChar;
+                    key.printable = true;
+                }
+            } else { // ctrl
+
+                if (key.holdAlt) {
+                    char32_t ctrlChar = 0;
+                    switch (key.code) {
+                    case uint32_t(Os::KeyConstant::BACKSPACE): ctrlChar = 0x14; break;
+                    case uint32_t(Os::KeyConstant::DEL):       ctrlChar = 0x14; break;
+                    // case uint32_t(Os::KeyConstant::INSERT):ctrlChar = 0x94; break;
+                    case uint32_t(Os::KeyConstant::CRSR_LEFT):  ctrlChar = 0x9d; break;
+                    case uint32_t(Os::KeyConstant::CRSR_RIGHT): ctrlChar = 0x1d; break;
+                    case uint32_t(Os::KeyConstant::CRSR_UP):    ctrlChar = 0x91; break;
+                    case uint32_t(Os::KeyConstant::CRSR_DOWN):  ctrlChar = 0x11; break;
+                    case uint32_t(Os::KeyConstant::HOME):       ctrlChar = 0x13; break;
+                    case uint32_t(Os::KeyConstant::END):        ctrlChar = 0x93; break; // clear
+                    }
+
+                    if (ctrlChar == 0) {
+                        continue;
+                    } else {
+                        key.code      = ctrlChar;
+                        key.printable = true;
+                    }
+                } else { // not alt
+
+                    switch (key.code) {
+                    case uint32_t(Os::KeyConstant::F1):
+                        typeString(keyShortcuts[0]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::F2):
+                        typeString(keyShortcuts[1]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::F3):
+                        typeString(keyShortcuts[2]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::F4):
+                        typeString(keyShortcuts[3]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::F5):
+                        typeString(keyShortcuts[4]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::F6):
+                        typeString(keyShortcuts[5]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::F7):
+                        typeString(keyShortcuts[6]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::F8):
+                        typeString(keyShortcuts[7]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::F9):
+                        typeString(keyShortcuts[8]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::F10):
+                        typeString(keyShortcuts[9]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::F11):
+                        typeString(keyShortcuts[10]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::F12):
+                        typeString(keyShortcuts[11]);
+                        continue;
+                    case uint32_t(Os::KeyConstant::BACKSPACE):
+                        os->screen.backspaceChar();
+                        continue;
+                    case uint32_t(Os::KeyConstant::DEL):
+                        os->screen.deleteChar();
+                        continue;
+                    case uint32_t(Os::KeyConstant::INSERT):
+                        if (key.holdAlt) {
+                            insertMode           = !insertMode;
+                            os->screen.dirtyFlag = true;
+                        } else {
+                            os->screen.insertSpace();
+                        }
+                        continue;
+                    case uint32_t(Os::KeyConstant::CRSR_LEFT):
+                        startSel();
+                        os->screen.moveCursorPos(-1, 0);
+                        continue;
+                    case uint32_t(Os::KeyConstant::CRSR_RIGHT):
+                        startSel();
                         os->screen.moveCursorPos(1, 0);
+                        continue;
+                    case uint32_t(Os::KeyConstant::CRSR_UP):
+                        startSel();
+                        os->screen.moveCursorPos(0, -1);
+                        movedVertical = true;
+                        continue;
+                    case uint32_t(Os::KeyConstant::CRSR_DOWN):
+                        startSel();
+                        os->screen.moveCursorPos(0, 1);
+                        movedVertical = true;
+                        continue;
+                    case uint32_t(Os::KeyConstant::HOME):
+                        startSel();
+                        os->screen.setCursorPos({ 0, os->screen.getCursorPos().y });
+                        continue;
+                    case uint32_t(Os::KeyConstant::END):
+                        startSel();
+                        {
+                            auto crsr = os->screen.getEndOfLineAt(os->screen.getCursorPos()); // that's the '\n' character
+                            os->screen.setCursorPos(crsr);
+                            os->screen.moveCursorPos(1, 0);
+                        }
+                        continue;
                     }
-                    continue;
                 }
             }
         } // not printable
@@ -3559,7 +3577,7 @@ std::string Basic::inputLine(bool allowVertical) {
         os->screen.setCursorPos(crsr);
     } else {
         istart      = (startCrsr);
-        iend        = (crsr);
+        iend        = os->screen.getEndOfLineAt(startCrsr);
         screenchars = os->screen.getSelectedText(istart, iend);
         printUtf8String("\n");
     }

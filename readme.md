@@ -132,6 +132,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [Editors](#editors)
     - [More Features](#more-features)
   - [C - Developers](#c---developers)
+  - [D - Control Characters](#d---control-characters)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
@@ -259,6 +260,16 @@ and can be configured using the KEY command.
 Use Alt+INS key to toggle between insert mode and overwrite
 mode. Use the INS key alone to insert a single character
 space.
+
+When you press `CTRL+1..8` or `SHIFT+CTRL+1..8`, a special
+character is printed, that advices the interpreter to change
+the text color.
+Pressing `ALT+CRSR` or `ALT+HOME` prints a character that
+moves the cursor.
+
+`ALT+END` is a character to clear the screen.
+
+Annex D shows the list of control characters.
 
 The Scroll Lock and the Shift keys can be used to pause
 commands, that list large texts to the screen. Try the `LIST`
@@ -890,7 +901,8 @@ POKE 1234, 128
 ```
 
 ### PRINT
-Outputs text or values to the screen.
+Outputs text or values to the screen. You can use special
+control characters. See the Annex D for more details.
 
 **Usage:** `PRINT expr [[,|;| ] expr ...]`
 
@@ -1493,6 +1505,43 @@ this chapter will be filled.
 - Os::emojiPicker
 - ScreenBuffer::copyWithLock
 - ScreenInfo::charPixY
+
+## D - Control Characters
+Here's the list of CHR$() codes that produce special
+control characters.
+It's compatible with the Commodore PETSCII codes.
+
++-----+--------------+-------------------------------------+
+|Code |How to Type   | Description                         |
++-----+--------------+-------------------------------------+
+| $11 | ALT+CRSR     | cursor down                         |
+| $1d | ALT+CRSR     | cursor right                        |
+| $91 | ALT+CRSR     | cursor up                           |
+| $9d | ALT+CRSR     | cursor left                         |
+| $13 | ALT+HOME     | home                                |
+| $14 | ALT+DEL      | delete                              |
+| $93 | ALT.END      | clear                               |
+| $94 | no key yet   | insert (not implemented)            |
+| $12 | no key yet   | reverse on (implemented as a hack)  |
+| $92 | no key yet   | reverse off (implemented as a hack) |
+| $90 | CTRL+1       | color black                         |
+| $05 | CTRL+2       | color white                         |
+| $1c | CTRL+3       | color red                           |
+| $9f | CTRL+4       | color cyan                          |
+| $9c | CTRL+5       | color purple                        |
+| $1e | CTRL+6       | color green                         |
+| $1f | CTRL+7       | color blue                          |
+| $9e | CTRL+8       | color yellow                        |
+| $97 | SHIFT+CTRL+1 | color dark gray                     |
+| $9b | SHIFT+CTRL+2 | color light gray                    |
+| $96 | SHIFT+CTRL+3 | color pink/light red                |
+| $98 | SHIFT+CTRL+4 | color gray                          |
+| $81 | SHIFT+CTRL+5 | color orange                        |
+| $99 | SHIFT+CTRL+6 | color light green                   |
+| $9a | SHIFT+CTRL+7 | color light blue                    |
+| $95 | SHIFT+CTRL+8 | color brown                         |
++-----+--------------+-------------------------------------+
+
 
 -------------------------------------------------------------
 # Disclaimer

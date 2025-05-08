@@ -53,6 +53,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [FAST](#fast)
     - [FIND](#find)
     - [GET](#get)
+    - [GRAPHIC](#graphic)
     - [HELP](#help)
     - [INPUT](#input)
     - [LIST](#list)
@@ -96,7 +97,9 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [LEFT$](#left-)
     - [LEN](#len)
     - [LOG](#log)
+    - [MAX](#max)
     - [MID$](#mid-)
+    - [MIN](#min)
     - [PEEK](#peek)
     - [PEN](#pen)
     - [POS](#pos)
@@ -129,6 +132,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [Editors](#editors)
     - [More Features](#more-features)
   - [C - Developers](#c---developers)
+  - [D - Control Characters](#d---control-characters)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
@@ -256,6 +260,16 @@ and can be configured using the KEY command.
 Use Alt+INS key to toggle between insert mode and overwrite
 mode. Use the INS key alone to insert a single character
 space.
+
+When you press `CTRL+1..8` or `SHIFT+CTRL+1..8`, a special
+character is printed, that advices the interpreter to change
+the text color.
+Pressing `ALT+CRSR` or `ALT+HOME` prints a character that
+moves the cursor.
+
+`ALT+END` is a character to clear the screen.
+
+Annex D shows the list of control characters.
 
 The Scroll Lock and the Shift keys can be used to pause
 commands, that list large texts to the screen. Try the `LIST`
@@ -709,6 +723,19 @@ an empty string, if the buffer is empty.
 
 **Usage:** `GET a$ [, b$, ...]`
 
+
+### GRAPHIC
+Changes the current graphics mode. Currently only two modes
+are supported:
+ - `1..4` Switches back to default 40 column mode
+ - `5`    Switches to 80 column mode
+
+In the 80 column mode, each character still is 8x8 pixels.
+However, the display is scaled to it looks like they're 8x16
+pixels. You can change that in the code. See also `CHARDEF`.
+
+**Usage:** `GRAPHIC mode5`
+
 ### HELP
 Prints a small information about how to use the command.
 
@@ -818,7 +845,11 @@ characters are supported. The mode "R" for reading or "W"
 for writing must be part of the filename argument and
 separated from the file name with an comma character.
 
-**Usage:** `OPEN fileno, "filename , MODE"`
+Use `PRINT#1` to print to the opened fileno #1.
+
+Don't forget to `CLOSE` the file afterwards.
+
+**Usage:** `OPEN fileno, "filename , MODE_RW"`
 
 ### PLAY
 The PLAY command plays a music score in the background of
@@ -870,7 +901,8 @@ POKE 1234, 128
 ```
 
 ### PRINT
-Outputs text or values to the screen.
+Outputs text or values to the screen. You can use special
+control characters. See the Annex D for more details.
 
 **Usage:** `PRINT expr [[,|;| ] expr ...]`
 
@@ -1222,11 +1254,21 @@ Returns the natural logarithm of a number.
 
 **Usage:** `LOG(expr)`
 
+### MAX
+Returns the largest of the given argument values.
+
+**Usage:** `n=MAX(a,b [,c] [,d] ...)`
+
 ### MID$
 Extracts a substring from a string. Each character is a
 Unicode code point.
 
 **Usage:** `MID$(string, start, length)`
+
+### MIN
+Returns the smallest of the given argument values.
+
+**Usage:** `n=MIN(a,b [,c] [,d] ...)`
 
 ### PEEK
 Returns the value from a memory address.
@@ -1236,7 +1278,7 @@ Returns the value from a memory address.
 ### PEN
 Returns the light pen position on the screen. In BA67, this
 presents the mouse cursor positions on the screen. BA67 returns
--25,-50 for the top-left pixel of the first character on the screen.
+25,50 for the top-left pixel of the first character on the screen.
 The same coordinate system, that's used for sprites.
 
 The return value depends on the argument value that is passed:
@@ -1246,7 +1288,7 @@ The return value depends on the argument value that is passed:
 - `3` Y position
 - `4` Mouse button bits: 1, 2 and 4.
 
-**Usage:** `PEN(XYXYB)`
+**Usage:** `PEN(X0_Y1_X2_Y3_BT4)`
 
 ### POS
 Returns the current horizontal cursor position.
@@ -1462,6 +1504,44 @@ Here's just a quick list of notes not to forget when
 this chapter will be filled.
 - Os::emojiPicker
 - ScreenBuffer::copyWithLock
+- ScreenInfo::charPixY
+
+## D - Control Characters
+Here's the list of CHR$() codes that produce special
+control characters.
+It's compatible with the Commodore PETSCII codes.
+
++-----+--------------+-------------------------------------+
+|Code |How to Type   | Description                         |
++-----+--------------+-------------------------------------+
+| $11 | ALT+CRSR     | cursor down                         |
+| $1d | ALT+CRSR     | cursor right                        |
+| $91 | ALT+CRSR     | cursor up                           |
+| $9d | ALT+CRSR     | cursor left                         |
+| $13 | ALT+HOME     | home                                |
+| $14 | ALT+DEL      | delete                              |
+| $93 | ALT.END      | clear                               |
+| $94 | no key yet   | insert (not implemented)            |
+| $12 | no key yet   | reverse on (implemented as a hack)  |
+| $92 | no key yet   | reverse off (implemented as a hack) |
+| $90 | CTRL+1       | color black                         |
+| $05 | CTRL+2       | color white                         |
+| $1c | CTRL+3       | color red                           |
+| $9f | CTRL+4       | color cyan                          |
+| $9c | CTRL+5       | color purple                        |
+| $1e | CTRL+6       | color green                         |
+| $1f | CTRL+7       | color blue                          |
+| $9e | CTRL+8       | color yellow                        |
+| $97 | SHIFT+CTRL+1 | color dark gray                     |
+| $9b | SHIFT+CTRL+2 | color light gray                    |
+| $96 | SHIFT+CTRL+3 | color pink/light red                |
+| $98 | SHIFT+CTRL+4 | color gray                          |
+| $81 | SHIFT+CTRL+5 | color orange                        |
+| $99 | SHIFT+CTRL+6 | color light green                   |
+| $9a | SHIFT+CTRL+7 | color light blue                    |
+| $95 | SHIFT+CTRL+8 | color brown                         |
++-----+--------------+-------------------------------------+
+
 
 -------------------------------------------------------------
 # Disclaimer
