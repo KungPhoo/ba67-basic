@@ -136,6 +136,8 @@ public:
     std::array<CharBitmap, 160> ascii; // ASCII including control codes up to 159/0x9f
     std::unordered_map<char32_t, CharBitmap>* unicode; // starting from Latin-1 160/0xa0
 
+    void createColorControlCodes();
+
     const CharBitmap& operator[](char32_t c) const {
         if (c < 160) {
             return ascii[c];

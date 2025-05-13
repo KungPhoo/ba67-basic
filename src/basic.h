@@ -19,6 +19,14 @@ public:
     Os* os;
     Basic(Os* os, SoundSystem* ss = nullptr);
 
+    struct Options {
+        bool noSpaceSeparator = false; // 'true' allows FORI=1TO10 without spaces
+        bool dotAsZero        = false; // 'true' allows a=. instead of a=0
+    };
+    static Options options;
+
+
+
     // Variable types
     class Operator {
     public:
@@ -302,7 +310,7 @@ protected:
     bool parseIdentifier(const char*& str, std::string* identifier);
 
     std::vector<Token> tokenize(ProgramCounter* pProgramCounter = nullptr);
-    std::vector<Token> tokenize(const std::string& code);
+    std::vector<std::vector<Token>> tokenize(const std::string& code);
 
     // Operator precedence
     int precedence(const std::string& op);

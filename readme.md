@@ -237,6 +237,12 @@ command instead of the variable name.
 In order to avoid confusions, this BASIC requires separating
 commands from variables.
 
+There is a hack, though. If you add the line number 1 and
+start with the comment `1 REMBA67` - no spaces between `REM`
+and `BA67` - then the interpreter switches to the Commodore
+style parsing and reformats your code with spaces.
+After loading, the parser returns to the default behavior.
+
 ### Quotes
 You can use double and single quotes. This way it's easier
 to use quotes in a string. The following is perfectly legal,
@@ -291,6 +297,10 @@ locale settings.
 
 Integers can be given up to 64 bits. A prefixed `$` is
 interpreted as a hex number. `a = $7ffffff`.
+
+Commodore allowed the dot `.` to be interpreted as zero.
+BA67 does not allow this, but you can convert your old code
+with the `1 REMBA67` line hack. See `Syntax`.
 
 -------------------------------------------------------------
 ## Unicode

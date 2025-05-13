@@ -8,6 +8,8 @@
 #include <cstring>
 #include <iostream>
 #include <regex>
+#include <variant>
+
 
 #if defined(__cplusplus) && __cplusplus > 202002L
     #include <format>
@@ -516,7 +518,7 @@ void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
-    // RENUMBER newstart, step, startfromold
+    // RENUMBER new_start, step, start_from_old
 
     int newstart      = 10;
     int step          = 10;
@@ -609,6 +611,20 @@ void cmdPLAY(Basic* basic, const std::vector<Basic::Value>& values) {
 
     basic->os->soundSystem().PLAY(cmd);
 }
+
+void cmdPOKE(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() != 3) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    int64_t address = basic->valueToInt(values[0]);
+    int64_t value   = basic->valueToInt(values[2]);
+    if (address < 0 || address >= basic->memory.size()) {
+        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+    }
+    basic->memory[address] = value & 0xff;
+}
+
+
 void cmdSOUND(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -813,7 +829,7 @@ Basic::Value fktLEFT$(Basic* basic, const std::vector<Basic::Value>& args) {
 }
 
 Basic::Value fktMID$(Basic* basic, const std::vector<Basic::Value>& args) {
-    // str$, start, [len]
+    // str$, start, [length]
     if (args.size() < 3 || args.size() > 5) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -943,6 +959,9 @@ Basic::Value& Basic::Array::at(const Basic::ArrayIndex& ix) {
     throw Error(ErrorId::BAD_SUBSCRIPT); // DIM a(5): a(6) = 1: REM a is defined (0..5)
 }
 
+
+Basic::Options Basic::options; // static instance
+
 Basic::Basic(Os* os, SoundSystem* ss) {
     Module mainmodule;
     modules[""] = mainmodule;
@@ -950,7 +969,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     moduleListingStack.push_back(modules.begin());
 
     this->os             = os;
-    std::string charLogo = Unicode::toUtf8String(U"🌈");
+    std::string charLogo = Unicode::toUtf8String(U"🌈"); // 1f308
     cmdCHARDEF(this, {
                          Value(charLogo),
                          Value(int64_t(0x2222222222222222LL)), // red
@@ -1001,6 +1020,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "RENUMBER", cmdRENUMBER },
         { "SYS", cmdSYS },
         { "PLAY", cmdPLAY },
+        { "POKE", cmdPOKE },
         { "SOUND", cmdSOUND },
         { "STOP", [&](Basic* basic, const std::vector<Basic::Value>&) { throw Error(ErrorId::BREAK); } },
         { "SLOW", [&](Basic* basic, const std::vector<Basic::Value>&) { basic->moduleVariableStack.back()->second.fastMode = false; } },
@@ -1018,7 +1038,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 
     // functions
     // functions["SIN"] = fktSIN;
-    // args contain comma opertors!
+    // args contain comma operators!
     functions.insert({
         { "ABS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return fabs(basic->valueToDouble(args[0])); } },
         { "ASC", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); std::string s = Basic::valueToString(args[0]); const char* p = s.c_str(); return (int64_t)Unicode::parseNextUtf8(p); } },
@@ -1091,51 +1111,6 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     printUtf8String(
         std::string(centerx, ' ') + strmem + "\n" + std::string(centerx, ' ') + "       (C)2025 DREAM DESIGN.\n");
 }
-
-#if 0
-std::string Basic::version() {
-    return "1.07";
-    char mnames[] = {"JanFebMarAprMayJunJulAugSepOctNovDec" };
-    // char today[16];
-    char temp[8];
-    int day, month, year;
-    const char* today = __DATE__;
-    // strcpy(today, __DATE__); // Date of compilation
-    for (day = 0; day < 3; day++) { temp[day] = today[day]; }
-    temp[3] = '\0';
-
-    month = int(strstr(mnames, temp) - mnames) / 3 + 1;
-    day = atoi(&today[4]);
-    year = atoi(&today[strlen(today) - 5]);
-
-    //  Today yyyy.mmdd
-    //  version=(double)year + (double)month/100.0 + (double) day/10000.0;
-
-    tm when;
-    time_t now, start_year;
-    // tm Xmas={ 0, 0, 12, 25, 11, 93 };
-    memset(&when, 0, sizeof(tm));
-    when.tm_hour = 12;
-    when.tm_mday = day;
-    when.tm_mon = month - 1;
-    when.tm_year = year - 1900;
-    now = mktime(&when);
-
-    when.tm_mday = 1;
-    when.tm_mon = 0;
-    start_year = mktime(&when);
-
-    // number of days in this year
-    int64_t d = int64_t(ceil(difftime(now, start_year) / 86400.0 + 0.0001));  // Secs to days, 1st day = #1
-
-    std::string version = valueToString(int64_t(year - 2025 + 1)) + ".";
-
-    d = d / 4;  // max. number is 91
-    if (d < 10) { version += '0'; }
-    version += valueToString(d);
-    return version;
-}
-#endif
 
 int Basic::colorForModule(const std::string& str) const {
     int col = 0;
@@ -1217,8 +1192,11 @@ bool Basic::valueIsString(const Value& v) {
 
 inline bool Basic::isEndOfWord(char c) {
     return (
-        (c > 0 && c < '0') // operators
-        || c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == ':' || c == ';' || c == '\"' || c == '\0');
+        (c >= 0 && c < '0') // operators, space, newline, tab, quotes, braces
+        || (c >= ':' && c <= '@') // colons, comparators
+        || (c >= '{' && c <= 0x7f) // curly braces, or-operator
+        // || c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == ':' || c == ';' || c == '\"' || c == '\0'
+    );
 }
 
 inline const char* Basic::skipWhite(const char*& str) {
@@ -1241,6 +1219,15 @@ inline bool Basic::parseDouble(const char*& str, double* number) {
         str = end;
         return true;
     }
+
+    if (options.dotAsZero && *str == '.') {
+        ++str;
+        if (number) {
+            *number = 0.0;
+        }
+        return true;
+    }
+
     return false;
 }
 
@@ -1308,7 +1295,8 @@ int64_t Basic::strToInt(const std::string& str) {
 inline bool Basic::parseKeyword(const char*& str, std::string* keyword) {
     skipWhite(str);
     for (auto& k : keywords) {
-        if (strncmp(str, k.c_str(), k.length()) == 0 && isEndOfWord(str[k.length()])) {
+        if (strncmp(str, k.c_str(), k.length()) == 0
+            && (isEndOfWord(str[k.length()]) || options.noSpaceSeparator)) {
             if (keyword) {
                 *keyword = std::string(str, str + k.length());
                 str += k.length();
@@ -1322,7 +1310,8 @@ inline bool Basic::parseKeyword(const char*& str, std::string* keyword) {
 inline bool Basic::parseCommand(const char*& str, std::string* command) {
     skipWhite(str);
     for (auto& k : commands) {
-        if (strncmp(str, k.first.c_str(), k.first.length()) == 0 && isEndOfWord(str[k.first.length()]) /*this differs from MS BASIC*/
+        if (strncmp(str, k.first.c_str(), k.first.length()) == 0
+            && (isEndOfWord(str[k.first.length()]) || options.noSpaceSeparator) /*this differs from MS BASIC*/
         ) {
             if (command) {
                 *command = std::string(str, str + k.first.length());
@@ -1355,6 +1344,25 @@ inline bool Basic::parseOperator(const char*& str, std::string* op) {
     skipWhite(str);
     const char* start = str;
 
+    if (options.noSpaceSeparator) {
+        if (strncmp(str, "AND", 3) == 0) {
+            *op = std::string(str, str + 3);
+            str += 3;
+            return true;
+        }
+        if (strncmp(str, "NOT", 3) == 0) {
+            *op = std::string(str, str + 3);
+            str += 3;
+            return true;
+        }
+        if (strncmp(str, "OR", 2) == 0) {
+            *op = std::string(str, str + 2);
+            str += 2;
+            return true;
+        }
+    }
+
+
     if (parseIdentifier(str, op)) {
         if (*op == "AND" || *op == "OR" || *op == "NOT") {
             return true;
@@ -1380,8 +1388,10 @@ inline bool Basic::parseIdentifier(const char*& str, std::string* identifier) {
     // start with alpha
     if ((*str >= 'A' && *str <= 'Z') || (*str >= 'a' && *str <= 'z')) {
         const char* pend = str;
+
         // alpha-numeric
-        while (isalnum(*pend)) {
+        // while (isalnum(*pend)) {
+        while (!isEndOfWord(*pend)) {
             ++pend;
         }
 
@@ -1417,8 +1427,6 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
         --xpos;
     }
 
-    // debug(">>"); debug(pc); debug("\n");
-
     double d;
     int64_t i;
     std::string str, str2;
@@ -1428,7 +1436,7 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
         const char* pcBeforeParse = pc;
         if (parseKeyword(pc, &str)) {
             tokens.push_back({ TokenType::KEYWORD, str });
-            if (str.length() == 3 && str == "REM") { // REM is special. SYS is not!
+            if (str.length() == 3 && str == "REM") { // REM is special. SYS is not! (we need variables in SYS)
                 tokens.push_back({ TokenType::STRING, pc });
                 while (*pc != '\0') {
                     ++pc;
@@ -1436,13 +1444,6 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
             }
         } else if (parseCommand(pc, &str)) {
             tokens.push_back({ TokenType::COMMAND, str });
-            // if (str.length() == 3 && str == "SYS") {
-            //     skipWhite(pc);
-            //     if (*pc != '\"') {
-            //         tokens.push_back({TokenType::STRING, pc});
-            //         while (*pc != '\0') { ++pc; }
-            //     }
-            // }
         } else if (parseString(pc, &str)) {
             tokens.push_back({ TokenType::STRING, str });
         } else if (parseOperator(pc, &str)) {
@@ -1507,11 +1508,19 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
 }
 
 // Just tokenize a string without harming the program
-std::vector<Basic::Token> Basic::tokenize(const std::string& code) {
+std::vector<std::vector<Basic::Token>> Basic::tokenize(const std::string& code) {
+    std::vector<std::vector<Token>> output;
     Module m;
     m.listing[0]          = code;
     m.programCounter.line = m.listing.begin();
-    return tokenize(&m.programCounter);
+    for (;;) {
+        auto tok = tokenize(&m.programCounter);
+        if (tok.empty()) {
+            break;
+        }
+        output.emplace_back(tok);
+    }
+    return output;
 }
 
 // Operator precedence
@@ -1540,7 +1549,7 @@ inline int Basic::precedence(const std::string& op) {
     }
     if (op[0] == 'u' || op == "NOT") {
         return __LINE__ - line0;
-    } // unaray operator
+    } // unary operator
     return 0;
 }
 
@@ -2055,7 +2064,6 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
             *pval = valueToDouble(values[0]);
             break;
         }
-        // debug("::"); debug(valueToString(*pval).c_str()); debug("\n");
     } else {
         throw Error(ErrorId::SYNTAX);
     }
@@ -2251,12 +2259,6 @@ static std::string printUsing(const std::string& format, double value) {
         oss << std::fixed << std::setprecision(hashAfterDecimal);
     }
 
-    // if (forcePlusSign) {
-    //     oss << std::showpos;
-    // } else {
-    //     oss << std::noshowpos;
-    // }
-
     if (useDollar) {
         oss << "$";
     }
@@ -2410,13 +2412,13 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
                     break; // home 147 93
                 case uint32_t(Os::KeyConstant::DEL):
                     Unicode::appendAsUtf8(str, 0x0014);
-                    break; // del   20 14
+                    break; // delete   20 14
                 case uint32_t(Os::KeyConstant::ESCAPE):
                     Unicode::appendAsUtf8(str, 0x001b);
                     break; // ESC   27 1b
                 case 0x00a3:
                     Unicode::appendAsUtf8(str, 0x005c);
-                    break; // pound unicode 163
+                    break; // pound Unicode 163
                 }
             }
             switch (valuePostfix(tk)) {
@@ -2489,11 +2491,11 @@ void Basic::handleINPUT(const std::vector<Token>& tokens) {
 
 // DIM statement (array declaration)
 inline void Basic::handleDIM(const std::vector<Token>& tokens) {
-    if (tokens.size() < 4)
+    if (tokens.size() < 2)
         return;
-    if (tokens[2].type != TokenType::PARENTHESIS || tokens.back().type != TokenType::PARENTHESIS) {
-        throw Error(ErrorId::SYNTAX);
-    }
+    // if (tokens[2].type != TokenType::PARENTHESIS || tokens.back().type != TokenType::PARENTHESIS) {
+    //     throw Error(ErrorId::SYNTAX);
+    // }
 
     // DIM a(b,c), d(e,f)
     auto& arrays = currentModule().arrays;
@@ -2504,8 +2506,19 @@ inline void Basic::handleDIM(const std::vector<Token>& tokens) {
         }
         std::string varName = tokens[i].value;
         ++i;
-        if (tokens[i].type != TokenType::PARENTHESIS || tokens[i].value != "(") {
-            throw Error(ErrorId::SYNTAX);
+        if (i >= tokens.size() || tokens[i].type != TokenType::PARENTHESIS || tokens[i].value != "(") {
+            Value* value = findLeftValue(currentModule(), tokens, i - 1, &i);
+            if (value == nullptr) {
+                throw Error(ErrorId::SYNTAX);
+            }
+            if (valueIsString(*value)) {
+                *value = "";
+            } else if (valueToInt(*value)) {
+                *value = 0;
+            } else {
+                *value = 0.0;
+            }
+            continue;
         }
 
         auto vals   = evaluateExpression(tokens, i + 1, &end);
@@ -2518,7 +2531,7 @@ inline void Basic::handleDIM(const std::vector<Token>& tokens) {
             throw Error(ErrorId::SYNTAX);
         }
 
-        // optinally more arrays
+        // optionally more arrays
         if (i + 2 < tokens.size() && tokens[i + 2].type != TokenType::COMMA) {
             throw Error(ErrorId::SYNTAX);
         } else {
@@ -2585,7 +2598,7 @@ void Basic::handleDELETE(const std::vector<Token>& tokens) {
     auto& lst = currentModule().listing;
     for (auto ln = lst.cbegin(); ln != lst.cend() /* not hoisted */; /* no increment */) {
         if (ln->first >= from && ln->first <= to) {
-            lst.erase(ln++); // or "ln = m.erase(it)" since C++11
+            lst.erase(ln++);
         } else {
             ++ln;
         }
@@ -2622,8 +2635,8 @@ void Basic::handleKEY(const std::vector<Token>& tokens) {
 void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
     int iarg = 0; // nth argument to assign
 
-    // iarg                 0   1   2
-    // RCHARDEF ichar, ismono, b1, b2, b3, b4, b5, b6, b7, b8
+    // i_arg         0        1   2
+    // RCHARDEF i_char, is_mono, b1, b2, b3, b4, b5, b6, b7, b8
 
     CharBitmap bmp;
     for (size_t itk = 1; itk < tokens.size(); ++itk) {
@@ -2639,11 +2652,11 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
                 } else {
                     // RCHARDEF CHR$(1+1), mono, a,b,c,d,e,f,g,h
                     throw Error(ErrorId::FORMULA_TOO_COMPLEX);
-                    // auto vals = evaluateExpression(tokens, itk + 1, &itk);
+                    // auto values = evaluateExpression(tokens, itk + 1, &itk);
                     // if (vals.size() != 1) {
                     //     throw Error(ErrorId::SYNTAX);
                     // }
-                    // str = valueToString(vals[0]);
+                    // str = valueToString(values[0]);
                 }
             } else {
                 throw Error(ErrorId::FORMULA_TOO_COMPLEX);
@@ -3279,13 +3292,18 @@ std::string Basic::inputLine(bool allowVertical) {
     bool movedVertical = false;
 
     auto typeString = [&](const std::string& s) {
-        auto tok  = tokenize(s);
-        auto vals = evaluateExpression(tok, 0);
-        if (vals.empty()) {
+        auto toks = tokenize(s);
+        if (toks.empty()) {
             return;
         }
-        for (auto& c : valueToString(vals[0])) {
-            os->putToKeyboardBuffer(c);
+        for (auto& tok : toks) {
+            auto vals = evaluateExpression(tok, 0);
+            if (vals.empty()) {
+                return;
+            }
+            for (auto& c : valueToString(vals[0])) {
+                os->putToKeyboardBuffer(c);
+            }
         }
     };
 
@@ -3441,9 +3459,14 @@ std::string Basic::inputLine(bool allowVertical) {
                 if (key.holdAlt) {
                     char32_t ctrlChar = 0;
                     switch (key.code) {
-                    case uint32_t(Os::KeyConstant::BACKSPACE): ctrlChar = 0x14; break;
-                    case uint32_t(Os::KeyConstant::DEL):       ctrlChar = 0x14; break;
-                    // case uint32_t(Os::KeyConstant::INSERT):ctrlChar = 0x94; break;
+                    case uint32_t(Os::KeyConstant::INSERT):
+                        // ctrlChar = 0x94;
+                        insertMode           = !insertMode;
+                        os->screen.dirtyFlag = true;
+                        break;
+
+                    case uint32_t(Os::KeyConstant::BACKSPACE):  ctrlChar = 0x14; break;
+                    case uint32_t(Os::KeyConstant::DEL):        ctrlChar = 0x14; break;
                     case uint32_t(Os::KeyConstant::CRSR_LEFT):  ctrlChar = 0x9d; break;
                     case uint32_t(Os::KeyConstant::CRSR_RIGHT): ctrlChar = 0x1d; break;
                     case uint32_t(Os::KeyConstant::CRSR_UP):    ctrlChar = 0x91; break;
@@ -3637,10 +3660,6 @@ void Basic::restoreColorsAndCursor(bool resetFont) {
     if (os->screen.getCursorPos().x != 0) {
         printUtf8String("\n");
     }
-    // clear keyboard buffer (ESC key mainly)
-    // while (os->keyboardBufferHasData()) {
-    //     os->getFromKeyboardBuffer();
-    // }
 }
 
 Basic::ParseStatus Basic::parseInput(const char* pline) {
@@ -3687,7 +3706,7 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
             }
 
             if (moduleListingStack.size() < moduleVariableStack.size()) {
-                // in immediate mode, the code stack must euqal the variable stack
+                // in immediate mode, the code stack must equal the variable stack
                 moduleListingStack.push_back(moduleVariableStack.back());
             }
             programCounter().line     = currentListing().begin();
@@ -3738,8 +3757,9 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
 
                 programWasRunning = true; // now, RUN or GOTO must have been called. We're running
                 continue;
+            } else {
+                executeTokens(tokens);
             }
-            executeTokens(tokens);
             os->updateKeyboardBuffer();
             os->presentScreen();
             handleEscapeKey();
@@ -3747,9 +3767,9 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
     } catch (Error e) {
         currentFileNo = 0;
         // dumpVariables();
-
-        std::string& line = programCounter().line->second;
-        int iline         = programCounter().line->first;
+        auto& pc          = programCounter();
+        std::string& line = pc.line->second;
+        int iline         = pc.line->first;
         if (iline >= 0) {
             restoreColorsAndCursor(true);
             std::string msg = "?" + errorMessages[e.ID] + " IN " + valueToString(iline);
@@ -3833,7 +3853,6 @@ void Basic::runInterpreter() {
         // debug("MODULE VARS "); debug(moduleVariableStack.back()->first.c_str()); debug("\n");
         // debug("MODULE CODE "); debug(moduleListingStack.back()->first.c_str()); debug("\n");
 
-        // std::getline(std::cin, line);
         try {
             line = inputLine(true);
         } catch (Error) {
@@ -3995,8 +4014,40 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
         const char* pc = str.c_str();
         int64_t n      = 0;
         if (parseInt(pc, &n) && n >= 0) {
-            iline                      = int(n);
-            listmodule.listing[int(n)] = skipWhite(pc);
+            iline                   = int(n);
+            const char* programline = skipWhite(pc);
+
+            if (iline == 1 && strncmp(programline, "REMBA67", 7) == 0) {
+                options.noSpaceSeparator = true;
+                options.dotAsZero        = true;
+            }
+            listmodule.listing[int(n)] = programline;
+
+            if (options.noSpaceSeparator) {
+                try {
+                    std::string reformated;
+                    auto commands = tokenize(programline);
+                    for (size_t icmd = 0; icmd < commands.size(); ++icmd) {
+                        if (icmd > 0) {
+                            reformated += ": ";
+                        }
+                        for (auto& t : commands[icmd]) {
+                            if (t.type == TokenType::STRING) {
+                                reformated += "\"" + t.value + "\"";
+                            } else if (t.type == TokenType::NUMBER && t.value == ".") {
+                                reformated += "0";
+                            } else {
+                                reformated += t.value;
+                            }
+                            reformated += " ";
+                        }
+                    }
+                    listmodule.listing[int(n)] = reformated;
+                } catch (...) {
+                    int what_is_wrong = 1;
+                }
+            }
+
             // while (!tokenize().empty()) {} // check sanity, but don't execute
         } else {
             listmodule.listing[iline] = skipWhite(pc);
@@ -4007,6 +4058,8 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
 
     delete[] buff;
     buff = nullptr;
+
+    options.noSpaceSeparator = false;
 
     return rv;
 }
@@ -4028,12 +4081,9 @@ bool Basic::saveProgram(std::string filenameUtf8) {
     return true;
 }
 
-#include <filesystem>
 bool Basic::fileExists(const std::string& filenameUtf8, bool allowWildCard) {
     if (allowWildCard) {
-        std::filesystem::path p(findFirstFileNameWildcard(filenameUtf8));
-        return std::filesystem::exists(p);
+        return os->doesFileExist(findFirstFileNameWildcard(filenameUtf8));
     }
-    std::filesystem::path p(filenameUtf8);
-    return std::filesystem::exists(p);
+    return os->doesFileExist(filenameUtf8);
 }

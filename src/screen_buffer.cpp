@@ -7,6 +7,55 @@ CharMap::CharMap()
     : ascii {} {
     unicode = new std::unordered_map<char32_t, CharBitmap>();
     Font::createCharmap(*this);
+    createColorControlCodes();
+}
+
+void CharMap::createColorControlCodes() {
+    // create multicolor "change color" characters
+    std::array<char32_t, 16> ctrls = {
+        0x90, // Black
+        0x05, // White
+        0x1c, // Red
+        0x9f, // Cyan
+        0x9c, // Purple
+        0x1e, // Green
+        0x1f, // Blue
+        0x9e, // Yellow
+        0x81, // Orange
+        0x95, // Brown
+        0x96, // Light Red
+        0x97, // Dark Gray
+        0x98, // Medium Gray
+        0x99, // Light Green
+        0x9a, // Light Blue
+        0x9b // Light Gray
+    };
+
+    uint8_t cc = 0;
+    for (char32_t c : ctrls) {
+        uint8_t bb = 11;
+        uint8_t ff = 1;
+        uint8_t mm = 15;
+        if (cc == 15) {
+            mm = 1;
+        }
+        CharBitmap& bm = at(c);
+        uint8_t cols[] = {
+            bb, ff, ff, ff, ff, ff, ff, bb,
+            ff, cc, cc, cc, cc, cc, cc, ff,
+            ff, ff, cc, cc, cc, ff, ff, ff,
+            ff, mm, cc, mm, cc, mm, mm, ff,
+            ff, mm, mm, mm, cc, mm, mm, ff,
+            ff, mm, mm, mm, mm, mm, mm, ff,
+            ff, mm, mm, mm, mm, mm, mm, ff,
+            bb, ff, ff, ff, ff, ff, ff, bb
+        };
+        bm.isMono = false;
+        for (int i = 0; i < 64; ++i) {
+            bm.setMulti(i, cols[i]);
+        }
+        ++cc;
+    }
 }
 
 static CharMap& charMap() {
@@ -415,6 +464,7 @@ void ScreenBuffer::resetDefaultColors() {
 
 void ScreenBuffer::resetCharmap(char32_t from, char32_t to) {
     Font::createCharmap(charMap(), from, to);
+    charMap().createColorControlCodes();
 }
 
 void ScreenBuffer::copyWithLock(ScreenBuffer& dst, const ScreenBuffer& src) {
@@ -593,7 +643,7 @@ void ScreenBuffer::drawLineContinuationPal(size_t yline) {
     size_t pixelY = yline * ScreenInfo::charPixY;
     for (size_t row = 0; row < ScreenInfo::charPixY; ++row) {
         for (size_t col = 0; col < ScreenInfo::charPixX; ++col) {
-            size_t pixelX     = ScreenInfo::pixX - ScreenInfo::charPixX + col;
+            size_t pixelX     = width * ScreenInfo::charPixX - ScreenInfo::charPixX + col;
             size_t pixelIndex = (pixelY + row) * (ScreenInfo::pixX) + pixelX;
             uint8_t& pcol     = pixels.at(pixelIndex);
             pcol              = buddyIndex[pcol];
