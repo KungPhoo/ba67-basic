@@ -2389,6 +2389,367 @@ void createCharmap(CharMap& charmap, char32_t from, char32_t to) {
             charmap.at(c.first) = charmap[c.second];
         }
     }
+}
+char32_t PETSCIItoUnicode(uint8_t petscii) {
+    // Mapping of PETSCII to Unicode
+    // See petscii-mapping.png
+    // There: orange: character is ascii -> not compatible with upper nor lowercase PETSCII
+    //        green:  character is taken from lower case font
+
+    // legend:
+    // (-) Unicode == PETSCII
+    // (!) Unicode character differs from PETSCII code
+    // (*) Character is neither upper nor lowercase PETSCII
+    // (?) No Unicode pendant was found. The PETSCII code is used
+
+    static char32_t petsciiMapping[256]
+        = {
+              /* 0x00, */ 0x0000, // (-) undefined
+              /* 0x01, */ 0x0001, // (-) undefined
+              /* 0x02, */ 0x0002, // (-) undefined
+              /* 0x03, */ 0x0003, // (-) ETX - End of text
+              /* 0x04, */ 0x0004, // (-) undefined
+              /* 0x05, */ 0x0005, // (-) white color
+              /* 0x06, */ 0x0006, // (-) undefined
+              /* 0x07, */ 0x0007, // (-) undefined
+              /* 0x08, */ 0x0008, // (-) disable Shift+C=
+              /* 0x09, */ 0x0009, // (-) enable  Shift+C=
+              /* 0x0A, */ 0x000A, // (-) '\n' (ASCII)
+              /* 0x0B, */ 0x000B, // (-) undefined
+              /* 0x0C, */ 0x000C, // (-) undefined
+              /* 0x0D, */ 0x000D, // (-) '\r'
+              /* 0x0E, */ 0x000E, // (-) lowercase
+              /* 0x0F, */ 0x000F, // (-) undefined
+              /* 0x10, */ 0x0010, // (-) undefined
+              /* 0x11, */ 0x0011, // (-) cursor down
+              /* 0x12, */ 0x0012, // (-) inverse colors
+              /* 0x13, */ 0x0013, // (-) home
+              /* 0x14, */ 0x0014, // (-) delete
+              /* 0x15, */ 0x0015, // (-) undefined
+              /* 0x16, */ 0x0016, // (-) undefined
+              /* 0x17, */ 0x0017, // (-) undefined
+              /* 0x18, */ 0x0018, // (-) undefined
+              /* 0x19, */ 0x0019, // (-) undefined
+              /* 0x1A, */ 0x001A, // (-) undefined
+              /* 0x1B, */ 0x001B, // (-) undefined
+              /* 0x1C, */ 0x001C, // (-) red color
+              /* 0x1D, */ 0x001D, // (-) cursor right
+              /* 0x1E, */ 0x001E, // (-) green color
+              /* 0x1F, */ 0x001F, // (-) blue color
+              /* 0x20, */ 0x0020, // (-) Space
+              /* 0x21, */ 0x0021, // (-) !
+              /* 0x22, */ 0x0022, // (-) "
+              /* 0x23, */ 0x0023, // (-) #
+              /* 0x24, */ 0x0024, // (-) $
+              /* 0x25, */ 0x0025, // (-) %
+              /* 0x26, */ 0x0026, // (-) &
+              /* 0x27, */ 0x0027, // (-) '
+              /* 0x28, */ 0x0028, // (-) (
+              /* 0x29, */ 0x0029, // (-) )
+              /* 0x2A, */ 0x002A, // (-) *
+              /* 0x2B, */ 0x002B, // (-) +
+              /* 0x2C, */ 0x002C, // (-) ,
+              /* 0x2D, */ 0x002D, // (-) -
+              /* 0x2E, */ 0x002E, // (-) .
+              /* 0x2F, */ 0x002F, // (-) '/'
+              /* 0x30, */ 0x0030, // (-) 0
+              /* 0x31, */ 0x0031, // (-) 1
+              /* 0x32, */ 0x0032, // (-) 2
+              /* 0x33, */ 0x0033, // (-) 3
+              /* 0x34, */ 0x0034, // (-) 4
+              /* 0x35, */ 0x0035, // (-) 5
+              /* 0x36, */ 0x0036, // (-) 6
+              /* 0x37, */ 0x0037, // (-) 7
+              /* 0x38, */ 0x0038, // (-) 8
+              /* 0x39, */ 0x0039, // (-) 9
+              /* 0x3A, */ 0x003A, // (-) :
+              /* 0x3B, */ 0x003B, // (-) ;
+              /* 0x3C, */ 0x003C, // (-) <
+              /* 0x3D, */ 0x003D, // (-) =
+              /* 0x3E, */ 0x003E, // (-) >
+              /* 0x3F, */ 0x003F, // (-) ?
+              /* 0x40, */ 0x0040, // (-) @
+              /* 0x41, */ 0x0041, // (-) A
+              /* 0x42, */ 0x0042, // (-) B
+              /* 0x43, */ 0x0043, // (-) C
+              /* 0x44, */ 0x0044, // (-) D
+              /* 0x45, */ 0x0045, // (-) E
+              /* 0x46, */ 0x0046, // (-) F
+              /* 0x47, */ 0x0047, // (-) G
+              /* 0x48, */ 0x0048, // (-) H
+              /* 0x49, */ 0x0049, // (-) I
+              /* 0x4A, */ 0x004A, // (-) J
+              /* 0x4B, */ 0x004B, // (-) K
+              /* 0x4C, */ 0x004C, // (-) L
+              /* 0x4D, */ 0x004D, // (-) M
+              /* 0x4E, */ 0x004E, // (-) N
+              /* 0x4F, */ 0x004F, // (-) O
+              /* 0x50, */ 0x0050, // (-) P
+              /* 0x51, */ 0x0051, // (-) Q
+              /* 0x52, */ 0x0052, // (-) R
+              /* 0x53, */ 0x0053, // (-) S
+              /* 0x54, */ 0x0054, // (-) T
+              /* 0x55, */ 0x0055, // (-) U
+              /* 0x56, */ 0x0056, // (-) V
+              /* 0x57, */ 0x0057, // (-) W
+              /* 0x58, */ 0x0058, // (-) X
+              /* 0x59, */ 0x0059, // (-) Y
+              /* 0x5A, */ 0x005A, // (-) Z
+              /* 0x5B, */ 0x005B, // (-) [
+              /* 0x5C, */ 0x00A3, // (*) pound sign !There's no backslash '\' in PETSCII!
+              /* 0x5D, */ 0x005D, // (-) ]
+              /* 0x5E, */ 0x2191, // (!) arrow up
+              /* 0x5F, */ 0x2190, // (!) arrow left
+              /* 0x60, */ 0x2501, // (!) box drawings light horizontal
+              /* 0x61, */ 0x0061, // (*) a  - LOWERCASE - COMPATIBLE WITH ASCII - NOT PETSCI!
+              /* 0x62, */ 0x0062, // (*) b
+              /* 0x63, */ 0x0063, // (*) c
+              /* 0x64, */ 0x0064, // (*) d
+              /* 0x65, */ 0x0065, // (*) e
+              /* 0x66, */ 0x0066, // (*) f
+              /* 0x67, */ 0x0067, // (*) g
+              /* 0x68, */ 0x0068, // (*) h
+              /* 0x69, */ 0x0069, // (*) i
+              /* 0x6A, */ 0x006A, // (*) j
+              /* 0x6B, */ 0x006B, // (*) k
+              /* 0x6C, */ 0x006C, // (*) l
+              /* 0x6D, */ 0x006D, // (*) m
+              /* 0x6E, */ 0x006E, // (*) n
+              /* 0x6F, */ 0x006F, // (*) o
+              /* 0x70, */ 0x0070, // (*) p
+              /* 0x71, */ 0x0071, // (*) q
+              /* 0x72, */ 0x0072, // (*) r
+              /* 0x73, */ 0x0073, // (*) s
+              /* 0x74, */ 0x0074, // (*) t
+              /* 0x75, */ 0x0075, // (*) u
+              /* 0x76, */ 0x0076, // (*) v
+              /* 0x77, */ 0x0077, // (*) w
+              /* 0x78, */ 0x0078, // (*) x
+              /* 0x79, */ 0x0079, // (*) y
+              /* 0x7A, */ 0x007A, // (*) z  - END LOWERCASE - COMPATIBLE WITH ASCII - NOT PETSCI!
+              /* 0x7B, */ 0x253C, // (-) box drawings light vertical and horizontal
+              /* 0x7C, */ 0x28b8, // (!) braille 4 vertical dots (bad)
+              /* 0x7D, */ 0x2502, // (!) box drawings light vertical
+              /* 0x7E, */ 0x03C0, // (!) greek small letter pi
+              /* 0x7F, */ 0x25E5, // (!) black upper right triangle
+              /* 0x80, */ 0x0080, // (-) undefined
+              /* 0x81, */ 0x0081, // (-) orange color switch
+              /* 0x82, */ 0x0082, // (-) undefined
+              /* 0x83, */ 0x0083, // (-) run
+              /* 0x84, */ 0x0084, // (-) undefined
+              /* 0x85, */ 0x0085, // (-) F1
+              /* 0x86, */ 0x0086, // (-) F3
+              /* 0x87, */ 0x0087, // (-) F5
+              /* 0x88, */ 0x0088, // (-) F7
+              /* 0x89, */ 0x0089, // (-) F2
+              /* 0x8A, */ 0x008A, // (-) F4
+              /* 0x8B, */ 0x008B, // (-) F6
+              /* 0x8C, */ 0x008C, // (-) F8
+              /* 0x8D, */ 0x008D, // (-) Shift+Return
+              /* 0x8E, */ 0x008E, // (-) Uppercase
+              /* 0x8F, */ 0x008F, // (-) undefined
+              /* 0x90, */ 0x0090, // (-) black color
+              /* 0x91, */ 0x0091, // (-) cursor up
+              /* 0x92, */ 0x0092, // (-) turn off inverse colors
+              /* 0x93, */ 0x0093, // (-) clear
+              /* 0x94, */ 0x0094, // (-) insert
+              /* 0x95, */ 0x0095, // (-) brown color
+              /* 0x96, */ 0x0096, // (-) pink/light red color
+              /* 0x97, */ 0x0097, // (-) dark gray color
+              /* 0x98, */ 0x0098, // (-) medium gray color
+              /* 0x99, */ 0x0099, // (-) light green color
+              /* 0x9A, */ 0x009A, // (-) light blue color
+              /* 0x9B, */ 0x009B, // (-) light gray color
+              /* 0x9C, */ 0x009C, // (-) purple color
+              /* 0x9D, */ 0x009D, // (-) cursor left
+              /* 0x9E, */ 0x009E, // (-) yellow color
+              /* 0x9F, */ 0x009F, // (-) cyan color
+              /* 0xA0, */ 0x00A0, // (-) no breaking space
+              /* 0xA1, */ 0x258C, // (!) left half block
+              /* 0xA2, */ 0x2584, // (!) lower half block
+              /* 0xA3, */ 0x00A3, // (*) pound sign (compatible with ASCII!)
+              /* 0xA4, */ 0x2581, // (!) lower one eighth block
+              /* 0xA5, */ 0x258F, // (!) left one eighth block
+              /* 0xA6, */ 0x2592, // (!) medium shade
+              /* 0xA7, */ 0x2595, // (!) right one eighth block
+              /* 0xA8, */ 0x28b8, // (!) braille 4 vertical dots (bad)
+              /* 0xA9, */ 0x25E4, // (!) black upper left triangle
+              /* 0xAA, */ 0x2595, // (!) right one quarter block (unicode is eights)
+              /* 0xAB, */ 0x251C, // (!) box drawings light vertical and right
+              /* 0xAC, */ 0x00AC, // (!) black small square lower right
+              /* 0xAD, */ 0x2514, // (!) box drawings light up and right
+              /* 0xAE, */ 0x2510, // (!) box drawings light down and left
+              /* 0xAF, */ 0x2582, // (!) lower one quarter block
+              /* 0xB0, */ 0x250C, // (!) box drawings light down and right
+              /* 0xB1, */ 0x2534, // (!) box drawings light up and horizontal
+              /* 0xB2, */ 0x252C, // (!) box drawings light down and horizontal
+              /* 0xB3, */ 0x2524, // (!) box drawings light vertical and left
+              /* 0xB4, */ 0x258E, // (!) left one quarter block
+              /* 0xB5, */ 0x258D, // (!) left three eights block
+              /* 0xB6, */ 0x2590, // (!) right three eights block (unicode is right half)
+              /* 0xB7, */ 0x2594, // (!) upper one quarter block (unicode is eights)
+              /* 0xB8, */ 0x2580, // (!) upper three eights block (unicode is half)
+              /* 0xB9, */ 0x2583, // (!) lower three eights block
+              /* 0xBA, */ 0x231F, // (!) bottom right corner
+              /* 0xBB, */ 0x2596, // (!) black small square lower left
+              /* 0xBC, */ 0x259D, // (!) black small square upper rights
+              /* 0xBD, */ 0x2518, // (!) box drawings light up and left
+              /* 0xBE, */ 0x2598, // (!) black small square upper left
+              /* 0xBF, */ 0x259A, // (!) two small black squares diagonal left to right
+              /* 0xC0, */ 0x2501, // (!) box drawings light horizontal
+              /* 0xC1, */ 0x2660, // (!) black spade suit
+              /* 0xC2, */ 0x2502, // (!) box drawings light vertical
+              /* 0xC3, */ 0x2501, // (!) box drawings light horizontal
+              /* 0xC4, */ 0x00C4, // (?) box drawings light horizontal one quarter up
+              /* 0xC5, */ 0x2594, // (!) box drawings light horizontal two quarters up (bad)
+              /* 0xC6, */ 0x00C6, // (?) box drawings light horizontal one quarter down
+              /* 0xC7, */ 0x00C7, // (?) box drawings light vertical one quarter left
+              /* 0xC8, */ 0x00C8, // (?) box drawings light vertical one quarter right
+              /* 0xC9, */ 0x256E, // (!) box drawings light arc down and left
+              /* 0xCA, */ 0x2570, // (!) box drawings light arc up and right
+              /* 0xCB, */ 0x256F, // (!) box drawings light arc up and left
+              /* 0xCC, */ 0x231e, // (!) bottom left corner
+              /* 0xCD, */ 0x2572, // (!) box drawings light diagonal upper left to lower right
+              /* 0xCE, */ 0x2571, // (!) box drawings light diagonal upper right to lower left
+              /* 0xCF, */ 0x231C, // (!) top left corner
+              /* 0xD0, */ 0x231D, // (!) top right corner
+              /* 0xD1, */ 0x25CF, // (!) black circle
+              /* 0xD2, */ 0x00d1, // (?) box drawings light horizontal two quarters down
+              /* 0xD3, */ 0x2665, // (!) black heart suit
+              /* 0xD4, */ 0x00d4, // (?) box drawings light vertical two quarters left
+              /* 0xD5, */ 0x256D, // (!) box drawings light arc down and left
+              /* 0xD6, */ 0x2573, // (!) box drawings light diagonal cross
+              /* 0xD7, */ 0x25CB, // (!) donut
+              /* 0xD8, */ 0x2663, // (!) black club suit
+              /* 0xD9, */ 0x00D9, // (?) box drawings light vertical two quarters right
+              /* 0xDA, */ 0x2666, // (!) black diamond suit
+              /* 0xDB, */ 0x253C, // (!) box drawings light vertical and horizontal
+              /* 0xDC, */ 0x28b8, // (!) braille 4 vertical dots (bad)
+              /* 0xDD, */ 0x2502, // (!) box drawings light vertical
+              /* 0xDE, */ 0x03C0, // (!) greek small letter pi
+              /* 0xDF, */ 0x2037, // (!) medium shade slashed left  --- from lowercase -> reversed tripple prime
+              /* 0xE0, */ 0x00E0, // (-) no-break space
+              /* 0xE1, */ 0x258C, // (!) left half block
+              /* 0xE2, */ 0x2584, // (!) lower half block
+              /* 0xE3, */ 0x2594, // (!) upper one eighth block
+              /* 0xE4, */ 0x2581, // (!) lower one eighth block
+              /* 0xE5, */ 0x258F, // (!) left one eighth block
+              /* 0xE6, */ 0x2592, // (!) medium shade
+              /* 0xE7, */ 0x2595, // (!) right one eighth block
+              /* 0xE8, */ 0x2836, // (!) braille pattern 4 dots at bottom (bad)
+              /* 0xE9, */ 0x2034, // (!) slashed block right -> tripple prime
+              /* 0xEA, */ 0x2595, // (!) right one quarter block (unicode is eights)
+              /* 0xEB, */ 0x251C, // (!) box drawings light vertical and right
+              /* 0xEC, */ 0x2597, // (!) black small square lower right
+              /* 0xED, */ 0x2514, // (!) box drawings light up and right
+              /* 0xEE, */ 0x2510, // (!) box drawings light down and left
+              /* 0xEF, */ 0x2582, // (!) lower one quarter block
+              /* 0xF0, */ 0x250C, // (!) box drawings light down and right
+              /* 0xF1, */ 0x2534, // (!) box drawings light up and horizontal
+              /* 0xF2, */ 0x252C, // (!) box drawings light down and horizontal
+              /* 0xF3, */ 0x2524, // (!) box drawings light vertical and left
+              /* 0xF4, */ 0x258E, // (!) left one quarter block
+              /* 0xF5, */ 0x258D, // (!) left three eights block
+              /* 0xF6, */ 0x2590, // (!) right three eights block (unicode is right half)
+              /* 0xF7, */ 0x2594, // (!) upper one quarter block (unicode is eights)
+              /* 0xF8, */ 0x2580, // (!) upper three eights block (unicode is half)
+              /* 0xF9, */ 0x2583, // (!) lower three eights block
+              /* 0xFA, */ 0x2713, // (!) check mark  --- from lowercase
+              /* 0xFB, */ 0x2596, // (!) black small square lower left
+              /* 0xFC, */ 0x259D, // (!) black small square upper right
+              /* 0xFD, */ 0x2518, // (!) box drawings light up and left
+              /* 0xFE, */ 0x2598, // (!) black small square upper left
+              /* 0xFF, */ 0x2592 //  (!) medium shade  --- from lowercase
+          };
+    return petsciiMapping[petscii];
 };
+
+// parse the next character and escape the petcat {$xx} strings
+// return unicode representation
+char32_t parseNextPetcat(const char*& str) {
+    static std::unordered_map<std::string, char32_t> petcatMap;
+    if (petcatMap.empty()) {
+        static const char* digits = "0123456789abcdef";
+
+        for (int n = 0; n < 256; ++n) {
+            size_t hex_len = 2;
+            std::string hex(hex_len, '0');
+            for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
+                hex[i] = digits[(n >> j) & 0x0f];
+            petcatMap["{$" + hex + "}"] = PETSCIItoUnicode(n);
+        }
+
+
+        /* keys for charcodes 0xa0-0xe0 */
+        static const char* cbmkeys[0x40] = {
+            "SHIFT-SPACE", "CBM-K", "CBM-I", "CBM-T", "CBM-@", "CBM-G", "CBM-+", "CBM-M",
+            "CBM-POUND", "SHIFT-POUND", "CBM-N", "CBM-Q", "CBM-D", "CBM-Z", "CBM-S", "CBM-P",
+            "CBM-A", "CBM-E", "CBM-R", "CBM-W", "CBM-H", "CBM-J", "CBM-L", "CBM-Y",
+            "CBM-U", "CBM-O", "SHIFT-@", "CBM-F", "CBM-C", "CBM-X", "CBM-V", "CBM-B",
+            "SHIFT-*", "SHIFT-A", "SHIFT-B", "SHIFT-C", "SHIFT-D", "SHIFT-E", "SHIFT-F", "SHIFT-G",
+            "SHIFT-H", "SHIFT-I", "SHIFT-J", "SHIFT-K", "SHIFT-L", "SHIFT-M", "SHIFT-N", "SHIFT-O",
+            "SHIFT-P", "SHIFT-Q", "SHIFT-R", "SHIFT-S", "SHIFT-T", "SHIFT-U", "SHIFT-V", "SHIFT-W",
+            "SHIFT-X", "SHIFT-Y", "SHIFT-Z", "SHIFT-+", "CBM--", "SHIFT--", "SHIFT-^", "CBM-*"
+        };
+        for (int i = 0; i < sizeof(cbmkeys) / sizeof(cbmkeys[0]); ++i) {
+            const char* it = cbmkeys[i];
+            if (*it == '\0') {
+                continue;
+            }
+            petcatMap["{" + std::string(it) + "}"] = PETSCIItoUnicode(i + 0xa0);
+        }
+
+        /* 0x00 - 0x1f (petcat) */
+        static const char* ctrl1[0x20] = {
+            "", "CTRL-A", "CTRL-B", "stop", "CTRL-D", "wht", "CTRL-F", "CTRL-G",
+            "dish", "ensh", "\n", "CTRL-K", "CTRL-L", "\n", "swlc", "CTRL-O",
+            "CTRL-P", "down", "rvon", "home", "del", "CTRL-U", "CTRL-V", "CTRL-W",
+            "CTRL-X", "CTRL-Y", "CTRL-Z", "esc", "red", "rght", "grn", "blu"
+        };
+        for (int i = 0; i < sizeof(ctrl1) / sizeof(ctrl1[0]); ++i) {
+            const char* it = ctrl1[i];
+            if (*it == '\0') {
+                continue;
+            }
+            petcatMap["{" + std::string(it) + "}"] = PETSCIItoUnicode(i + 0x00);
+        }
+
+        /* 0x80 - 0x9f (petcat) */
+        static const char* ctrl2[0x20] = {
+            "", "orng", "", "", "", "f1", "f3", "f5",
+            "f7", "f2", "f4", "f6", "f8", "sret", "swuc", "",
+            "blk", "up", "rvof", "clr", "inst", "brn", "lred", "gry1",
+            "gry2", "lgrn", "lblu", "gry3", "pur", "left", "yel", "cyn"
+        };
+        for (int i = 0; i < sizeof(ctrl2) / sizeof(ctrl2[0]); ++i) {
+            const char* it = ctrl2[i];
+            if (*it == '\0') {
+                continue;
+            }
+            petcatMap["{" + std::string(it) + "}"] = PETSCIItoUnicode(i + 0x80);
+        }
+    }
+
+
+    if (*str == '{') {
+        for (auto mp : petcatMap) {
+            size_t len = mp.first.length();
+            if (_strnicmp(str, mp.first.c_str(), len) == 0) {
+                str += len;
+                return mp.second;
+            }
+        }
+#if _DEBUG
+        *(int*)0 = 0;
+#endif
+        while (*str != '}' && *str != '\0') {
+            ++str;
+        }
+        return U'?';
+    }
+
+    return char32_t(*str++);
+}
+
 
 } // namespace Font

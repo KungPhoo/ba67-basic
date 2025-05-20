@@ -618,7 +618,7 @@ void cmdPOKE(Basic* basic, const std::vector<Basic::Value>& values) {
     }
     int64_t address = basic->valueToInt(values[0]);
     int64_t value   = basic->valueToInt(values[2]);
-    if (address < 0 || address >= basic->memory.size()) {
+    if (address < 0 || address >= int64_t(basic->memory.size())) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
     basic->memory[address] = value & 0xff;
@@ -1297,11 +1297,11 @@ inline bool Basic::parseKeyword(const char*& str, std::string* keyword) {
     for (auto& k : keywords) {
         if (strncmp(str, k.c_str(), k.length()) == 0
             && (isEndOfWord(str[k.length()]) || options.noSpaceSeparator)) {
-            if (keyword) {
+            if (keyword != nullptr) {
                 *keyword = std::string(str, str + k.length());
-                str += k.length();
-                return true;
             }
+            str += k.length();
+            return true;
         }
     }
     return false;
@@ -1313,11 +1313,11 @@ inline bool Basic::parseCommand(const char*& str, std::string* command) {
         if (strncmp(str, k.first.c_str(), k.first.length()) == 0
             && (isEndOfWord(str[k.first.length()]) || options.noSpaceSeparator) /*this differs from MS BASIC*/
         ) {
-            if (command) {
+            if (command != nullptr) {
                 *command = std::string(str, str + k.first.length());
-                str += k.first.length();
-                return true;
             }
+            str += k.first.length();
+            return true;
         }
     }
     return false;
@@ -1389,11 +1389,22 @@ inline bool Basic::parseIdentifier(const char*& str, std::string* identifier) {
     if ((*str >= 'A' && *str <= 'Z') || (*str >= 'a' && *str <= 'z')) {
         const char* pend = str;
 
-        // alpha-numeric
-        // while (isalnum(*pend)) {
-        while (!isEndOfWord(*pend)) {
-            ++pend;
+        if (options.noSpaceSeparator) {
+            while (!isEndOfWord(*pend)) {
+                const char* test = pend;
+                if (parseKeyword(test) || parseCommand(test)) {
+                    break;
+                }
+                ++pend;
+            }
+        } else {
+            // alpha-numeric
+            // while (isalnum(*pend)) {
+            while (!isEndOfWord(*pend)) {
+                ++pend;
+            }
         }
+
 
         // type postfix
         if (*pend == '$' || *pend == '%') {
@@ -1431,6 +1442,8 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
     int64_t i;
     std::string str, str2;
 
+    bool rememberNoSpace = options.noSpaceSeparator;
+
     while (*pc != '\0') {
         skipWhite(pc);
         const char* pcBeforeParse = pc;
@@ -1441,6 +1454,9 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
                 while (*pc != '\0') {
                     ++pc;
                 }
+            }
+            if (rememberNoSpace && str == "DATA") { // in DATA, don't split unquoted OTTO to OT TO
+                options.noSpaceSeparator = false;
             }
         } else if (parseCommand(pc, &str)) {
             tokens.push_back({ TokenType::COMMAND, str });
@@ -1474,9 +1490,11 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
             ++pc;
             break; // end of command
         } else if (*pc != '\0') {
+            options.noSpaceSeparator = rememberNoSpace;
             throw Error(ErrorId::SYNTAX);
         }
     }
+    options.noSpaceSeparator = rememberNoSpace;
 
     // fix negative unary operators
     // a + -5
@@ -2548,13 +2566,19 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
         if (from < 0) {
             from = 0;
         }
+        to = from;
     }
-    if (tokens.size() > 3 && tokens[2].type == TokenType::OPERATOR) {
-        to = int(valueToInt(tokens[3].value));
-        if (to < from) {
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+    if (tokens.size() > 2 && tokens[2].type == TokenType::OPERATOR) {
+        to = 0x7fffffff;
+
+        if (tokens.size() > 3) {
+            to = int(valueToInt(tokens[3].value));
+            if (to < from) {
+                throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+            }
         }
     }
+
 
     std::string sline;
     for (auto& ln : currentModule().listing) {
@@ -3059,6 +3083,10 @@ void Basic::handleREAD(std::vector<Token>& tokens) {
             }
 
             Value val = readNextData();
+
+            std::string dbg = valueToString(programCounter().line->first) + ": " + valueToString(val) + "\n";
+            printUtf8String(dbg);
+            // #error fori=qtoq
             switch (valuePostfix(tk)) {
             case '$':
                 if (!valueIsString(val)) {
@@ -3956,6 +3984,8 @@ bool Basic::loadProgram(const char* filenameUtf8) {
     #define strtok_r strtok_s
 #endif
 
+
+#include "font.h"
 bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
     std::string foundname = findFirstFileNameWildcard(inOutFilenameUtf8);
 
@@ -4003,9 +4033,10 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
     char* line       = strtok_r(buff, "\r\n", &next_token);
 
     std::string str;
-    auto& listmodule = moduleListingStack.back()->second;
-    int iline        = 0;
-    bool rv          = true;
+    auto& listmodule  = moduleListingStack.back()->second;
+    int iline         = 0;
+    bool rv           = true;
+    bool escapePetcat = false;
     while (line != NULL) {
         ++iline;
         str = line;
@@ -4020,6 +4051,10 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
             if (iline == 1 && strncmp(programline, "REMBA67", 7) == 0) {
                 options.noSpaceSeparator = true;
                 options.dotAsZero        = true;
+
+                if (strstr(programline, "PETCAT") != nullptr) {
+                    escapePetcat = true;
+                }
             }
             listmodule.listing[int(n)] = programline;
 
@@ -4031,15 +4066,39 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
                         if (icmd > 0) {
                             reformated += ": ";
                         }
-                        for (auto& t : commands[icmd]) {
-                            if (t.type == TokenType::STRING) {
+
+                        auto& cmdTokens = commands[icmd];
+                        if (cmdTokens.empty()) {
+                            continue;
+                        }
+                        bool quote = true;
+                        if (cmdTokens.front().value == "REM") {
+                            quote = false;
+                        }
+                        auto needsSpace = [](char c) { return (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'); };
+                        for (auto& t : cmdTokens) {
+
+                            if (reformated.empty() || needsSpace(reformated.back())) {
+                                reformated += " ";
+                            }
+
+                            if (t.type == TokenType::STRING && quote) {
+                                if (escapePetcat) {
+                                    std::string esc;
+                                    const char* str = t.value.c_str();
+                                    while (*str != '\0') {
+                                        char32_t cp = Font::parseNextPetcat(str);
+                                        Unicode::appendAsUtf8(esc, cp);
+                                    }
+                                    t.value = esc;
+                                }
+
                                 reformated += "\"" + t.value + "\"";
                             } else if (t.type == TokenType::NUMBER && t.value == ".") {
                                 reformated += "0";
                             } else {
                                 reformated += t.value;
                             }
-                            reformated += " ";
                         }
                     }
                     listmodule.listing[int(n)] = reformated;

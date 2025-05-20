@@ -141,12 +141,12 @@ protected:
         INTEGER,
         STRING,
         IDENTIFIER /*variable name*/,
+        COMMA,
         OPERATOR,
         UNARY_OPERATOR,
         KEYWORD,
         COMMAND,
         PARENTHESIS,
-        COMMA,
         MODULE,
         FILEHANDLE,
 
@@ -167,7 +167,7 @@ public:
 
     std::unordered_map<std::string, cmdpointer> commands;
     std::unordered_map<std::string, fktpointer> functions;
-    std::array<uint8_t, 0x1000> memory; // for PEEK&POKE - no other use
+    std::array<uint8_t, 0x20000> memory; // for PEEK&POKE - no other use
 
     // Arrays
     struct ArrayIndex {

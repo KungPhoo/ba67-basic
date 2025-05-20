@@ -128,7 +128,8 @@ int main(int argc, char** argv) {
     // run bas program from command line
     for (size_t i = 1; i < args.size(); ++i) {
         if (
-            (args[i].ends_with(".bas") || args[i].ends_with(".ba67")) && basic.loadProgram(args[i])) {
+            (args[i].ends_with(".bas") || args[i].ends_with(".ba67"))
+            && basic.loadProgram(args[i])) {
             basic.parseInput("RUN");
             break;
         }

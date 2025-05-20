@@ -245,6 +245,7 @@ After loading, the parser returns to the default behavior.
 
 ### Quotes
 You can use double and single quotes. This way it's easier
+You can use double and single quotes. This way it's easier
 to use quotes in a string. The following is perfectly legal,
 but breaks compatibility with Commodore BASIC V7.0 code:
 ```
@@ -361,6 +362,7 @@ Functions always take at least one argument in braces.
 **Usage:** `DATA value, value, string, "string with spaces", ...`
 
 Provides data variables to be used with the READ keyword.
+Empty values `DATA ,,,` are not allowed.
 
 ### DEF FN
 **Usage** `DEF FN NAME(ARG[, ARG2, ...]) = ARG+ARG2...*`
