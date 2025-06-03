@@ -109,16 +109,20 @@ void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
         basic->os->screen.setTextColor(color - 1);
         color = old;
     }
-    /// basic->printUtf8String(text.c_str());
-    const char* utf8 = text.c_str();
-    while (*utf8 != '\0') {
-        basic->os->screen.putC(Unicode::parseNextUtf8(utf8));
-    }
-    if (color > 0) {
-        // restore old color
-        basic->os->screen.setTextColor(color);
-    }
 
+    basic->printUtf8String(text.c_str(), true /* apply control characters */);
+    // const char* utf8 = text.c_str();
+    // while (*utf8 != '\0') {
+    //     basic->os->screen.putC(Unicode::parseNextUtf8(utf8));
+    // }
+
+    // No. The set color remains
+    // if (color > 0) {
+    //     // restore old color
+    //     basic->os->screen.setTextColor(color);
+    // }
+
+    // inverse flag is only for this string
     if (inverse) {
         basic->os->screen.inverseColours();
     }
@@ -2143,19 +2147,19 @@ void Basic::handleMODULE(const std::vector<Token>& tokens) {
 }
 
 void Basic::doPrintValue(Value& v) {
-    if (valueIsOperator(v)) {
-        if (auto op = std::get_if<Basic::Operator>(&v)) {
-            if (op->value == ",") {
-                if (currentFileNo == 0) {
-                    auto crsr = os->screen.getCursorPos();
-                    os->screen.setCursorPos({ (crsr.x / 10 + 1) * 10, crsr.y });
-                } else {
-                    printUtf8String("    ");
-                }
-            } else if (op->value == ";") {
-                // do nothing
+    // if (valueIsOperator(v)) {
+    if (auto op = std::get_if<Basic::Operator>(&v)) {
+        if (op->value == ",") {
+            if (currentFileNo == 0) {
+                auto crsr = os->screen.getCursorPos();
+                os->screen.setCursorPos({ (crsr.x / 10 + 1) * 10, crsr.y });
+            } else {
+                printUtf8String("    ");
             }
+        } else if (op->value == ";") {
+            // do nothing
         }
+        // }
     } else {
         if (valueIsString(v)) {
             printUtf8String(Basic::valueToString(v), true /* apply control characters */);

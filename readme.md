@@ -17,6 +17,9 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
   - [Unicode](#unicode)
   - [Variables](#variables)
   - [Files](#files)
+    - [Filesystem](#filesystem)
+    - [boot.bas](#boot-bas)
+    - [Line 1 Hack](#line-1-hack)
   - [Keywords, Commands, Functions](#keywords--commands--functions)
   - [Keywords](#keywords)
     - [DATA](#data)
@@ -241,7 +244,6 @@ There is a hack, though. If you add the line number 1 and
 start with the comment `1 REMBA67` - no spaces between `REM`
 and `BA67` - then the interpreter switches to the Commodore
 style parsing and reformats your code with spaces.
-After loading, the parser returns to the default behavior.
 
 ### Quotes
 You can use double and single quotes. This way it's easier
@@ -331,10 +333,21 @@ each statement is evaluated. These are:
 | --------- | -------------------------------- |
 | TI        | current system time in 1/60 sec. |
 
+-------------------------------------------------------------
 ## Files
-The class that derives from the C++ class `Os` should set
-the start directory to a location, where BASIC programs are
-to be saved.
+### Filesystem
+Internally, the file system is no case sensitive. Even on
+operating systems that are! So you can load "GAME.BAS", even
+if the file is names "game.bas" on the drive. Same goes for
+overwriting existing files.
+
+In most cases you can use wildcard characters `*` and `?`
+for loading existing files.
+
+### boot.bas
+The C++ class that derives from the C++ class `Os` should
+set the start directory to a location, where BASIC programs
+are to be saved.
 
 When starting, the interpreter will load and run the
 file "boot.bas" from the start directory and call `NEW`
@@ -345,6 +358,21 @@ adjust the `KEY` shortcuts etc.
 
 The interpreter can load files without line numbers and will
 numerate them automatically.
+
+### Line 1 Hack
+If you add the line number 1 and start with the comment
+`1 REMBA67` - no spaces between `REM` and `BA67` - then
+the interpreter switches to the Commodore style parsing and
+reformats your code with spaces.
+
+The line `1 REMBA67` also can add more keywords. These are
+ - `PETCAT` parse the `petcat` program's escaping of
+            characters. Use e.g.
+            `petcat -70 -f -o "output.bas" -- "input.prg"`
+
+After loading, the parser returns to the default behavior.
+Don't forget to backup and remove line `1` before saving.
+
 
 -------------------------------------------------------------
 ## Keywords, Commands, Functions
