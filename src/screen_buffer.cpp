@@ -530,6 +530,7 @@ void ScreenBuffer::dropFirstLine() {
     if (cursor.y > 0) {
         --cursor.y;
     }
+    ++scrollCount;
 }
 
 void ScreenBuffer::manageOverflow() {

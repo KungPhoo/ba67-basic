@@ -71,7 +71,11 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     // settings.window.icons[0].type = fplImageType_RGBA;
 
     if (!fplPlatformInit(
-            /*fplInitFlags_Console | fplInitFlags_Audio |*/ fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_GameController,
+#ifdef _DEBUG
+            fplInitFlags_Console |
+#endif
+                /* fplInitFlags_Audio |*/
+                fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_GameController,
             &settings)) {
         return false;
     }

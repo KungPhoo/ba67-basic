@@ -224,8 +224,9 @@ public:
     static const size_t maxHeight = ScreenInfo::charsY;
 
     // current screen mode's screen size in characters
-    size_t width  = 40;
-    size_t height = maxHeight;
+    size_t width       = 40;
+    size_t height      = maxHeight;
+    size_t scrollCount = 0;
 
     // pixel site of borders
     struct WindowPixels {

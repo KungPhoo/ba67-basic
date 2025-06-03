@@ -115,7 +115,7 @@ public:
 
         // utf32 representation of the input character, or one of KeyConstant.
         // Provides both, upper and lowercase.
-        uint32_t code  = 0;
+        char32_t code  = 0;
         bool printable = false; // true: visible character, false: cursor keys etc.
         bool holdShift = false;
         bool holdAlt   = false;

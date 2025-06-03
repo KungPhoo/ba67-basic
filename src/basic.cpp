@@ -1554,7 +1554,7 @@ inline int Basic::precedence(const std::string& op) {
     if (op == "AND" || op == "OR") {
         return __LINE__ - line0;
     }
-    if (op == "<" || op == ">" || op == "<>") {
+    if (op == "<" || op == ">" || op == "<>" || op == "<=" || op == ">=") {
         return __LINE__ - line0;
     }
     if (op == "=") {
@@ -1611,7 +1611,7 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
 // put start to inside the brace '(' - endPtr will point to matching the closing brace
 std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd) {
     std::vector<Value> output;
-
+    // printf("Evaluate expression***\n");
     std::vector<Value> values;
     std::vector<std::string> ops;
 
@@ -1759,11 +1759,13 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
 
     // take operation from stack, execute it and put the result on the value stack
     auto applyOp = [&]() -> void {
-        // debug("______________\n");
+        // printf("______________\n");
         // for (auto& v : values) {
-        //     debug(valueToString(v).c_str()); debug("\n");
+        //     printf(valueToString(v).c_str());
+        //     printf("\n");
         // }
-        // debug(ops.back().c_str()); debug("\n");
+        // printf(ops.back().c_str());
+        // printf("\n");
 
         std::string op = ops.back();
         ops.pop_back();
@@ -3349,6 +3351,7 @@ std::string Basic::inputLine(bool allowVertical) {
     bool isSelecting          = false;
     auto cursorAtStartOfInput = startCrsr;
     auto startSelection       = startCrsr;
+    size_t oldScrollCount     = os->screen.scrollCount;
 
     for (;;) {
         os->presentScreen();
@@ -3384,14 +3387,14 @@ std::string Basic::inputLine(bool allowVertical) {
                     auto str32            = os->screen.getSelectedText(startSelection, os->screen.getCursorPos());
                     std::string clipboard = Unicode::toUtf8String(str32.c_str());
                     if (clipboard.length() > 0) {
-                        printf("copy %s\n", clipboard.c_str());
+                        // printf("copy %s\n", clipboard.c_str());
                         os->setClipboardData(clipboard);
                     }
                     break;
                 }
                 case U'V': {
                     std::string clipboard = os->getClipboardData();
-                    printf("pasted %s\n", clipboard.c_str());
+                    // printf("pasted %s\n", clipboard.c_str());
                     if (clipboard.length() != 0) {
                         std::string cliptext = clipboard;
 
@@ -3613,6 +3616,12 @@ std::string Basic::inputLine(bool allowVertical) {
             os->screen.putC(ch);
         }
     }
+
+
+    if (oldScrollCount < os->screen.scrollCount) {
+        cursorAtStartOfInput.y -= (os->screen.scrollCount - oldScrollCount);
+    }
+
 
     auto crsr = os->screen.getCursorPos();
     ScreenBuffer::Cursor istart {}, iend {};
