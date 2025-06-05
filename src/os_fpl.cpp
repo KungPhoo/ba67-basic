@@ -72,10 +72,10 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
 
     if (!fplPlatformInit(
 #ifdef _DEBUG
-            fplInitFlags_Console |
+    // fplInitFlags_Console |
 #endif
-                /* fplInitFlags_Audio |*/
-                fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_GameController,
+            // fplInitFlags_Audio |
+            fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_GameController,
             &settings)) {
         return false;
     }
@@ -618,9 +618,12 @@ void OsFPL::updateKeyboardBuffer() {
         if (event.type == fplEventType_Window) {
             if (event.window.type == fplWindowEventType_Closed) {
                 exit(0);
-            }
-
-            if (event.window.type == fplWindowEventType_Restored || event.window.type == fplWindowEventType_Maximized) {
+            } else if (event.window.type == fplWindowEventType_GotFocus) {
+                hasFocus          = true;
+                forceWindowUpdate = true;
+            } else if (event.window.type == fplWindowEventType_LostFocus) {
+                hasFocus = false;
+            } else if (event.window.type == fplWindowEventType_Restored || event.window.type == fplWindowEventType_Maximized) {
                 fplResizeVideoBackBuffer(sz.width, sz.height);
                 forceWindowUpdate = true;
             }
@@ -785,7 +788,9 @@ void OsFPL::updateKeyboardBuffer() {
 const bool OsFPL::isKeyPressed(uint32_t index, bool withShift, bool withAlt, bool withCtrl) const {
     static fplKeyboardState keyboardState = {};
 
-    // TODO only if window is active
+    if (!hasFocus) {
+        return false;
+    }
 
     static auto lastTick = tick();
     auto tickNow         = tick();
@@ -795,7 +800,6 @@ const bool OsFPL::isKeyPressed(uint32_t index, bool withShift, bool withAlt, boo
             return false;
         }
     }
-
 
     switch (index) {
     case uint32_t(KeyConstant::ESCAPE):

@@ -94,6 +94,10 @@ void ScreenBuffer::putC(char32_t c) {
     }
 
     if (c == U'\n') {
+        // hard terminate the current line to avoid trailing spaces
+        // when inserting a character
+        lines[cursor.y]->cols[cursor.x].ch = U'\0';
+
         // here's the magic in printing 40 chars per line w/o wrapping
         // print 40 chars, then print '\n'.
         if (cursor.y > 0 && cursor.x == 0 && lines[cursor.y - 1]->wrapps) {
@@ -493,7 +497,7 @@ void ScreenBuffer::resize(size_t w, size_t h) {
         if (lines[y] == nullptr) {
             lines[y] = std::make_shared<Line>();
         }
-        lines[y]->cols.resize(w, { U'\0', color });
+        lines[y]->cols.resize(w + 1, { U'\0', color });
     }
     // width=w; height=h;
 }

@@ -662,12 +662,32 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
 
-    auto files = basic->os->listCurrentDirectory();
+    // file size, 4 characters wide
+    auto niceSize = [&basic](uint64_t s) -> std::string {
+        static const char* pfx = "BKMGTPEZ????";
+        const char* p          = pfx;
+        while (s > 1024) {
+            s /= 1024;
+            ++p;
+        }
+        std::string str(basic->valueToString(int64_t(s)));
+        str += *p;
+        while (str.length() < 4) {
+            str.insert(str.begin(), ' ');
+        }
+        return str;
+    };
+
+    uint64_t totalBytes = 0;
+    auto files          = basic->os->listCurrentDirectory();
     std::vector<std::string> sizestrings(files.size());
-    size_t maxsizelen = 5; // leave space to write CHDIR before a directory name
     for (size_t i = 0; i < files.size(); ++i) {
-        sizestrings[i] = files[i].isDirectory ? std::string("DIR") : basic->valueToString(int64_t(files[i].filesize));
-        maxsizelen     = std::max(maxsizelen, sizestrings[i].length());
+        if (files[i].isDirectory) {
+            sizestrings[i] = std::string("DIR ");
+        } else {
+            sizestrings[i] = niceSize(files[i].filesize);
+            totalBytes += files[i].filesize;
+        }
     }
 
     std::string dirname = basic->os->getCurrentDirectory();
@@ -675,26 +695,19 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
         size_t len = basic->os->screen.width - 7;
         dirname    = dirname.substr(dirname.length() - len);
     }
-    basic->printUtf8String("###");
+    basic->printUtf8String((const char*)(u8"╔══"));
     basic->printUtf8String(dirname);
-    basic->printUtf8String("###\n");
+    basic->printUtf8String((const char*)(u8"═══\n"));
     std::string str;
     for (size_t i = 0; i < files.size(); ++i) {
         auto& f = files[i].name;
-        str     = sizestrings[i];
-        while (str.length() < maxsizelen) {
-            str.insert(str.begin(), ' ');
-        }
-        str += " \"" + f + "\"";
-        if (basic->os->screen.width > str.length()) {
-            str += std::string(basic->os->screen.width - str.length(), ' ');
-        }
-        str += "\n";
-
+        // 5 chars+space for file size - space for CHDIR command
+        str = (const char*)(u8"║") + sizestrings[i] + " \"" + f + "\"\n";
         basic->printUtf8String(str);
         basic->handleEscapeKey(true);
         basic->os->delay(50);
     }
+    basic->printUtf8String(std::string((const char*)(u8"╚══Σ")) + niceSize(totalBytes) + (const char*)(u8"═══"));
 }
 
 Basic::Value fktDEC(Basic* basic, const std::vector<Basic::Value>& args) {
@@ -1857,6 +1870,9 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
                 values.push_back(*pval);
                 if (end > i) {
                     i = end - 1;
+                    if (ptrEnd != nullptr) {
+                        *ptrEnd = i + 1;
+                    }
                 }
             } else {
                 auto& prevToki = tokens[i > start ? i - 1 : i];
@@ -2567,24 +2583,29 @@ inline void Basic::handleDIM(const std::vector<Token>& tokens) {
 void Basic::handleLIST(const std::vector<Token>& tokens) {
     int from = 0;
     int to   = 0x7ffffff;
-    if (tokens.size() > 1) {
+
+    if (tokens.size() == 1) {
+        // list all
+    }
+    if (tokens.size() == 2 && tokens[1].type != TokenType::OPERATOR) {
+        // LIST 10
+        from = to = int(valueToInt(tokens[1].value));
+    } else if (tokens.size() == 4 && tokens[2].type == TokenType::OPERATOR) {
+        // LIST 10-20
         from = int(valueToInt(tokens[1].value));
-        if (from < 0) {
-            from = 0;
+        to   = int(valueToInt(tokens[3].value));
+        if (to < from) {
+            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
         }
-        to = from;
+    } else if (tokens.size() == 3 && tokens[1].type == TokenType::UNARY_OPERATOR) {
+        // LIST -20
+        to = int(valueToInt(tokens[2].value));
+    } else if (tokens.size() == 3 && tokens[2].type == TokenType::OPERATOR) {
+        // LIST 20-
+        from = int(valueToInt(tokens[1].value));
+    } else {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
-    if (tokens.size() > 2 && tokens[2].type == TokenType::OPERATOR) {
-        to = 0x7fffffff;
-
-        if (tokens.size() > 3) {
-            to = int(valueToInt(tokens[3].value));
-            if (to < from) {
-                throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
-            }
-        }
-    }
-
 
     std::string sline;
     for (auto& ln : currentModule().listing) {
@@ -2602,8 +2623,8 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
         sline += ' ';
         sline += ln.second;
         sline += '\n';
-
         printUtf8String(sline);
+
         handleEscapeKey(true);
         os->delay(50);
     }
@@ -3693,6 +3714,7 @@ void Basic::restoreColorsAndCursor(bool resetFont) {
 
     os->screen.setBackgroundColor(11);
     os->screen.setTextColor(colorForModule(moduleVariableStack.back()->first));
+    insertMode = false;
 
     for (auto& s : os->screen.sprites) {
         s.enabled = false;

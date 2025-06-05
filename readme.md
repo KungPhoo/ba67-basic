@@ -1546,6 +1546,17 @@ this chapter will be filled.
 - ScreenBuffer::copyWithLock
 - ScreenInfo::charPixY
 
+Keywords, Commands, Functions:
+Keywords and commands are the same from the BASIC point of
+view, but internally keywords get the unparsed tokens
+as parameters, where commands already get evaluated
+arguments as arguments.
+Beware: In either case, you will get the comma separators
+as individual arguments, because you can leave out arguments
+like `CHAR ,,y,a$`.
+
+
+
 ## D - Control Characters
 Here's the list of CHR$() codes that produce special
 control characters.

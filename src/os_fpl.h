@@ -36,6 +36,7 @@ public:
 
 
     // thread buffered window update
+    bool hasFocus; // window has focus/is active
     std::mutex screenLock, videoLock;
     std::condition_variable cv;
     std::vector<uint32_t> memBackBuffer; // the thread draws to this back buffer. It's then copied to the real one

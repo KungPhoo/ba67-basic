@@ -376,6 +376,7 @@ public:
 
     void printUtf8String(const char* utf8, bool applyCtrlCodes = false);
     inline void printUtf8String(const std::string& utf8, bool applyCtrlCodes = false) { printUtf8String(utf8.c_str(), applyCtrlCodes); }
+    // inline void printUtf8String(const char8_t* utf8, bool applyCtrlCodes = false) { printUtf8String((const char*)utf8, applyCtrlCodes); }
 
     // List all variables and their values
     void dumpVariables();
