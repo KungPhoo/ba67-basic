@@ -2586,8 +2586,7 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
 
     if (tokens.size() == 1) {
         // list all
-    }
-    if (tokens.size() == 2 && tokens[1].type != TokenType::OPERATOR) {
+    } else if (tokens.size() == 2 && tokens[1].type != TokenType::OPERATOR) {
         // LIST 10
         from = to = int(valueToInt(tokens[1].value));
     } else if (tokens.size() == 4 && tokens[2].type == TokenType::OPERATOR) {
