@@ -27,6 +27,7 @@
 ,{"CATALOG", R"RAW(CATALOG)RAW"}
 ,{"CHAR", R"RAW(CHAR color, column, line, text$[, inverse])RAW"}
 ,{"CHARDEF", R"RAW(CHARDEF char$, bytes, [more bytes])RAW"}
+,{"DUMP", R"RAW(DUMP)RAW"}
 ,{"END", R"RAW(END)RAW"}
 ,{"FAST", R"RAW(FAST)RAW"}
 ,{"FIND", R"RAW(FIND "print*hello world")RAW"}
@@ -73,7 +74,7 @@
 ,{"LEN", R"RAW(LEN(string))RAW"}
 ,{"LOG", R"RAW(LOG(expr))RAW"}
 ,{"MAX", R"RAW(n=MAX(a,b [,c] [,d] ...))RAW"}
-,{"MID$", R"RAW(MID$(string, start, length))RAW"}
+,{"MID$", R"RAW(MID$(string, start1, length))RAW"}
 ,{"MIN", R"RAW(n=MIN(a,b [,c] [,d] ...))RAW"}
 ,{"PEEK", R"RAW(PEEK(address))RAW"}
 ,{"PEN", R"RAW(PEN(X0_Y1_X2_Y3_BT4))RAW"}

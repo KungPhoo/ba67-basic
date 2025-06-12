@@ -585,7 +585,6 @@ void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
             updatedCode += code.substr(lastPos, it->position() - lastPos);
             updatedCode += it->str(1) + " ";
 
-            // int oldTarget = std::stoi(it->str(2));
             std::string str   = it->str(2);
             const char* pnum  = str.c_str();
             int64_t oldTarget = 0;
@@ -1012,7 +1011,9 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     keyShortcuts[7 - 1] = "\"LIST \"+CHR$(13)";
 
     // hard coded keywords
-    keywords = { "ON", "GOTO", "GOSUB", "RETURN", "IF", "THEN", "LET", "FOR", "TO", "NEXT", "STEP", "RCHARDEF", "READ", "DATA", "RESTORE", "END", "RUN", "DIM", "PRINT", "?", "GET", "HELP", "INPUT", "REM", "CLR", "SCNCLR", "NEW", "LIST", "MODULE", "KEY", "GETKEY", "DEF", "FN", "DELETE", "USING" };
+    keywords = { "ON", "GOTO", "GOSUB", "RETURN", "IF", "THEN", "LET", "FOR", "TO", "NEXT", "STEP", "RCHARDEF", "READ", "DATA", "RESTORE",
+                 "END", "RUN", "DIM", "PRINT", "?", "GET", "HELP", "INPUT", "REM", "CLR", "SCNCLR", "NEW", "LIST", "MODULE", "KEY", "GETKEY", "DEF", "FN", "DELETE", "USING",
+                 "DUMP" };
 
     // commands
     commands.insert({
@@ -1863,6 +1864,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         } else if (toki.type == TokenType::STRING) {
             values.push_back(toki.value);
         } else if (toki.type == TokenType::IDENTIFIER) {
+            // TODO A(5)=10 will automatically DIM A(10) in CBM BASIC.
             // function or array
             size_t end  = i;
             Value* pval = findLeftValue(currentModule(), tokens, i, &end);
@@ -2079,7 +2081,7 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
         ++i;
         pval = findLeftValue(modit->second, tokens, i, &end);
     } else {
-        pval = findLeftValue(currentModule(), tokens, i, &end);
+        pval = findLeftValue(currentModule(), tokens, i, &end, true /*allow DIM of unused variables */);
     }
 
     if (pval != nullptr && end < tokens.size()) {
@@ -2782,18 +2784,27 @@ char Basic::valuePostfix(const Token& t) const {
 
 // put endPtr to the next token to process
 // returns nullptr on error
-Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr) {
+Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr, bool allowDimArray) {
     size_t i = start;
     if (tokens.size() > i + 2 && tokens[i + 1].type == TokenType::PARENTHESIS && tokens[i + 1].value == "(") {
         auto& arrays = module.arrays;
         auto arrit   = arrays.find(tokens[i].value);
         if (arrit == arrays.end()) {
+            if (allowDimArray) {
+                std::string cmd = "DIM " + tokens[0].value + "(10)";
+                auto dimtok     = tokenize(cmd);
+                handleDIM(dimtok[0]);
+
+                allowDimArray = false;
+                return findLeftValue(module, tokens, start, endPtr, false);
+            }
             return nullptr; // might be a function call
         }
         // parse the comma separated list of arguments
         size_t end = i;
         auto args  = evaluateExpression(tokens, i + 2, &end);
         if (tokens[end].value != ")") {
+
             throw Error(ErrorId::SYNTAX);
         }
         i = end + 1; // after brace
@@ -2962,6 +2973,14 @@ void Basic::handleDEFFN(std::vector<Token>& tokens) {
 }
 
 // Handle FOR statement
+/*
+TODO:
+100 :I=AW                : REM FOR ...
+110 PRINT I
+120 :I = I+SW            : REM NEXT ...
+121 :IF SGN(I-EW) <> SGN(SW) GOTO 110
+
+ */
 void Basic::handleFOR(const std::vector<Token>& tokens) {
     if (tokens.size() < 6 || tokens[2].value != "=")
         return;
@@ -2990,6 +3009,19 @@ void Basic::handleFOR(const std::vector<Token>& tokens) {
 }
 
 // Handle NEXT statement
+// TODO pop inner loops if variable name is given
+/*
+C64 BASIC deals with information about FOR-NEXT loops on the return stack in one of four ways:
+
+    - When the FOR-NEXT loop terminates normally, the information is removed from the return stack.
+    - When a program encounters a NEXT statement with an explicit loop variable, all inner loops are
+      cancelled and their information removed from the return stack.
+    - All FOR-NEXT loops commenced within a subroutine are terminated and their information removed
+      from the return stack when the program encounters a RETURN statement.
+    - If a FOR statement is encountered, any existing loop using the same variable name along with
+      any subsequent unfinished FOR-NEXT loops are terminated and their information removed from
+      the return stack.
+*/
 void Basic::handleNEXT(const std::vector<Token>& tokens) {
     // TODO how to deal with modules here?
     auto& modl = currentModule();
@@ -3110,9 +3142,9 @@ void Basic::handleREAD(std::vector<Token>& tokens) {
 
             Value val = readNextData();
 
-            std::string dbg = valueToString(programCounter().line->first) + ": " + valueToString(val) + "\n";
-            printUtf8String(dbg);
-            // #error fori=qtoq
+            // std::string dbg = valueToString(programCounter().line->first) + ": " + valueToString(val) + "\n";
+            // printUtf8String(dbg);
+
             switch (valuePostfix(tk)) {
             case '$':
                 if (!valueIsString(val)) {
@@ -3244,6 +3276,8 @@ void Basic::executeTokens(std::vector<Token>& tokens) {
             handleHELP(tokens);
         } else if (tokens[0].value == "DELETE") {
             handleDELETE(tokens);
+        } else if (tokens[0].value == "DUMP") {
+            dumpVariables();
         } else {
             throw Error(ErrorId::UNIMPLEMENTED_COMMAND);
         }
@@ -3683,19 +3717,42 @@ std::string Basic::inputLine(bool allowVertical) {
 }
 
 // List all variables and their values
-
 inline void Basic::dumpVariables() {
-    std::cout << "MODULE " << moduleVariableStack.back()->first << std::endl;
+    std::ostringstream oss;
+    oss << "MODULE " << moduleVariableStack.back()->first << std::endl;
     if (currentModule().variables.empty() && currentModule().arrays.empty()) {
         return;
     }
 
-    std::cout << "\n    vars:" << std::endl;
     for (auto& v : currentModule().variables) {
-        std::cout << "    " << v.first << " = " << valueToString(v.second) << std::endl;
+        oss << v.first << " = " << valueToString(v.second) << std::endl;
     }
     for (auto& v : currentModule().arrays) {
-        std::cout << "    " << v.first << "()" << std::endl;
+        auto& arr = v.second;
+        switch (arr.bounds.dimensions()) {
+        case 1:
+            oss << v.first << "(" << arr.bounds.index[0] << " )" << std::endl;
+            for (size_t i = 0; i < std::min(size_t(10), arr.bounds.index[0]); ++i) {
+                oss << "    (" << int(i) << ") = " << valueToString(arr.at({ i })) << std::endl;
+            }
+            if (arr.bounds.index[0] >= 10) {
+                oss << "    (" << int(arr.bounds.index[0]) << ") = " << valueToString(arr.at({ arr.bounds.index[0] })) << std::endl;
+            }
+
+            break;
+        case 2: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << " )" << std::endl; break;
+        case 3: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << ", " << arr.bounds.index[2] << " )" << std::endl; break;
+        case 4: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << ", " << arr.bounds.index[2] << ", " << arr.bounds.index[3] << " )" << std::endl; break;
+        }
+    }
+
+    // print and allow shift to slowdown
+    auto lines = StringHelper::split(oss.str(), "\r\n");
+    std::string sline;
+    for (auto& ln : lines) {
+        printUtf8String(ln + "\n");
+        handleEscapeKey(true);
+        os->delay(50);
     }
 }
 

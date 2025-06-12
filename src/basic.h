@@ -178,6 +178,14 @@ public:
             : index { a, b, c, d } {
         }
         std::array<size_t, 4> index = {};
+        int dimensions() const {
+            for (size_t i = 0; i < index.size(); ++i) {
+                if (index[i] == 0) {
+                    return int(i);
+                }
+            }
+            return int(index.size());
+        }
     };
     struct Array {
         std::vector<Value> data;
@@ -346,7 +354,7 @@ protected:
     char valuePostfix(const Token& t) const; // returns '#', '%', '$'
 
     // find assignable value from 'a' or arr(1+3). returns nullptr on error
-    Value* findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr);
+    Value* findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr, bool allowDimArray = false);
 
     void doGOTO(int line, bool isGoSub);
     void handleGOTO(std::vector<Token>& tokens);

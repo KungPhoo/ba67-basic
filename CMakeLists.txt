@@ -100,8 +100,11 @@ add_library(lib_soloud OBJECT "${SOLOUD_CPP}")
 
 
 
+
+
 # FPL takes care of wWinMain and calls main
 add_executable(${APP_NAME} "${APP_SOURCES}" "${APP_HEADERS}")
+# target_compile_features(${APP_NAME} PUBLIC cxx_std_20)
 target_link_libraries(${APP_NAME} PUBLIC lib_soloud)
 
 if (WIN32)
