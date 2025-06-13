@@ -155,6 +155,9 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
         return -1;
     }
 
+
+
+
     PROCESS_INFORMATION pi = { 0 };
     STARTUPINFOW si        = { sizeof(STARTUPINFOW) };
     si.dwFlags             = STARTF_USESTDHANDLES;
@@ -169,6 +172,15 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
         CloseHandle(hWriteInput);
         return -1;
     }
+
+    // JobObject to terminate the child process, when the parent crashes or gets closed.
+    HANDLE hJob                               = CreateJobObject(nullptr, nullptr);
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = { 0 };
+    jeli.BasicLimitInformation.LimitFlags     = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE; // <-- does exactly this
+    SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli));
+    // Assign the process to the job
+    AssignProcessToJobObject(hJob, pi.hProcess);
+
 
     CloseHandle(hWriteOutput);
     CloseHandle(hReadInput);
@@ -241,19 +253,27 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
     #include <unistd.h>
     #include <vector>
 
+    #include <linux/prctl.h> /* Definition of PR_* constants */
+    #include <sys/prctl.h>
+
 int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
     int stdoutPipe[2], stdinPipe[2];
     if (pipe(stdoutPipe) == -1 || pipe(stdinPipe) == -1) {
         return -1;
     }
 
+
+    pid_t pidParent = getppid();
+
     pid_t pid = fork();
     if (pid == -1) { // fork failed
-
         return -1;
     }
 
     if (pid == 0) { // Child process
+
+        // When parent exists, send SIGKILL to all children
+        prctl(PR_SET_PDEATHSIG, SIGKILL);
 
         close(stdoutPipe[0]); // Close read end of stdout pipe
         close(stdinPipe[1]); // Close write end of stdin pipe
@@ -287,6 +307,11 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
         argv.push_back(nullptr);
 
         execvp(argv[0], argv.data());
+
+        if (getppid() != pidParent) { }
+
+
+
         exit(EXIT_FAILURE); // exit child
     }
 

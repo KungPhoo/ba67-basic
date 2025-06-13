@@ -52,6 +52,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [CATALOG](#catalog)
     - [CHAR](#char)
     - [CHARDEF](#chardef)
+    - [DUMP](#dump)
     - [END](#end)
     - [FAST](#fast)
     - [FIND](#find)
@@ -734,6 +735,10 @@ RUN
 **NOTE** If you break the program with the `ESC` key, the
 characters 0..127 (ASCII set) reset to the defaults.
 
+### DUMP
+Prints all variable values to the current output device.
+
+**Usage:** `DUMP`
 
 ### END
 Terminates program execution.
@@ -1301,9 +1306,10 @@ Returns the largest of the given argument values.
 
 ### MID$
 Extracts a substring from a string. Each character is a
-Unicode code point.
+Unicode code point. The start index start with 1 for the
+first character in the string.
 
-**Usage:** `MID$(string, start, length)`
+**Usage:** `MID$(string, start1, length)`
 
 ### MIN
 Returns the smallest of the given argument values.
@@ -1545,6 +1551,17 @@ this chapter will be filled.
 - Os::emojiPicker
 - ScreenBuffer::copyWithLock
 - ScreenInfo::charPixY
+
+Keywords, Commands, Functions:
+Keywords and commands are the same from the BASIC point of
+view, but internally keywords get the unparsed tokens
+as parameters, where commands already get evaluated
+arguments as arguments.
+Beware: In either case, you will get the comma separators
+as individual arguments, because you can leave out arguments
+like `CHAR ,,y,a$`.
+
+
 
 ## D - Control Characters
 Here's the list of CHR$() codes that produce special

@@ -2748,8 +2748,34 @@ static void fillPetCatMap(std::unordered_map<std::string, char32_t>& petcatMap) 
     }
 }
 
+static int my_strnicmp(const char* s1, const char* s2, unsigned int n) {
+    unsigned char c1, c2;
+
+    while (n-- > 0) {
+        c1 = *s1++;
+        c2 = *s2++;
+
+        // Convert both characters to lowercase manually
+        if (c1 >= 'A' && c1 <= 'Z') {
+            c1 += 'a' - 'A';
+        }
+        if (c2 >= 'A' && c2 <= 'Z') {
+            c2 += 'a' - 'A';
+        }
+
+        if (c1 != c2) {
+            return c1 - c2;
+        }
+        if (c1 == '\0') {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
 // parse the next character and escape the petcat {$xx} strings
-// return unicode representation
+// return Unicode representation
 char32_t parseNextPetcat(const char*& str) {
     static std::unordered_map<std::string, char32_t> petcatMap;
     if (petcatMap.empty()) {
@@ -2759,7 +2785,7 @@ char32_t parseNextPetcat(const char*& str) {
     if (*str == '{') {
         for (auto mp : petcatMap) {
             size_t len = mp.first.length();
-            if (_strnicmp(str, mp.first.c_str(), len) == 0) {
+            if (my_strnicmp(str, mp.first.c_str(), len) == 0) {
                 str += len;
                 return mp.second;
             }
