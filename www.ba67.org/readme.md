@@ -166,6 +166,7 @@ Here are the key features:
 - Compatible with the famous Commodore's BASIC
 - Variable names can be longer than 2 characters
 - Unicode strings (no PETSCII or other exotic char sets)
+- Full Unicode character set (even emoji end stuff)
 - 64 bit precision for numbers
 - 64 bit integers
 - Direct access to your local file system

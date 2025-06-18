@@ -3005,7 +3005,17 @@ void Basic::handleFOR(const std::vector<Token>& tokens) {
         }
     }
     modl.variables[varName] = int64_t(start);
-    modl.forStack.push_back({ varName, start, toEnd, step, modl.programCounter.line->first /*line*/, modl.programCounter.position });
+
+    // re-use the same loop variable if it's on the stack.
+    Basic::ForLoop loopParam { varName, start, toEnd, step, modl.programCounter.line->first /*line*/, modl.programCounter.position };
+    for (auto fs : modl.forStack) {
+        if (fs.varName == varName) {
+            fs = loopParam;
+            return;
+        }
+    }
+
+    modl.forStack.push_back(loopParam);
 }
 
 // Handle NEXT statement
@@ -4125,6 +4135,7 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
 
     std::string str;
     auto& listmodule  = moduleListingStack.back()->second;
+    int iLastLine     = -1;
     int iline         = 0;
     bool rv           = true;
     bool escapePetcat = false;
@@ -4136,7 +4147,11 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
         const char* pc = str.c_str();
         int64_t n      = 0;
         if (parseInt(pc, &n) && n >= 0) {
-            iline                   = int(n);
+            iline = int(n);
+            if (iline <= iLastLine) {
+                printUtf8String("PROGRAM NOT SORTED! LINE: " + valueToString(iline) + "\n");
+            }
+
             const char* programline = skipWhite(pc);
 
             if (iline == 1 && strncmp(programline, "REMBA67", 7) == 0) {
