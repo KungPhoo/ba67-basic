@@ -442,11 +442,37 @@ Example:
 FOR I = 1 TO 10 STEP 2
 ```
 
+Internally a call stack is used for all kind of loops.
+
+[C64-wiki.com](https://www.c64-wiki.com/wiki/FOR) states:
+C64 BASIC deals with information about FOR-NEXT loops on
+the return stack in one of four ways:
+
+- When the `FOR-NEXT` loop terminates normally,
+    the information is removed from the return stack.
+- When a program encounters a `NEXT` statement with an
+    explicit loop variable, all inner loops are
+    cancelled and their information removed from the
+    return stack.
+- All `FOR-NEXT` loops commenced within a subroutine are
+    terminated and their information removed
+    from the return stack when the program encounters a
+    `RETURN` statement.
+- If a `FOR` statement is encountered, any existing loop
+    using the same variable name along with
+    any subsequent unfinished `FOR-NEXT` loops are
+    terminated and their information removed from the
+    return stack.
+
+
 ### GOSUB
 **Usage:** `GOSUB line`
 
 Calls a subroutine at the specified line number. Execution
-resumes after a `RETURN`.
+resumes after a `RETURN`. The `FOR-NEXT` stack from inside
+the subroutine is popped from the stack.
+See the `FOR` command for how the call stack is maintained,
+internally.
 
 Example:
 ```basic

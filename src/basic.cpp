@@ -1097,7 +1097,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "STR$", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return basic->valueToString(args[0]); } },
         { "TAB", fktTAB },
         { "TAN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return tan(basic->valueToDouble(args[0])); } },
-        { "VAL", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return basic->valueToDouble(args[0]); } },
+        { "VAL", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return basic->valueToDoubleOrZero(args[0]); } },
         { "XOR", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 3); return basic->valueToInt(args[0]) ^ basic->valueToInt(args[2]); } }
     });
 
@@ -1178,6 +1178,20 @@ inline double Basic::valueToDouble(const Value& v) {
         }
     }
     throw Error(ErrorId::TYPE_MISMATCH);
+}
+inline double Basic::valueToDoubleOrZero(const Value& v) {
+    if (auto i = std::get_if<int64_t>(&v))
+        return (double)(*i);
+    if (auto d = std::get_if<double>(&v))
+        return (*d);
+    if (auto s = std::get_if<std::string>(&v)) {
+        const char* str = s->c_str();
+        double d        = 0;
+        if (parseDouble(str, &d) && *str == '\0') {
+            return d;
+        }
+    }
+    return 0.0; // VAL("X") instead of throw Error(ErrorId::TYPE_MISMATCH);
 }
 
 inline int64_t Basic::valueToInt(const Value& v) {
@@ -2054,8 +2068,7 @@ void Basic::doNEW() {
     mod.arrays.clear();
     mod.listing.clear();
     memory = {};
-    mod.gosubStack.clear();
-    mod.forStack.clear();
+    mod.loopStack.clear();
     mod.setProgramCounterToEnd();
 }
 
@@ -2860,7 +2873,10 @@ void Basic::doGOTO(int line, bool isGoSub) {
     }
 
     if (isGoSub) {
-        currentModule().gosubStack.push_back(programCounter());
+        LoopItem loop;
+        loop.varName = "GOSUB";
+        loop.jump    = programCounter();
+        currentModule().loopStack.push_back(loop);
     }
     // TODO make sure you're in the module code now
     auto& listing = currentListing();
@@ -2973,14 +2989,6 @@ void Basic::handleDEFFN(std::vector<Token>& tokens) {
 }
 
 // Handle FOR statement
-/*
-TODO:
-100 :I=AW                : REM FOR ...
-110 PRINT I
-120 :I = I+SW            : REM NEXT ...
-121 :IF SGN(I-EW) <> SGN(SW) GOTO 110
-
- */
 void Basic::handleFOR(const std::vector<Token>& tokens) {
     if (tokens.size() < 6 || tokens[2].value != "=")
         return;
@@ -3007,15 +3015,22 @@ void Basic::handleFOR(const std::vector<Token>& tokens) {
     modl.variables[varName] = int64_t(start);
 
     // re-use the same loop variable if it's on the stack.
-    Basic::ForLoop loopParam { varName, start, toEnd, step, modl.programCounter.line->first /*line*/, modl.programCounter.position };
-    for (auto fs : modl.forStack) {
-        if (fs.varName == varName) {
-            fs = loopParam;
-            return;
+    Basic::LoopItem loopParam { Basic::LoopItem::FORNEXT, varName, start, toEnd, step, modl.programCounter };
+
+    for (int i = int(modl.loopStack.size()) - 1; i >= 0; --i) {
+        auto& it = modl.loopStack[i];
+        if (it.type != Basic::LoopItem::FORNEXT) {
+            break;
+        }
+        if (modl.loopStack[i].varName == varName) {
+            // pop any inner loops and this loop
+            while (modl.loopStack.size() > i) {
+                modl.loopStack.pop_back();
+            }
+            break;
         }
     }
-
-    modl.forStack.push_back(loopParam);
+    modl.loopStack.push_back(loopParam);
 }
 
 // Handle NEXT statement
@@ -3031,28 +3046,76 @@ C64 BASIC deals with information about FOR-NEXT loops on the return stack in one
     - If a FOR statement is encountered, any existing loop using the same variable name along with
       any subsequent unfinished FOR-NEXT loops are terminated and their information removed from
       the return stack.
+
+Examples:
+// NEXT searches for the matching FOR, but not beyond a GOSUB!
+10 FOR I=1 TO 5
+20 GOSUB 100
+30 NEXT I
+100 NEXT I : REM "?NEXT WITHOUT FOR"
+
+
+// FOR searches for an already open for with that variable, but stops at a gosub
+10 FOR I = 1 TO 3
+20 PRINT "OUTER FOR I"
+30 GOSUB 100
+40 PRINT "BACK FROM GOSUB"
+50 NEXT I
+60 END
+100 FOR I = 1 TO 1
+110 PRINT "INNER FOR I"
+120 NEXT I
+130 RETURN
+RUN
+OUTER FOR I
+INNER FOR I
+BACK FROM GOSUB
+OUTER FOR I
+INNER FOR I
+BACK FROM GOSUB
+...
 */
 void Basic::handleNEXT(const std::vector<Token>& tokens) {
     // TODO how to deal with modules here?
     auto& modl = currentModule();
-    if (modl.forStack.empty())
-        return;
 
-    ForLoop loop    = modl.forStack.back();
-    Value& v        = modl.variables[loop.varName];
-    int64_t loopVar = valueToInt(v) + loop.step;
-    v               = loopVar;
+    std::string varName;
+    if (tokens.size() > 1) {
+        varName = tokens[1].value;
+
+        for (int i = int(modl.loopStack.size()) - 1; i >= 0; --i) {
+            auto& it = modl.loopStack[i];
+            if (it.type != Basic::LoopItem::FORNEXT) {
+                break;
+            }
+            if (modl.loopStack[i].varName == varName) {
+                // pop any inner loops
+                while (modl.loopStack.size() > i + 1) {
+                    modl.loopStack.pop_back();
+                }
+                break;
+            }
+        }
+    }
+    if (modl.loopStack.empty()) {
+        throw Error(ErrorId::NEXT_WITHOUT_FOR);
+    }
+    if (!varName.empty() && modl.loopStack.back().varName != varName) {
+        throw Error(ErrorId::NEXT_WITHOUT_FOR);
+    }
+
+
+    const auto& loop = modl.loopStack.back();
+    Value& v         = modl.variables[loop.varName];
+    int64_t loopVar  = valueToInt(v) + loop.step;
+    v                = loopVar;
 
     // debug("next "); debug(loop.varName.c_str()); debug("="); debug(valueToString(v).c_str()); debug("\n");
 
     if ((loop.step > 0 && loopVar <= loop.end) || (loop.step < 0 && loopVar >= loop.end)) {
-        modl.programCounter.line = modl.listing.find(loop.line_number);
-        if (modl.programCounter.line == modl.listing.end()) {
-            throw Error(ErrorId::INTERNAL);
-        }
-        modl.programCounter.position = loop.char_position;
+        modl.programCounter = loop.jump;
     } else {
-        modl.forStack.pop_back();
+        modl.loopStack.pop_back();
     }
 }
 
@@ -3230,11 +3293,16 @@ void Basic::executeTokens(std::vector<Token>& tokens) {
             handleGOSUB(tokens);
         } else if (tokens[0].value == "RETURN") {
             ASSERT(moduleListingStack.size() == moduleVariableStack.size());
-            if (modl.gosubStack.empty()) {
+
+            // pop inner loops
+            while (!modl.loopStack.empty() && modl.loopStack.back().type != LoopItem::GOSUB) {
+                modl.loopStack.pop_back();
+            }
+            if (modl.loopStack.empty()) {
                 throw Error(ErrorId::RETURN_WITHOUT_GOSUB);
             }
-            programCounter() = modl.gosubStack.back();
-            modl.gosubStack.pop_back();
+            programCounter() = modl.loopStack.back().jump;
+            modl.loopStack.pop_back();
         } else if (tokens[0].value == "FOR") {
             handleFOR(tokens);
         } else if (tokens[0].value == "NEXT") {
@@ -3261,7 +3329,7 @@ void Basic::executeTokens(std::vector<Token>& tokens) {
         } else if (tokens[0].value == "CLR") {
             modl.variables.clear();
             modl.arrays.clear();
-            modl.forStack.clear();
+            modl.loopStack.clear();
         } else if (tokens[0].value == "SCNCLR") {
             os->screen.clear();
             os->presentScreen();
@@ -3941,8 +4009,7 @@ void Basic::handleEscapeKey(bool allowPauseWithShift) {
 
 // Basic interpreter loop
 void Basic::runInterpreter() {
-    currentModule().forStack.clear();
-    currentModule().gosubStack.clear();
+    currentModule().loopStack.clear();
 
     std::string line;
     ParseStatus status = ParseStatus::PS_EXECUTED;

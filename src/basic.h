@@ -92,6 +92,7 @@ public:
         ,
         UNIMPLEMENTED_COMMAND,
         OUT_OF_DATA,
+        NEXT_WITHOUT_FOR,
         RETURN_WITHOUT_GOSUB,
         FORMULA_TOO_COMPLEX,
 
@@ -114,6 +115,7 @@ public:
         { ErrorId::UNIMPLEMENTED_COMMAND, "UNIMPLEMENTED COMMAND ERROR" },
         {           ErrorId::OUT_OF_DATA,           "OUT OF DATA ERROR" },
         {  ErrorId::RETURN_WITHOUT_GOSUB,        "RETURN WITHOUT GOSUB" },
+        {      ErrorId::NEXT_WITHOUT_FOR,            "NEXT WITHOUT FOR" },
         {   ErrorId::FORMULA_TOO_COMPLEX,         "FORMULA TOO COMPLEX" },
         {                 ErrorId::BREAK,                       "BREAK" },
         {         ErrorId::UNDEFD_MODULE,         "UNDEFD MODULE ERROR" },
@@ -202,15 +204,25 @@ public:
         size_t position;
     };
 
-    // Loop stack for nested FOR loops
-    struct ForLoop {
-        std::string varName;
-        int64_t start;
-        int64_t end;
-        int64_t step;
-        int line_number;
-        size_t char_position;
+    // Loop stack for nested FOR loops and GOSUB stack
+    struct LoopItem {
+        enum LoopType {
+            GOSUB   = 1,
+            FORNEXT = 2
+        } type
+            = GOSUB;
+
+        std::string varName; // FOR variable name or "GOSUB"
+        int64_t start = 0;
+        int64_t end   = 0;
+        int64_t step  = 1;
+
+        // int line_number;
+        // size_t char_position;
+
+        ProgramCounter jump; // where to jump on RETURN/NEXT
     };
+
 
     // Def Fn
     struct FunctionDefinition {
@@ -244,8 +256,10 @@ public:
         std::map<int, std::string> listing; // [basic number] = line
         std::unordered_map<std::string, Value> variables;
         std::unordered_map<std::string, Array> arrays;
-        std::vector<ForLoop> forStack;
-        std::vector<ProgramCounter> gosubStack;
+
+        std::vector<LoopItem> loopStack;
+        // std::vector<ProgramCounter> gosubStack;
+
         std::unordered_map<std::string, FunctionDefinition> functionTable;
         size_t autoNumbering          = 0; // set this value with AUTO
         int64_t lastEnteredLineNumber = 0;
@@ -300,6 +314,7 @@ public:
     // Represent value as string
     static std::string valueToString(const Value& v);
     static double valueToDouble(const Value& v);
+    static double valueToDoubleOrZero(const Value& v);
     static int64_t valueToInt(const Value& v);
     static bool valueIsOperator(const Value& v);
     static bool valueIsString(const Value& v);
