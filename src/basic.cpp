@@ -390,6 +390,7 @@ void cmdFIND(Basic* basic, const std::vector<Basic::Value>& values) {
         sline += ln.second;
         sline += '\n';
 
+        basic->os->screen.cleanCurrentLine();
         basic->printUtf8String(sline);
         basic->handleEscapeKey(true);
     }
@@ -417,7 +418,8 @@ void cmdLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
         throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
     }
 
-    basic->printUtf8String("LOADING         \n");
+    basic->os->screen.cleanCurrentLine();
+    basic->printUtf8String("LOADING\n");
     if (!basic->loadProgram(path)) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
     }
@@ -431,14 +433,16 @@ void cmdSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     }
     std::string filename = basic->valueToString(values[0]);
     if (basic->fileExists(filename, false)) {
-        basic->printUtf8String("FILE EXISTS. OVERWRITE (Y/N)? ");
+        basic->os->screen.cleanCurrentLine();
+        basic->printUtf8String("FILE EXISTS. OVERWRITE (Y/N)?");
         std::string yesno = basic->inputLine(false);
         if (yesno.length() == 0 || Unicode::toUpperAscii(yesno[0]) != u'Y') {
             return;
         }
     }
 
-    basic->printUtf8String("SAVING          \n");
+    basic->os->screen.cleanCurrentLine();
+    basic->printUtf8String("SAVING\n");
     if (!basic->saveProgram(filename)) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
     }
@@ -454,6 +458,7 @@ void cmdQSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (filename.empty()) {
         throw Basic::Error(Basic::ErrorId::VARIABLE_UNDEFINED);
     }
+    basic->os->screen.cleanCurrentLine();
     basic->printUtf8String("SAVE \"");
     basic->printUtf8String(filename);
     basic->printUtf8String("\" \n");
@@ -556,6 +561,7 @@ void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
         auto& code   = itlst->second;
         if (oldLine >= 0 && oldLine >= startFromLine) {
             if (lastLineNumber > newLineNumber) {
+                basic->os->screen.cleanCurrentLine();
                 basic->printUtf8String("LINE NUMBERS WOULD OVERLAP! \n");
                 throw Basic::Error(Basic::ErrorId::UNDEFD_STATEMENT);
             }
@@ -695,6 +701,7 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
         size_t len = basic->os->screen.width - 7;
         dirname    = dirname.substr(dirname.length() - len);
     }
+    basic->os->screen.cleanCurrentLine();
     basic->printUtf8String((const char*)(u8"╔══"));
     basic->printUtf8String(dirname);
     basic->printUtf8String((const char*)(u8"═══\n"));
@@ -703,10 +710,12 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
         auto& f = files[i].name;
         // 5 chars+space for file size - space for CHDIR command
         str = (const char*)(u8"║") + sizestrings[i] + " \"" + f + "\"\n";
+        basic->os->screen.cleanCurrentLine();
         basic->printUtf8String(str);
         basic->handleEscapeKey(true);
         basic->os->delay(50);
     }
+    basic->os->screen.cleanCurrentLine();
     basic->printUtf8String(std::string((const char*)(u8"╚══Σ")) + niceSize(totalBytes) + (const char*)(u8"═══"));
 }
 
@@ -1651,7 +1660,7 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
 // put endPtr to the next token to process
 // put start to the open brace '(' - endPtr will point to the item after the matching close brace
 // put start to inside the brace '(' - endPtr will point to matching the closing brace
-std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd) {
+std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd, bool breakEarly) {
     std::vector<Value> output;
     // printf("Evaluate expression***\n");
     std::vector<Value> values;
@@ -1877,6 +1886,17 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         // DEF FN A(X)=1 is stored as FNA()
         // you can call both: b=FN A(1) and FNA(1)!
         auto& toki = tokens[i];
+
+
+        // PRINT "X" TAB(8) "Y" must return after each single piece
+        if (breakEarly && !values.empty() && ops.empty()) {
+            return values;
+        }
+
+
+
+
+
         if (toki.type == TokenType::KEYWORD && toki.value == "FN") {
             continue;
         }
@@ -1916,7 +1936,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
                 if (end > i) {
                     i = end;
                     if (ptrEnd != nullptr) {
-                        *ptrEnd = i;
+                        *ptrEnd = i + 1;
                     }
                 }
 
@@ -1964,9 +1984,6 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
                     ops.pop_back();
                     continue;
                 }
-                // Value val2 = values.back(); values.pop_back();
-                // Value val1 = values.back(); values.pop_back();
-                // std::string op = ops.back(); ops.pop_back();
                 applyOp();
             }
             if (!values.empty()) {
@@ -1982,9 +1999,6 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
             ops.push_back("u" + toki.value);
         } else if (toki.type == TokenType::OPERATOR) {
             while (!ops.empty() && precedence(ops.back()) >= precedence(toki.value)) {
-                // Value val2 = values.back(); values.pop_back();
-                // Value val1 = values.back(); values.pop_back();
-                // std::string op = ops.back(); ops.pop_back();
                 applyOp();
             }
             ops.push_back(toki.value);
@@ -1997,9 +2011,6 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
             }
 
             while (!ops.empty() && ops.back() != "(") {
-                // Value val2 = values.back(); values.pop_back();
-                // Value val1 = values.back(); values.pop_back();
-                // std::string op = ops.back(); ops.pop_back();
                 applyOp();
             }
 
@@ -2027,9 +2038,6 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         }
     }
     while (!ops.empty() && values.size() > 0) {
-        // Value val2 = values.back(); values.pop_back();
-        // Value val1 = values.back(); values.pop_back();
-        // std::string op = ops.back(); ops.pop_back();
         applyOp();
     }
 
@@ -2236,7 +2244,7 @@ void Basic::handlePRINT(std::vector<Token>& tokens) {
     bool forceNewline = true;
     size_t istart     = 1;
     for (;;) {
-        auto vals = evaluateExpression(tokens, istart, &istart);
+        auto vals = evaluateExpression(tokens, istart, &istart, true);
         if (vals.empty()) {
             break;
         }
@@ -2367,7 +2375,7 @@ void Basic::handlePRINT_USING(const std::vector<Token>& tokens) {
     std::string format;
     size_t istart = 2;
     for (int irun = 0;; ++irun) {
-        auto vals = evaluateExpression(tokens, istart, &istart);
+        auto vals = evaluateExpression(tokens, istart, &istart, true);
         if (vals.empty()) {
             break;
         }
@@ -2651,6 +2659,7 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
         sline += ' ';
         sline += ln.second;
         sline += '\n';
+        os->screen.cleanCurrentLine();
         printUtf8String(sline);
 
         handleEscapeKey(true);
@@ -2688,6 +2697,7 @@ void Basic::handleKEY(const std::vector<Token>& tokens) {
     if (tokens.size() == 1) {
         for (size_t k = 0; k < keyShortcuts.size(); ++k) {
             std::string s = "KEY " + valueToString(int64_t(1 + k)) + "," + keyShortcuts[k] + " \n";
+            os->screen.cleanCurrentLine();
             printUtf8String(s);
         }
         return;
@@ -2830,8 +2840,7 @@ Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tok
         // parse the comma separated list of arguments
         size_t end = i;
         auto args  = evaluateExpression(tokens, i + 2, &end);
-        if (tokens[end].value != ")") {
-
+        if (end >= tokens.size() || tokens[end].value != ")") {
             throw Error(ErrorId::SYNTAX);
         }
         i = end + 1; // after brace
@@ -2946,6 +2955,7 @@ void Basic::handleHELP(std::vector<Token>& tokens) {
     }
     cmd             = Unicode::toUpperAscii(cmd.c_str());
     std::string usg = Help::getUsage(cmd) + " \n";
+    os->screen.cleanCurrentLine();
     printUtf8String(usg);
 }
 
@@ -3401,8 +3411,6 @@ void Basic::uppercaseProgram(std::string& codeline) {
     }
 }
 /*
-
-
         { 0x9a,  color (light blue)
         { 0x9b,  color (light gray)
         { 0x9f,  color (cyan)
@@ -3842,6 +3850,7 @@ inline void Basic::dumpVariables() {
     auto lines = StringHelper::split(oss.str(), "\r\n");
     std::string sline;
     for (auto& ln : lines) {
+        os->screen.cleanCurrentLine();
         printUtf8String(ln + "\n");
         handleEscapeKey(true);
         os->delay(50);
@@ -3936,6 +3945,7 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
                 int line = programCounter().line->first;
                 if (lastTraceLine != line) {
                     lastTraceLine = line;
+                    os->screen.cleanCurrentLine();
                     printUtf8String("[" + valueToString(line) + "]");
                 }
             }
@@ -3983,14 +3993,16 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
         int iline         = pc.line->first;
         if (iline >= 0) {
             restoreColorsAndCursor(true);
-            std::string msg = "?" + errorMessages[e.ID] + " IN " + valueToString(iline);
-            msg += std::string(os->screen.width - msg.length() - 1, ' ') + "\n";
+            std::string msg = "?" + errorMessages[e.ID] + " IN " + valueToString(iline) + "\n";
+            // msg += std::string(os->screen.width - msg.length() - 1, ' ') ;
+            os->screen.cleanCurrentLine();
             printUtf8String(msg);
 
             if (e.ID != ErrorId::BREAK && iline >= 0) {
                 parseInput((std::string("LIST ") + valueToString(iline) + " - " + valueToString(iline)).c_str());
             }
         } else {
+            os->screen.cleanCurrentLine();
             printUtf8String("?" + errorMessages[e.ID] + " \n");
         }
         return ParseStatus::PS_ERROR;
@@ -4172,6 +4184,7 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
     std::string foundname = findFirstFileNameWildcard(inOutFilenameUtf8);
 
     if (foundname != inOutFilenameUtf8) {
+        os->screen.cleanCurrentLine();
         printUtf8String("FOUND " + foundname + " \n");
         inOutFilenameUtf8 = foundname;
     }
@@ -4230,6 +4243,7 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
         if (parseInt(pc, &n) && n >= 0) {
             iline = int(n);
             if (iline <= iLastLine) {
+                os->screen.cleanCurrentLine();
                 printUtf8String("PROGRAM NOT SORTED! LINE: " + valueToString(iline) + "\n");
             }
 

@@ -201,6 +201,13 @@ void ScreenBuffer::insertSpace() {
     }
 }
 
+void ScreenBuffer::cleanCurrentLine() {
+    size_t y = cursor.y;
+    if (y < height) {
+        lines[y]->clear();
+    }
+}
+
 ScreenBuffer::Cursor ScreenBuffer::getCursorPos() const {
     return cursor;
 }

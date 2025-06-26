@@ -341,7 +341,7 @@ protected:
     Basic::Value evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::vector<Basic::Value>& arguments);
 
     // Evaluate expression using Shunting-Yard algorithm
-    std::vector<Value> evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd = nullptr);
+    std::vector<Value> evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd = nullptr, bool breakEarly = false);
 
     static ArrayIndex indexFromValues(const std::vector<Value>& vals);
 

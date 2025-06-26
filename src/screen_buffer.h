@@ -243,6 +243,7 @@ public:
     void deleteChar();
     void backspaceChar();
     void insertSpace();
+    void cleanCurrentLine();
 
     // Cursor <-> Position
     Cursor getCursorPos() const;
