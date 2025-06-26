@@ -175,7 +175,7 @@ public:
             int8_t x = 0, y = 0; // x and y axis -1,/0/1
         } dpad = {};
         struct Analog {
-            double x = 0.0, y = 0.0; // x and y axis [-1 .. 1.0]
+            float x = 0.0f, y = 0.0f; // x and y axis [-1 .. 1.0]
         } analogLeft = {}, analogRight = {};
     };
     virtual void updateGamepadState() { }

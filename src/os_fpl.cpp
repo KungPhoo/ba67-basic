@@ -496,12 +496,13 @@ void OsFPL::presentScreen() {
 
     static uint64_t nextPresend = 0;
     uint64_t now                = tick();
-    if (nextPresend > now) {
+    if (nextPresend > now && !buffered.imageCreated) {
         return;
     }
     nextPresend = now + 50;
 
     bool mustNotify = false;
+
     screenLock.lock();
 
     buffered.crtEmulation = settings.emulateCRT;
@@ -526,6 +527,8 @@ void OsFPL::presentScreen() {
 
     screen.windowPixels = buffered.screen.windowPixels; // read from thread
     screenLock.unlock();
+
+
     if (mustNotify) {
         cv.notify_one();
     }

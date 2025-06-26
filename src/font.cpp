@@ -2748,7 +2748,7 @@ static void fillPetCatMap(std::unordered_map<std::string, char32_t>& petcatMap) 
     }
 }
 
-static int my_strnicmp(const char* s1, const char* s2, unsigned int n) {
+static int my_strnicmp(const char* s1, const char* s2, size_t n) {
     unsigned char c1, c2;
 
     while (n-- > 0) {

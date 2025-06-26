@@ -49,11 +49,12 @@ void cmdAUTO(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
-    int color = 0, x = 0, y = 0;
+    auto curPos = basic->os->screen.getCursorPos();
+    int color = 0, x = int(curPos.x), y = int(curPos.y);
     std::string text;
     bool inverse = false;
 
-    if (values.size() < 5) {
+    if (values.size() < 4) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
     int ipara = 0;
@@ -756,13 +757,26 @@ Basic::Value fktJOY(Basic* basic, const std::vector<Basic::Value>& args) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
     int64_t port      = basic->valueToInt(args[0]);
-    const auto& state = basic->os->getGamepadState(int(port - 1));
+    const auto* state = &basic->os->getGamepadState(int(port - 1));
+
+#if defined(_WIN32)
+    // On Windows we have 4 XInput controllers and a bunch of DirectInput controllers
+    if (!state->connected && port < 4) {
+        state = &basic->os->getGamepadState(int(port - 1 + 4));
+    }
+#endif
 
     int64_t joy = 0;
 
     auto setJoy = [&joy, &state](int8_t xIs, int8_t yIs, int64_t ijoy) {
-        if (state.dpad.x == xIs && state.dpad.y == yIs) {
+        if (state->dpad.x == xIs && state->dpad.y == yIs) {
             joy = ijoy;
+        } else {
+            const double deadzone = 0.7;
+            auto toDigital        = [](float f) -> int8_t { return std::abs(f) > 0.7f ? (f < 0.0f ? -1 : 1) : 0; };
+            if (toDigital(state->analogLeft.x) == xIs && toDigital(state->analogLeft.y) == yIs) {
+                joy = ijoy;
+            }
         }
     };
     setJoy(0, -1, 1);
@@ -773,10 +787,10 @@ Basic::Value fktJOY(Basic* basic, const std::vector<Basic::Value>& args) {
     setJoy(-1, 1, 6);
     setJoy(-1, 0, 7);
     setJoy(-1, -1, 8);
-    if (state.buttons[0] || state.buttons[1]) {
+    if (state->buttons[0] || state->buttons[2] || state->buttons[4]) {
         joy += 128;
     }
-    if (state.buttons[2] || state.buttons[3]) {
+    if (state->buttons[1] || state->buttons[3] || state->buttons[5]) {
         joy += 256;
     }
     return joy;

@@ -68,7 +68,7 @@
 ,{"FRE", R"RAW(FRE(0))RAW"}
 ,{"HEX$", R"RAW(PRINT HEX$( $ff001234 ))RAW"}
 ,{"INT", R"RAW(INT(expr))RAW"}
-,{"JOY", R"RAW(J = JOY(port))RAW"}
+,{"JOY", R"RAW(J = JOY(port) : REM 1..8 CW FROM 12:00. BUTTONS +128, +256)RAW"}
 ,{"LCASE$", R"RAW(LCASE$(s$))RAW"}
 ,{"LEFT$", R"RAW(LEFT$(string, n))RAW"}
 ,{"LEN", R"RAW(LEN(string))RAW"}

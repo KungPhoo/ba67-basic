@@ -1286,23 +1286,40 @@ Returns the integer portion of a number.
 ### JOY
 Returns the status of a joypad/gamepad/joystick.
 The return value is the same as in BASIC V7, but when you
-press buttons 1 and 2, the value 128 ($100) is added
-and by pressing buttons 3 or 4, the value 512 ($200) is added.
+press buttons 1 and 2, the value 128 ($80) is added
+and by pressing buttons 3 or 4, the value 256 ($100) is added.
 
 The d-pad position is numbered in clockwise order, for the eight
 possible pad positions, you get:
 ```
- 7 0 1     + $100 button 1, 2
- 6 + 2     + $200 button 3, 4
- 5 6 3
- ```
+8 1 2     + $100 button 1, 2
+7 + 3     + $200 button 3, 4
+6 5 4
+```
 
- For the port, you can provide a value of 1..4.
- On Linux, maybe more gamepads are supported. 4 is the XInput
- limit on Windows.
+For the port, you can provide a value of 1..16.
+The ports 1..4 are used for XInput devices on Windows.
+If no such device is connected, DirectInput devices are
+used. If both, XInput device 1 and DirectInput device 1
+are present, only XInput device 1 will be queried.
 
- **Usage:** `J = JOY(port)`
+On Linux, maybe more gamepads are supported.
 
+**Usage:** `J = JOY(port) : REM 1..8 CW FROM 12:00. BUTTONS +128, +256`
+
+Example program to get the joypad directions:
+```
+500 J=JOY(N) : REM INPUT IS N, OUTPUT IS JX,JY AND JB
+510 PRINT "JOY(";N;")=";J;"       "
+520 D=J AND $0F
+530 JX=0:JY=0:JB=0
+540 IF D>=2 AND D=4 THEN JX=1
+550 IF D>5 THEN JX=-1
+560 IF D=1 OR D=2 OR D=8 THEN JY=-1
+570 IF D>=4 AND D<=6 THEN JY=1
+580 IF J AND $80 THEN JB=1
+590 IF J AND $100 THEN JB=JB+2
+```
 
 ### LCASE$
 Converts the string to lower case.

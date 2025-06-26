@@ -6237,8 +6237,15 @@ typedef struct fplKeyboardState {
     fplButtonState buttonStatesMapped[FPL_MAX_KEYBOARD_STATE_COUNT];
 } fplKeyboardState;
 
+
+#if defined(FPL_PLATFORM_WINDOWS)
+#include <xinput.h> // XUSER_MAX_COUNT
+#else
+#define XUSER_MAX_COUNT 4
+#endif
+
 //! Max number of gamepad states
-#define FPL_MAX_GAMEPAD_STATE_COUNT 4
+#define FPL_MAX_GAMEPAD_STATE_COUNT (XUSER_MAX_COUNT + 8) // 4x XInput + 8x DirectInput
 
 //! A struct containing the full state for all gamepad devices
 typedef struct fplGamepadStates {
@@ -7663,6 +7670,452 @@ fpl_internal void fpl__Win32LoadXInputApi(fpl__Win32XInputApi* xinputApi) {
     }
 }
 
+
+
+//
+// DirectInput (DInput)
+//
+#if !defined(DIRECTINPUT_VERSION)
+#define DIRECTINPUT_VERSION 0x0800
+#endif
+#include <dinput.h>
+#if defined(FPL_IMPLEMENTATION)
+
+// #define IMPLEMENT_GUID(n,a,b,c,d,e,f,g,h,i,j,k) const GUID n = {a,b,c,{d,e,f,g,h,i,j,k}}
+// IMPLEMENT_GUID(IID_IDirectInput8A, 0xBF798030, 0x483A, 0x4DA2, 0xAA, 0x99, 0x5D, 0x64, 0xED, 0x36, 0x97, 0x00);
+// IMPLEMENT_GUID(IID_IDirectInput8W, 0xBF798031, 0x483A, 0x4DA2, 0xAA, 0x99, 0x5D, 0x64, 0xED, 0x36, 0x97, 0x00);
+// IMPLEMENT_GUID(GUID_XAxis, 0xA36D02E0, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_YAxis, 0xA36D02E1, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_ZAxis, 0xA36D02E2, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_RxAxis, 0xA36D02F4, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_RyAxis, 0xA36D02F5, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_RzAxis, 0xA36D02E3, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_Slider, 0xA36D02E4, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_Button, 0xA36D02F0, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_POV, 0xA36D02F2, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// #undef IMPLEMENT_GUID
+
+static const GUID IID_IDirectInput8A = {0xBF798030, 0x483A, 0x4DA2, {0xAA, 0x99, 0x5D, 0x64, 0xED, 0x36, 0x97, 0x00}};
+static const GUID IID_IDirectInput8W = {0xBF798031, 0x483A, 0x4DA2, {0xAA, 0x99, 0x5D, 0x64, 0xED, 0x36, 0x97, 0x00}};
+
+static const GUID GUID_XAxis = {0xa36d02e0 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+static const GUID GUID_YAxis = {0xa36d02e1 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+static const GUID GUID_ZAxis = {0xa36d02e2 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+static const GUID GUID_RxAxis = {0xa36d02f4 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+static const GUID GUID_RyAxis = {0xa36d02f5 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+static const GUID GUID_RzAxis = {0xa36d02e3 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+static const GUID GUID_Slider = {0xa36d02e4 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+static const GUID GUID_POV = {0xa36d02f2 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+
+
+
+
+
+
+
+// 
+// #define IMPLEMENT_GUID(n,a,b,c,d,e,f,g,h,i,j,k) const GUID n = {a,b,c,{d,e,f,g,h,i,j,k}}
+// IMPLEMENT_GUID(IID_IDirectInput8A, 0xBF798030, 0x483A, 0x4DA2, 0xAA, 0x99, 0x5D, 0x64, 0xED, 0x36, 0x97, 0x00);
+// IMPLEMENT_GUID(IID_IDirectInput8W, 0xBF798031, 0x483A, 0x4DA2, 0xAA, 0x99, 0x5D, 0x64, 0xED, 0x36, 0x97, 0x00);
+// IMPLEMENT_GUID(GUID_XAxis, 0xA36D02E0, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_YAxis, 0xA36D02E1, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_ZAxis, 0xA36D02E2, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_RxAxis, 0xA36D02F4, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_RyAxis, 0xA36D02F5, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_RzAxis, 0xA36D02E3, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_Slider, 0xA36D02E4, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_Button, 0xA36D02F0, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// IMPLEMENT_GUID(GUID_POV, 0xA36D02F2, 0xC9F3, 0x11CF, 0xBF, 0xC7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
+// #undef IMPLEMENT_GUID
+// 
+// static const GUID GUID_XAxis = {0xa36d02e0 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+// static const GUID guid00007FF617466160 = {0xa36d02e1 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+// static const GUID guid00007FF617466178 = {0xa36d02e2 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+// static const GUID guid00007FF617466190 = {0xa36d02f4 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+// static const GUID guid00007FF6174661A8 = {0xa36d02f5 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+// static const GUID guid00007FF6174661C0 = {0xa36d02e3 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+// static const GUID guid00007FF6174661D8 = {0xa36d02e4 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+// static const GUID guid00007FF617466220 = {0xa36d02f2 , 0xc9f3, 0x11cf, {0xbf, 0xc7, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}};
+// 
+
+
+
+
+DIOBJECTDATAFORMAT objdatafmt[] = {
+    { &GUID_XAxis, 0x00000000, 0x80ffff03, 0x00000100 },
+    { &GUID_YAxis, 0x00000004, 0x80ffff03, 0x00000100 },
+    { &GUID_ZAxis, 0x00000008, 0x80ffff03, 0x00000100 },
+    { &GUID_RxAxis, 0x0000000c, 0x80ffff03, 0x00000100 },
+    { &GUID_RyAxis, 0x00000010, 0x80ffff03, 0x00000100 },
+    { &GUID_RzAxis, 0x00000014, 0x80ffff03, 0x00000100 },
+    { &GUID_Slider, 0x00000018, 0x80ffff03, 0x00000100 },
+    { &GUID_Slider, 0x0000001c, 0x80ffff03, 0x00000100 },
+    { &GUID_POV, 0x00000020, 0x80ffff10, 0x00000000 },
+    { &GUID_POV, 0x00000024, 0x80ffff10, 0x00000000 },
+    { &GUID_POV, 0x00000028, 0x80ffff10, 0x00000000 },
+    { &GUID_POV, 0x0000002c, 0x80ffff10, 0x00000000 },
+    { 0, 0x00000030, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000031, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000032, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000033, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000034, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000035, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000036, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000037, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000038, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000039, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000003a, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000003b, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000003c, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000003d, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000003e, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000003f, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000040, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000041, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000042, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000043, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000044, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000045, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000046, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000047, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000048, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000049, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000004a, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000004b, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000004c, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000004d, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000004e, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000004f, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000050, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000051, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000052, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000053, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000054, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000055, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000056, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000057, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000058, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000059, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000005a, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000005b, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000005c, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000005d, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000005e, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000005f, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000060, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000061, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000062, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000063, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000064, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000065, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000066, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000067, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000068, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000069, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000006a, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000006b, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000006c, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000006d, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000006e, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000006f, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000070, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000071, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000072, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000073, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000074, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000075, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000076, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000077, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000078, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000079, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000007a, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000007b, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000007c, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000007d, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000007e, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000007f, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000080, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000081, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000082, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000083, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000084, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000085, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000086, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000087, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000088, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000089, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000008a, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000008b, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000008c, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000008d, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000008e, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000008f, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000090, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000091, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000092, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000093, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000094, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000095, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000096, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000097, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000098, 0x80ffff0c, 0x00000000 },
+    { 0, 0x00000099, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000009a, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000009b, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000009c, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000009d, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000009e, 0x80ffff0c, 0x00000000 },
+    { 0, 0x0000009f, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000a0, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000a1, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000a2, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000a3, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000a4, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000a5, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000a6, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000a7, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000a8, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000a9, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000aa, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000ab, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000ac, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000ad, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000ae, 0x80ffff0c, 0x00000000 },
+    { 0, 0x000000af, 0x80ffff0c, 0x00000000 },
+    { &GUID_XAxis, 0x000000b0, 0x80ffff03, 0x00000200 },
+    { &GUID_YAxis, 0x000000b4, 0x80ffff03, 0x00000200 },
+    { &GUID_ZAxis, 0x000000b8, 0x80ffff03, 0x00000200 },
+    { &GUID_RxAxis, 0x000000bc, 0x80ffff03, 0x00000200 },
+    { &GUID_RyAxis, 0x000000c0, 0x80ffff03, 0x00000200 },
+    { &GUID_RzAxis, 0x000000c4, 0x80ffff03, 0x00000200 },
+    { &GUID_Slider, 0x00000018, 0x80ffff03, 0x00000200 },
+    { &GUID_Slider, 0x0000001c, 0x80ffff03, 0x00000200 },
+    { &GUID_XAxis, 0x000000d0, 0x80ffff03, 0x00000300 },
+    { &GUID_YAxis, 0x000000d4, 0x80ffff03, 0x00000300 },
+    { &GUID_ZAxis, 0x000000d8, 0x80ffff03, 0x00000300 },
+    { &GUID_RxAxis, 0x000000dc, 0x80ffff03, 0x00000300 },
+    { &GUID_RyAxis, 0x000000e0, 0x80ffff03, 0x00000300 },
+    { &GUID_RzAxis, 0x000000e4, 0x80ffff03, 0x00000300 },
+    { &GUID_Slider, 0x00000018, 0x80ffff03, 0x00000300 },
+    { &GUID_Slider, 0x0000001c, 0x80ffff03, 0x00000300 },
+    { &GUID_XAxis, 0x000000f0, 0x80ffff03, 0x00000400 },
+    { &GUID_YAxis, 0x000000f4, 0x80ffff03, 0x00000400 },
+    { &GUID_ZAxis, 0x000000f8, 0x80ffff03, 0x00000400 },
+    { &GUID_RxAxis, 0x000000fc, 0x80ffff03, 0x00000400 },
+    { &GUID_RyAxis, 0x00000100, 0x80ffff03, 0x00000400 },
+    { &GUID_RzAxis, 0x00000104, 0x80ffff03, 0x00000400 },
+    { &GUID_Slider, 0x00000018, 0x80ffff03, 0x00000400 },
+    { &GUID_Slider, 0x0000001c, 0x80ffff03, 0x00000400 },
+};
+const DIDATAFORMAT c_dfDIJoystick2 = {
+32, 24, 1, 272, 164, objdatafmt
+};
+
+
+
+#endif
+
+typedef HRESULT(WINAPI* FPL__WIN32_FUNC_DirectInput8Create)(
+    HINSTANCE hinst,
+    DWORD dwVersion,
+    REFIID riidltf,
+    LPVOID* ppvOut,
+    LPUNKNOWN punkOuter);
+
+
+typedef struct fpl__Win32DirectInputController {
+    IDirectInputDevice8W* device;
+    DIJOYSTATE2 state;
+    GUID instanceGuid;
+    GUID productGuid;
+    bool connected;
+    wchar_t name[128];
+} fpl__Win32DirectInputController;
+
+typedef struct fpl__Win32DirectInputApi {
+    HMODULE dinputLibrary;
+    FPL__WIN32_FUNC_DirectInput8Create DirectInput8Create;
+    IDirectInput8W* directInput;
+    static const size_t maxNumberOfControllers = (FPL_MAX_GAMEPAD_STATE_COUNT - XUSER_MAX_COUNT);
+    fpl__Win32DirectInputController controllers[maxNumberOfControllers];
+} fpl__Win32DirectInputApi;
+
+fpl_internal void fpl__Win32LoadDirectInputApi(fpl__Win32DirectInputApi* api) {
+    fplAssert(api != fpl_null);
+    fplClearStruct(api);
+
+    const char* dinputDll = "dinput8.dll";
+    api->dinputLibrary = LoadLibraryA(dinputDll);
+    if (api->dinputLibrary != fpl_null) {
+        api->DirectInput8Create = (FPL__WIN32_FUNC_DirectInput8Create)GetProcAddress(api->dinputLibrary, "DirectInput8Create");
+        if (api->DirectInput8Create != fpl_null) {
+            HRESULT hr = api->DirectInput8Create(GetModuleHandleW(0), DIRECTINPUT_VERSION, IID_IDirectInput8W, (void**)&api->directInput, NULL);
+            if (FAILED(hr)) {
+                api->directInput = fpl_null;
+            }
+        }
+    }
+
+    if (api->directInput == fpl_null) {
+        if (api->dinputLibrary != fpl_null) {
+            FreeLibrary(api->dinputLibrary);
+            api->dinputLibrary = fpl_null;
+        }
+        api->DirectInput8Create = fpl_null;
+    }
+}
+
+fpl_internal void fpl__Win32UnloadDirectInputApi(fpl__Win32DirectInputApi* api) {
+    fplAssert(api != fpl_null);
+    if (api->directInput) {
+        api->directInput->Release();
+        api->directInput = fpl_null;
+    }
+    if (api->dinputLibrary != fpl_null) {
+        FreeLibrary(api->dinputLibrary);
+        api->dinputLibrary = fpl_null;
+    }
+    api->DirectInput8Create = fpl_null;
+}
+
+fpl_internal BOOL CALLBACK fpl__Win32DirectInputEnumCallback(const DIDEVICEINSTANCEW* instance, void* context) {
+    fpl__Win32DirectInputApi* api = (fpl__Win32DirectInputApi*)context;
+    // skip known controllers
+    for (int i = 0; i < api->maxNumberOfControllers; ++i) {
+        fpl__Win32DirectInputController* ctrl = &api->controllers[i];
+        if (ctrl->instanceGuid == instance->guidInstance) {
+            return DIENUM_CONTINUE;
+        }
+    }
+
+    // new controller was added
+    for (int i = 0; i < api->maxNumberOfControllers; ++i) {
+        fpl__Win32DirectInputController* ctrl = &api->controllers[i];
+        if (!ctrl->connected) {
+            HRESULT hr = api->directInput->CreateDevice(instance->guidInstance, &ctrl->device, NULL);
+            if (FAILED(hr)) {
+                return DIENUM_CONTINUE;
+            }
+            hr = ctrl->device->SetDataFormat(&c_dfDIJoystick2);
+            ctrl->device->SetCooperativeLevel(GetActiveWindow(), DISCL_FOREGROUND | DISCL_EXCLUSIVE);
+            ctrl->device->Acquire();
+            ctrl->instanceGuid = instance->guidInstance;
+            ctrl->productGuid = instance->guidProduct;
+            wcsncpy_s(ctrl->name, instance->tszProductName, _TRUNCATE);
+            ctrl->connected = true;
+            return DIENUM_CONTINUE;
+        }
+    }
+    return DIENUM_CONTINUE;
+}
+
+fpl_internal void fpl__Win32EnumerateDirectInputDevices(fpl__Win32DirectInputApi* api) {
+
+    api->directInput->EnumDevices(DI8DEVCLASS_GAMECTRL, fpl__Win32DirectInputEnumCallback, api, DIEDFL_ATTACHEDONLY);
+}
+fpl_internal bool fpl__Win32DirectInputPoll(fpl__Win32DirectInputApi* api) {
+
+    if (api == fpl_null || api->directInput == fpl_null) { return false; }
+
+    // poll for device connect/disconnect every 10 seconds
+    static fplMilliseconds nextTimeEnum = 0;
+    fplMilliseconds now = fplMillisecondsQuery();
+    if (now > nextTimeEnum) {
+        nextTimeEnum = now + 10 * 1000;
+        fpl__Win32EnumerateDirectInputDevices(api);
+    }
+
+    bool didPoll = false;
+    for (int i = 0; i < api->maxNumberOfControllers; ++i) {
+        fpl__Win32DirectInputController* ctrl = &api->controllers[i];
+        if (ctrl->connected && ctrl->device) {
+            HRESULT hr = ctrl->device->Poll();
+            if (FAILED(hr)) {
+                fplMemoryClear(&ctrl->state, sizeof(ctrl->state));
+                hr = ctrl->device->Acquire();
+                while (hr == DIERR_INPUTLOST) {
+                    hr = ctrl->device->Acquire();
+                }
+                continue;
+            }
+            didPoll = true;
+            hr = ctrl->device->GetDeviceState(sizeof(DIJOYSTATE2), &ctrl->state);
+            if (FAILED(hr)) {
+                fplMemoryClear(&ctrl->state, sizeof(ctrl->state));
+            }
+        }
+    }
+    return didPoll;
+}
+
+fpl_internal void fpl__setGamepadActiveState(fplGamepadState* s) {
+    s->isActive = (
+        s->dpadUp.isDown || s->dpadRight.isDown || s->dpadDown.isDown || s->dpadLeft.isDown ||
+        s->actionA.isDown || s->actionB.isDown || s->actionX.isDown || s->actionY.isDown ||
+        s->start.isDown || s->back.isDown ||
+        s->leftThumb.isDown || s->rightThumb.isDown ||
+        s->leftShoulder.isDown || s->rightShoulder.isDown
+        ) ? true : false;
+    if (!s->isActive) {
+        s->isActive = fabs(s->leftStickX) > 0.1 && fabs(s->leftStickY) > 0.1 &&
+            fabs(s->rightStickX) > 0.1 && fabs(s->rightStickY) > 0.1 &&
+            fabs(s->leftTrigger) > 0.1 && fabs(s->rightTrigger) > 0.1;
+    }
+}
+
+
+fpl_internal float fpl__Win32XInputProcessStickValue(const SHORT value, const SHORT deadZoneThreshold);
+fpl_internal void fpl__Win32XDirectnputToGamepadState(fpl__Win32DirectInputApi* api, int controllerIndex, fplGamepadState* outState) {
+    fpl__Win32DirectInputController* dx = &api->controllers[controllerIndex];
+    if (!dx->connected || dx->device == NULL) {
+        fplMemoryClear(&outState, sizeof(fplGamepadState));
+        return;
+    }
+
+    // If we got here, the controller is definitely by connected
+    outState->isConnected = true;
+
+    // Analog sticks
+    // XInput: The value is between -32768 and 32767, DInput: [0 +32767 +65535]
+    outState->leftStickX = fpl__Win32XInputProcessStickValue((SHORT)(dx->state.lX - 32768), XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+    outState->leftStickY = fpl__Win32XInputProcessStickValue((SHORT)(dx->state.lY - 32768), XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+    outState->rightStickX = fpl__Win32XInputProcessStickValue((SHORT)(dx->state.lRx - 32768), XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+    outState->rightStickY = fpl__Win32XInputProcessStickValue((SHORT)(dx->state.lRy - 32768), XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+
+    // Triggers
+    outState->leftTrigger = (float)dx->state.rglSlider[0] / 32767.0f;
+    outState->rightTrigger = (float)dx->state.rglSlider[1] / 32767.0f;
+
+    // map POV to DPad buttons
+    if (dx->state.rgdwPOV[0] != 0xFFFFFFFF) {
+        DWORD pov = dx->state.rgdwPOV[0];
+        if (pov >= 0 && pov <= 45000) {
+            if ((pov >= 0 && pov < 4500) || pov >= 31500) { outState->dpadUp.isDown = true; }
+            if (pov >= 4500 && pov < 13500) { outState->dpadRight.isDown = true; }
+            if (pov >= 13500 && pov < 22500) { outState->dpadDown.isDown = true; }
+            if (pov >= 22500 && pov < 31500) { outState->dpadLeft.isDown = true; }
+        }
+    }
+
+    // Action buttons
+    int i = 0; // button index counter
+    // TODO maybe change that mapping order?
+    if (dx->state.rgbButtons[i++] & 0x80) { outState->actionA.isDown = true; }
+    if (dx->state.rgbButtons[i++] & 0x80) { outState->actionB.isDown = true; }
+    if (dx->state.rgbButtons[i++] & 0x80) { outState->actionX.isDown = true; }
+    if (dx->state.rgbButtons[i++] & 0x80) { outState->actionY.isDown = true; }
+    if (dx->state.rgbButtons[i++] & 0x80) { outState->start.isDown = true; }
+    if (dx->state.rgbButtons[i++] & 0x80) { outState->back.isDown = true; }
+    if (dx->state.rgbButtons[i++] & 0x80) { outState->leftShoulder.isDown = true; }
+    if (dx->state.rgbButtons[i++] & 0x80) { outState->rightShoulder.isDown = true; }
+    if (dx->state.rgbButtons[i++] & 0x80) { outState->leftThumb.isDown = true; }
+    if (dx->state.rgbButtons[i++] & 0x80) { outState->rightThumb.isDown = true; }
+
+    // The controller is only active, when any button or any movement happened
+    fpl__setGamepadActiveState(outState);
+}
+
+
 //
 // WINAPI functions
 //
@@ -8152,6 +8605,7 @@ typedef struct fpl__Win32InitState {
 
 typedef struct fpl__Win32AppState {
     fpl__Win32XInputState xinput;
+    fpl__Win32DirectInputApi dinput;
     fpl__Win32Api winApi;
 } fpl__Win32AppState;
 
@@ -11905,6 +12359,8 @@ fpl_internal void fpl__Win32ReleasePlatform(fpl__PlatformInitState* initState, f
     fpl__Win32InitState* win32InitState = &initState->win32;
     if (appState->initFlags & fplInitFlags_GameController) {
         fpl__Win32UnloadXInputApi(&win32AppState->xinput.xinputApi);
+        fpl__Win32UnloadDirectInputApi(&win32AppState->dinput);
+
     }
     fpl__Win32UnloadApi(&win32AppState->winApi);
 }
@@ -12228,6 +12684,7 @@ fpl_internal bool fpl__Win32InitPlatform(const fplInitFlags initFlags, const fpl
     // Load XInput
     if (initFlags & fplInitFlags_GameController) {
         fpl__Win32LoadXInputApi(&win32AppState->xinput.xinputApi);
+        fpl__Win32LoadDirectInputApi(&win32AppState->dinput);
     }
 
     // Show/Hide console
@@ -14298,43 +14755,68 @@ fpl_platform_api bool fplPollKeyboardState(fplKeyboardState* outState) {
     return(true);
 }
 
+
+
+
+
 fpl_platform_api bool fplPollGamepadStates(fplGamepadStates* outStates) {
     FPL__CheckArgumentNull(outStates, false);
     FPL__CheckPlatform(false);
     fpl__PlatformAppState* platformAppState = fpl__global__AppState;
-    if (platformAppState->initFlags & fplInitFlags_GameController) {
-        fpl__Win32AppState* appState = &platformAppState->win32;
-        const fpl__Win32WindowState* windowState = &fpl__global__AppState->window.win32;
-        const fpl__Win32Api* wapi = &appState->winApi;
-        fpl__Win32XInputState* xinputState = &appState->xinput;
-        fplAssert(xinputState != fpl_null);
-        if (xinputState->xinputApi.XInputGetState != fpl_null) {
-            // @TODO(final): fpl__Win32UpdateGameControllers() uses duplicate code
-            QueryPerformanceCounter(&xinputState->lastDeviceSearchTime);
+    if (0 == (platformAppState->initFlags & fplInitFlags_GameController)) {
+        return(false);
+    }
 
-            fplClearStruct(outStates);
-            for (DWORD controllerIndex = 0; controllerIndex < XUSER_MAX_COUNT; ++controllerIndex) {
-                XINPUT_STATE controllerState = fplZeroInit;
-                auto rv = xinputState->xinputApi.XInputGetState(controllerIndex, &controllerState);
-                if (xinputState->xinputApi.XInputGetState(controllerIndex, &controllerState) == ERROR_SUCCESS) {
-                    if (!xinputState->isConnected[controllerIndex]) {
-                        xinputState->isConnected[controllerIndex] = true;
-                        fplStringFormat(xinputState->deviceNames[controllerIndex], fplArrayCount(xinputState->deviceNames[controllerIndex]), "XInput-Device [%d]", controllerIndex);
-                    }
-                    const XINPUT_GAMEPAD* newPadState = &controllerState.Gamepad;
-                    fplGamepadState* targetPadState = &outStates->deviceStates[controllerIndex];
-                    fpl__Win32XInputGamepadToGamepadState(newPadState, targetPadState);
-                    targetPadState->deviceName = xinputState->deviceNames[controllerIndex];
-                } else {
-                    if (xinputState->isConnected[controllerIndex]) {
-                        xinputState->isConnected[controllerIndex] = false;
-                    }
+    fpl__Win32AppState* appState = &platformAppState->win32;
+    const fpl__Win32WindowState* windowState = &fpl__global__AppState->window.win32;
+    const fpl__Win32Api* wapi = &appState->winApi;
+    fpl__Win32XInputState* xinputState = &appState->xinput;
+    fpl__Win32DirectInputApi* dinput = &appState->dinput;
+
+    // XInput - JoyPads No. 0..3 (XUSER_MAX_COUNT)
+    fplAssert(xinputState != fpl_null);
+    bool returnValue = false;
+    if (xinputState->xinputApi.XInputGetState != fpl_null) {
+        // @TODO(final): fpl__Win32UpdateGameControllers() uses duplicate code
+        QueryPerformanceCounter(&xinputState->lastDeviceSearchTime);
+
+        fplClearStruct(outStates);
+        for (DWORD controllerIndex = 0; controllerIndex < XUSER_MAX_COUNT; ++controllerIndex) {
+            XINPUT_STATE controllerState = fplZeroInit;
+            auto rv = xinputState->xinputApi.XInputGetState(controllerIndex, &controllerState);
+            if (xinputState->xinputApi.XInputGetState(controllerIndex, &controllerState) == ERROR_SUCCESS) {
+                if (!xinputState->isConnected[controllerIndex]) {
+                    xinputState->isConnected[controllerIndex] = true;
+                    fplStringFormat(xinputState->deviceNames[controllerIndex], fplArrayCount(xinputState->deviceNames[controllerIndex]), "XInput-Device [%d]", controllerIndex);
+                }
+                const XINPUT_GAMEPAD* newPadState = &controllerState.Gamepad;
+                fplGamepadState* targetPadState = &outStates->deviceStates[controllerIndex];
+                fpl__Win32XInputGamepadToGamepadState(newPadState, targetPadState);
+                targetPadState->deviceName = xinputState->deviceNames[controllerIndex];
+            } else {
+                if (xinputState->isConnected[controllerIndex]) {
+                    xinputState->isConnected[controllerIndex] = false;
                 }
             }
-            return(true);
+        }
+        returnValue = true; // return(true);
+    }
+
+    // DirectInput - JoyPads No. 4...12
+    if (fpl__Win32DirectInputPoll(dinput)) {
+        returnValue = true; // return(true);
+        if (dinput != fpl_null && dinput->directInput != fpl_null) {
+            for (int i = 0; i < dinput->maxNumberOfControllers; ++i) {
+                fpl__Win32DirectInputController* ctrl = &dinput->controllers[i];
+                if (ctrl->connected && ctrl->device) {
+                    fplGamepadState* targetPadState = &outStates->deviceStates[i + XUSER_MAX_COUNT];
+                    fpl__Win32XDirectnputToGamepadState(dinput, i, targetPadState);
+                }
+            }
+
         }
     }
-    return(false);
+    return returnValue;
 }
 
 fpl_platform_api bool fplQueryCursorPosition(int32_t* outX, int32_t* outY) {
