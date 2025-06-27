@@ -1676,11 +1676,11 @@ void createCharmap(CharMap& charmap, char32_t from, char32_t to) {
         { 0x1fb89,                 { 31, 31, 31, 31, 31, 31, 31, 31 } },
         { 0x1fb8a,                 { 63, 63, 63, 63, 63, 63, 63, 63 } },
         { 0x1fb8b,         { 127, 127, 127, 127, 127, 127, 127, 127 } },
-        { 0x1FB8C, { 0xc0, 0xc0, 0x30, 0x30, 0xc0, 0xc0, 0x30, 0x30 } }, // $5C PETSCII braille 4 vertical dots (bad)
-        { 0x1fb8d,                     { 10, 5, 10, 5, 10, 5, 10, 5 } },
-        { 0x1fb8e,                   { 170, 85, 170, 85, 0, 0, 0, 0 } },
-        { 0x1FB8F, { 0x00, 0x00, 0x00, 0x00, 0xcc, 0xcc, 0x33, 0x33 } }, // $68 PETSCII LOWER HALF MEDIUM SHADE
-        { 0x1fb90,             { 85, 170, 85, 170, 85, 170, 85, 170 } },
+        { 0x1FB8C, { 0x50, 0xa0, 0x50, 0xa0, 0x50, 0xa0, 0x50, 0xa0 } }, // LEFT HALF MEDIUM SHADE
+        { 0x1FB8D, { 0x05, 0x0a, 0x05, 0x0a, 0x05, 0x0a, 0x05, 0x0a } }, // RIGHT HALF MEDIUM SHADE
+        { 0x1FB8E, { 0x55, 0xaa, 0x55, 0xaa, 0x00, 0x00, 0x00, 0x00 } }, // UPPER HALF MEDIUM SHADE
+        { 0x1FB8F, { 0x00, 0x00, 0x00, 0x00, 0x55, 0xaa, 0x55, 0xaa } }, // LOWER HALF MEDIUM SHADE $68 PETSCII
+        { 0x1FB90, { 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55 } }, // INVERSE MEDIUM SHADE
         { 0x1fb91,           { 255, 255, 255, 255, 85, 170, 85, 170 } },
         { 0x1fb92,           { 85, 170, 85, 170, 255, 255, 255, 255 } },
         { 0x1fb93,         { 245, 250, 245, 250, 245, 250, 245, 250 } },
@@ -2535,7 +2535,7 @@ char32_t PETSCIItoUnicode(uint8_t petscii) {
               /* 0x7A, */ 0x0000007A, // (*) z  - END LOWERCASE - COMPATIBLE WITH ASCII - NOT PETSCI!
               /* 0x7B, */ 0x0000253C, // (-) box drawings light vertical and horizontal
               /* 0x7C, */ 0x0000e011, // (E) left half hatched
-              /* 0x7D, */ 0x00002502, // (!) box drawings light vertical
+              /* 0x7D, */ 0x00002503, // (!) box drawings heavy vertical
               /* 0x7E, */ 0x000003C0, // (!) greek small letter pi
               /* 0x7F, */ 0x000025E5, // (!) black upper right triangle
               /* 0x80, */ 0x00000080, // (-) undefined
@@ -2646,15 +2646,15 @@ char32_t PETSCIItoUnicode(uint8_t petscii) {
               /* 0xE8, */ 0x0001FB8F, // (!) LOWER HALF MEDIUM SHADE
               /* 0xE9, */ 0x00002034, // (!) slashed block right -> tripple prime
               /* 0xEA, */ 0x0001FB87, // (!) right one quarter block
-              /* 0xEB, */ 0x0000251C, // (!) box drawings light vertical and right
+              /* 0xEB, */ 0x00002523, // (!) box drawings heavy vertical and right
               /* 0xEC, */ 0x00002597, // (!) black small square lower right
-              /* 0xED, */ 0x00002514, // (!) box drawings light up and right
-              /* 0xEE, */ 0x00002510, // (!) box drawings light down and left
+              /* 0xED, */ 0x00002517, // (!) box drawings heavy up and right
+              /* 0xEE, */ 0x00002513, // (!) box drawings heavy down and left
               /* 0xEF, */ 0x00002582, // (!) lower one quarter block
-              /* 0xF0, */ 0x0000250C, // (!) box drawings light down and right
-              /* 0xF1, */ 0x00002534, // (!) box drawings light up and horizontal
-              /* 0xF2, */ 0x0000252C, // (!) box drawings light down and horizontal
-              /* 0xF3, */ 0x00002524, // (!) box drawings light vertical and left
+              /* 0xF0, */ 0x0000250F, // (!) box drawings heavy down and right
+              /* 0xF1, */ 0x0000253B, // (!) box drawings heavy up and horizontal
+              /* 0xF2, */ 0x00002533, // (!) box drawings heavy down and horizontal
+              /* 0xF3, */ 0x0000252B, // (!) box drawings heavy vertical and left
               /* 0xF4, */ 0x0000258E, // (!) left one quarter block
               /* 0xF5, */ 0x0000258D, // (!) left three eights block
               /* 0xF6, */ 0x0001FB88, // (!) right three eights block
@@ -2664,7 +2664,7 @@ char32_t PETSCIItoUnicode(uint8_t petscii) {
               /* 0xFA, */ 0x00002713, // (!) check mark  --- from lowercase
               /* 0xFB, */ 0x00002596, // (!) black small square lower left
               /* 0xFC, */ 0x0000259D, // (!) black small square upper right
-              /* 0xFD, */ 0x00002518, // (!) box drawings light up and left
+              /* 0xFD, */ 0x0000251b, // (!) box drawings heavy up and left
               /* 0xFE, */ 0x00002598, // (!) black small square upper left
               /* 0xFF, */ 0x00002592 //  (?) medium shade  --- from lowercase (should be inverted)
           };

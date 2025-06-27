@@ -75,11 +75,12 @@ ScreenBuffer::ScreenBuffer()
 }
 
 void ScreenBuffer::clear() {
-    cursor = {};
+    cursor  = {};
+    reverse = false;
     for (auto& ln : lines) {
         for (auto& c : ln->cols) {
             c.ch  = U'\0';
-            c.col = color;
+            c.col = color();
         }
         ln->wrapps = false;
     }
@@ -113,7 +114,7 @@ void ScreenBuffer::putC(char32_t c) {
 
     SChar sc;
     sc.ch  = c;
-    sc.col = color;
+    sc.col = color();
 
     lines[cursor.y]->cols[cursor.x] = sc;
     ++cursor.x;
@@ -157,7 +158,7 @@ void ScreenBuffer::deleteChar() {
             }
             xstart = 0;
         } else {
-            ln->cols[width - 1] = { U'\0', color };
+            ln->cols[width - 1] = { U'\0', color() };
             break; // y
         }
     }
@@ -173,7 +174,7 @@ void ScreenBuffer::backspaceChar() {
 
 void ScreenBuffer::insertSpace() {
     dirtyFlag = true;
-    SChar sc { ' ', color }, nxt;
+    SChar sc { ' ', color() }, nxt;
 
     Cursor cr = cursor;
     while (cr.y < height) {
@@ -263,7 +264,7 @@ const ScreenBuffer::Cursor& ScreenBuffer::moveCursorPos(int dx, int dy) {
     for (size_t x = 0; x < cursor.x; ++x) {
         if (ln->cols[x].ch == '\0') {
             ln->cols[x].ch  = U' ';
-            ln->cols[x].col = color;
+            ln->cols[x].col = color();
         }
     }
 
@@ -342,12 +343,12 @@ void ScreenBuffer::updateScreenPixelsPalette() {
     for (int y = 0; y < int(height); ++y) {
         uint8_t cl = 1, lastColor = 1;
         auto& ln  = lines[y];
-        lastColor = this->color;
+        lastColor = this->textColor;
         for (size_t x = 0; x < width; ++x) {
             auto sc = ln->cols[x];
             if (sc.ch == U'\0') {
                 sc.ch  = U' ';
-                sc.col = this->color;
+                sc.col = this->textColor;
             } else {
                 sc.col    = sc.col;
                 lastColor = sc.col;
@@ -430,19 +431,15 @@ std::u32string ScreenBuffer::getSelectedText(Cursor start, Cursor end) const {
 }
 
 void ScreenBuffer::setColors(uint8_t text, uint8_t back) {
-    color = (text & 0x0f) | ((back << 4) & 0xf0);
+    textColor = (text & 0x0f) | ((back << 4) & 0xf0);
 }
 
 void ScreenBuffer::setTextColor(int index) {
-    setColors(index, color >> 4);
+    setColors(index, textColor >> 4);
 }
 
 void ScreenBuffer::setBackgroundColor(int index) {
-    setColors(color & 0x0f, index);
-}
-
-void ScreenBuffer::inverseColours() {
-    color = ((color & 0xf) << 4) | ((color >> 4) & 0x0f);
+    setColors(textColor & 0x0f, index);
 }
 
 void ScreenBuffer::defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
@@ -486,7 +483,8 @@ void ScreenBuffer::copyWithLock(ScreenBuffer& dst, const ScreenBuffer& src) {
     ScreenBuffer::deepCopyLines(dst.lines, src.lines);
 
     dst.borderColor  = src.borderColor;
-    dst.color        = src.color;
+    dst.reverse      = src.reverse;
+    dst.textColor    = src.textColor;
     dst.height       = src.height;
     dst.width        = src.width;
     dst.cursor       = src.cursor;
@@ -504,7 +502,7 @@ void ScreenBuffer::resize(size_t w, size_t h) {
         if (lines[y] == nullptr) {
             lines[y] = std::make_shared<Line>();
         }
-        lines[y]->cols.resize(w + 1, { U'\0', color });
+        lines[y]->cols.resize(w + 1, { U'\0', textColor });
     }
     // width=w; height=h;
 }
@@ -530,6 +528,7 @@ void ScreenBuffer::deepCopyLines(std::vector<std::shared_ptr<Line>>& dest, const
         dest[i]->wrapps = src[i]->wrapps;
     }
 }
+
 
 void ScreenBuffer::dropFirstLine() {
     dirtyFlag = true;

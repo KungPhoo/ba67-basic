@@ -99,7 +99,7 @@ void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
     cr.y = y;
     basic->os->screen.setCursorPos(cr);
     if (inverse) {
-        basic->os->screen.inverseColours();
+        basic->os->screen.reverseMode(true);
     }
     if (color > 0) {
         if (color > 16) {
@@ -125,7 +125,7 @@ void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
 
     // inverse flag is only for this string
     if (inverse) {
-        basic->os->screen.inverseColours();
+        basic->os->screen.reverseMode(false);
     }
     basic->os->presentScreen();
 }
@@ -465,6 +465,7 @@ void cmdQSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     cmdSAVE(basic, { filename });
 }
 
+// TODO: OPEN no,drive, !!15!!: direct mode "S:file" = scratch
 void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -3429,9 +3430,8 @@ void Basic::printUtf8String(const char* utf8, bool applyCtrlCodes) {
                 case 0x13: os->screen.setCursorPos({ 0, 0 }); break; // home
                 case 0x14: os->screen.backspaceChar(); break; // delete
                 case 0x93: os->screen.clear(); break; // clear
-                case 0x12: os->screen.inverseColours(); break; // reverse on TODO that's not correct
-                case 0x92: os->screen.inverseColours(); break; // reverse off
-
+                case 0x12: os->screen.reverseMode(true); break; // reverse on
+                case 0x92: os->screen.reverseMode(false); break; // reverse off
                 case 0x90: os->screen.setTextColor(0); break; // Black
                 case 0x05: os->screen.setTextColor(1); break; // White
                 case 0x1c: os->screen.setTextColor(2); break; // Red
@@ -3452,6 +3452,7 @@ void Basic::printUtf8String(const char* utf8, bool applyCtrlCodes) {
                     os->screen.putC(c);
                 }
             }
+            os->screen.reverseMode(false); // reverse off
         } else {
             while (*utf8 != '\0') {
                 os->screen.putC(Unicode::parseNextUtf8(utf8));

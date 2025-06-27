@@ -173,7 +173,8 @@ public:
         swap(lhs.palette, rhs.palette);
         swap(lhs.sprites, rhs.sprites);
         swap(lhs.lines, rhs.lines);
-        swap(lhs.color, rhs.color);
+        swap(lhs.reverse, rhs.reverse);
+        swap(lhs.textColor, rhs.textColor);
         swap(lhs.borderColor, rhs.borderColor);
         swap(lhs.cursor, rhs.cursor);
     }
@@ -183,7 +184,8 @@ public:
         : palette(std::move(other.palette))
         , sprites(std::move(other.sprites))
         , lines(std::move(other.lines))
-        , color(other.color)
+        , reverse(other.reverse)
+        , textColor(other.textColor)
         , borderColor(other.borderColor)
         , cursor(other.cursor) {
         // Note: screenBitmap is not moved
@@ -269,10 +271,10 @@ public:
     void setTextColor(int index);
     void setBackgroundColor(int index);
     void setBorderColor(int index) { borderColor = (index & 0x0f); }
-    void inverseColours(); // interchange text and background colors
+    void reverseMode(bool enable) { reverse = enable; } // reverse text and background colors
 
-    inline int getTextColor() const { return color & 0x0f; }
-    inline int getBackgroundColor() const { return (color >> 4) & 0x0f; }
+    inline int getTextColor() const { return color() & 0x0f; }
+    inline int getBackgroundColor() const { return (color() >> 4) & 0x0f; }
     inline int getBorderColor() const { return (borderColor) & 0x0f; }
     void defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xff);
     void resetDefaultColors();
@@ -311,8 +313,10 @@ protected:
 
     static void deepCopyLines(std::vector<std::shared_ptr<Line>>& dest, const std::vector<std::shared_ptr<Line>>& src);
 
-    uint8_t color; // color&0x0f = foreground, color>>4 = background
+    inline uint8_t color() const { return reverse ? (((textColor & 0xf) << 4) | ((textColor >> 4) & 0x0f)) : textColor; }
+    uint8_t textColor; // color&0x0f = foreground, color>>4 = background
     uint8_t borderColor;
+    bool reverse = false; // reverse the color?
 
     void dropFirstLine();
     void manageOverflow();
