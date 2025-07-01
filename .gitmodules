@@ -4,3 +4,6 @@
 [submodule "miniaudio"]
 	path = miniaudio
 	url = https://github.com/mackron/miniaudio.git
+[submodule "minifetch"]
+	path = minifetch
+	url = https://github.com/KungPhoo/minifetch.git

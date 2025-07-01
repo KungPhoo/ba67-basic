@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 3.12.0)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
 # ==========================================
 # PROJECT CONFIGURATION
 # ==========================================
@@ -40,6 +36,7 @@ else()
 add_compile_definitions(BA67_GRAPHICS_ENABLE_EMOJI)
 endif()
 
+
 # Minimum required variables/pathes
 set(APP_NAME              "BA67") # only set here. Better not change it, then.
 message("===========================================================")
@@ -52,7 +49,16 @@ else()
     project(${APP_NAME} LANGUAGES CXX C)
 endif()
 
-set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:EditAndContinue>")
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if (MSVC)
+    # this one fixes intellisense
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++20 /Zc:__cplusplus")
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug>:EditAndContinue>")
+endif()
+
+
 
 add_compile_definitions(_CRT_SECURE_NO_WARNINGS=1)
 add_compile_definitions(_UNICODE=1 UNICODE=1) # Windows needs this
@@ -104,7 +110,8 @@ add_library(lib_soloud OBJECT "${SOLOUD_CPP}")
 
 # FPL takes care of wWinMain and calls main
 add_executable(${APP_NAME} "${APP_SOURCES}" "${APP_HEADERS}")
-# target_compile_features(${APP_NAME} PUBLIC cxx_std_20)
+
+
 target_link_libraries(${APP_NAME} PUBLIC lib_soloud)
 
 if (WIN32)

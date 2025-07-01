@@ -26,7 +26,8 @@
 ,{"CHDIR", R"RAW(CHDIR directory)RAW"}
 ,{"CATALOG", R"RAW(CATALOG)RAW"}
 ,{"CHAR", R"RAW(CHAR color, column, line, text$[, inverse])RAW"}
-,{"CHARDEF", R"RAW(CHARDEF char$, bytes, [more bytes])RAW"}
+,{"CHARDEF", R"RAW(CHARDEF char$, bytes [, more bytes])RAW"}
+,{"CLOUD", R"RAW(CLOUD email$ [, server$])RAW"}
 ,{"DUMP", R"RAW(DUMP)RAW"}
 ,{"END", R"RAW(END)RAW"}
 ,{"FAST", R"RAW(FAST)RAW"}

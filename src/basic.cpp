@@ -135,7 +135,7 @@ void cmdCHDIR(Basic* basic, const std::vector<Basic::Value>& values) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
     std::string dir = basic->valueToString(values[0]);
-    dir             = basic->findFirstFileNameWildcard(dir, true);
+    dir             = basic->os->findFirstFileNameWildcard(dir, true);
 
     if (!basic->os->setCurrentDirectory(dir)) {
         throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
@@ -475,7 +475,7 @@ void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     if (ifile < 1 || size_t(ifile) >= basic->openFiles.size()) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
-    if (basic->openFiles[ifile].pfile != nullptr) {
+    if (basic->openFiles[ifile]) {
         {
             throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
         }
@@ -494,7 +494,7 @@ void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
         }
         if (strmode[0] == 'r' || strmode[0] == 'R') {
             iomode = "r";
-            path   = basic->findFirstFileNameWildcard(path);
+            path   = basic->os->findFirstFileNameWildcard(path);
         } else if (strmode[0] == 'w' || strmode[0] == 'W') {
             iomode = "w";
         } else {
@@ -502,11 +502,10 @@ void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
         }
     }
 
-    FILE* pf = basic->fopenUtf8(path, iomode);
-    if (pf == nullptr) {
+    basic->openFiles[ifile] = basic->os->fopen(path, iomode);
+    if (!basic->openFiles[ifile]) {
         throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
     }
-    basic->openFiles[ifile].pfile = pf;
 }
 
 void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
@@ -518,14 +517,12 @@ void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (ifile < 1 || size_t(ifile) >= basic->openFiles.size()) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
-    if (basic->openFiles[ifile].pfile == nullptr) {
+    if (!basic->openFiles[ifile]) {
         {
             throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
         }
     }
-
-    fclose(basic->openFiles[ifile].pfile);
-    basic->openFiles[ifile].pfile = nullptr;
+    basic->openFiles[ifile].close();
 }
 
 void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
@@ -718,6 +715,16 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
     }
     basic->os->screen.cleanCurrentLine();
     basic->printUtf8String(std::string((const char*)(u8"╚══Σ")) + niceSize(totalBytes) + (const char*)(u8"═══"));
+}
+
+void cmdCLOUD(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() == 0) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    basic->os->cloudUser = basic->valueToString(values[0]);
+    if (values.size() > 2) {
+        basic->os->cloudUrl = basic->valueToString(values[2]);
+    }
 }
 
 Basic::Value fktDEC(Basic* basic, const std::vector<Basic::Value>& args) {
@@ -1003,6 +1010,10 @@ Basic::Value& Basic::Array::at(const Basic::ArrayIndex& ix) {
 Basic::Options Basic::options; // static instance
 
 Basic::Basic(Os* os, SoundSystem* ss) {
+    for (int i = 0; i < 256; ++i) {
+        openFiles.emplace_back(Os::FilePtr(os));
+    }
+
     Module mainmodule;
     modules[""] = mainmodule;
     moduleVariableStack.push_back(modules.begin()); // create a module with no name and push it on the stack
@@ -1047,6 +1058,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "CHDIR", cmdCHDIR },
         { "COLOR", cmdCOLOR },
         { "CATALOG", cmdCATALOG },
+        { "CLOUD", cmdCLOUD },
         { "CHARDEF", cmdCHARDEF },
         { "SPRDEF", cmdSPRDEF },
         { "SPRITE", cmdSPRITE },
@@ -3461,8 +3473,8 @@ void Basic::printUtf8String(const char* utf8, bool applyCtrlCodes) {
 
         os->presentScreen();
     } else {
-        FILE* pf = openFiles[currentFileNo].pfile;
-        if (pf == nullptr) {
+        auto& pf = openFiles[currentFileNo];
+        if (!pf) {
             currentFileNo = 0;
             throw Error(ErrorId::ILLEGAL_DEVICE);
         } else {
@@ -4100,75 +4112,6 @@ void Basic::waitForKeypress() {
     }
 }
 
-std::string Basic::findFirstFileNameWildcard(std::string filenameUtf8, bool isDirectory) {
-    if (filenameUtf8.find('*') == std::string::npos && filenameUtf8.find('?') == std::string::npos) {
-        return filenameUtf8;
-    }
-    std::string cd = os->getCurrentDirectory();
-
-    std::string fixedDirs;
-    for (;;) {
-        size_t endOfDir = filenameUtf8.find('/');
-        if (endOfDir == std::string::npos) {
-            break;
-        }
-
-        std::string folder = findFirstFileNameWildcard(filenameUtf8.substr(0, endOfDir), true);
-        fixedDirs += folder;
-        fixedDirs += '/';
-        filenameUtf8 = filenameUtf8.substr(endOfDir + 1);
-
-        if (!os->setCurrentDirectory(folder)) {
-            break;
-        }
-    }
-
-    std::string outpath = fixedDirs + filenameUtf8;
-
-    // list and search
-    std::u32string fileu32;
-    if (Unicode::toU32String(filenameUtf8.c_str(), fileu32)) {
-        auto files = os->listCurrentDirectory();
-        for (auto& f : files) {
-            std::u32string fu32;
-            if (f.isDirectory == isDirectory && Unicode::toU32String(f.name.c_str(), fu32)) {
-                if (Unicode::wildcardMatchNoCase(fu32.c_str(), fileu32.c_str())) {
-                    outpath = fixedDirs + f.name;
-                    break;
-                }
-            }
-        }
-    }
-
-    os->setCurrentDirectory(cd);
-    return outpath;
-}
-
-FILE* Basic::fopenUtf8(const std::string& filenameUtf8, const char* mode) {
-    FILE* file = nullptr;
-
-    if (mode[0] == 'w') {
-#ifdef _WIN32
-        std::u16string u16;
-        Unicode::toU16String(filenameUtf8.c_str(), u16);
-        file = _wfsopen(reinterpret_cast<const wchar_t*>(u16.c_str()), L"wb", _SH_DENYNO); // allow shared reading - even if some editor has the file open
-#else
-        file = fopen(filenameUtf8.c_str(), "wb");
-#endif
-    } else if (mode[0] == 'r') {
-#ifdef _WIN32
-        std::u16string u16;
-        Unicode::toU16String(filenameUtf8.c_str(), u16);
-        file = _wfsopen(reinterpret_cast<const wchar_t*>(u16.c_str()), L"rb", _SH_DENYNO); // allow shared reading - even if some editor has the file open
-#else
-        file = fopen(filenameUtf8.c_str(), "rb");
-#endif
-    } else {
-        throw std::runtime_error("fopenUtf8 - only r and w supported");
-    }
-    return file;
-}
-
 bool Basic::loadProgram(const char* filenameUtf8) {
     std::string path(filenameUtf8);
     return loadProgram(path);
@@ -4182,7 +4125,7 @@ bool Basic::loadProgram(const char* filenameUtf8) {
 
 #include "font.h"
 bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
-    std::string foundname = findFirstFileNameWildcard(inOutFilenameUtf8);
+    std::string foundname = os->findFirstFileNameWildcard(inOutFilenameUtf8);
 
     if (foundname != inOutFilenameUtf8) {
         os->screen.cleanCurrentLine();
@@ -4190,8 +4133,8 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
         inOutFilenameUtf8 = foundname;
     }
 
-    FILE* file = fopenUtf8(foundname, "rb");
-    if (file == nullptr) {
+    auto file = os->fopen(foundname, "rb");
+    if (!file) {
         return false;
     }
 
@@ -4222,6 +4165,7 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
     fread(buff, length, 1, file);
     buff[length] = '\0';
     fclose(file);
+
     file = nullptr;
 
     // Establish string and get the first token:
@@ -4326,8 +4270,8 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
 }
 
 bool Basic::saveProgram(std::string filenameUtf8) {
-    FILE* file = fopenUtf8(filenameUtf8, "wb");
-    if (file == nullptr) {
+    Os::FilePtr file = os->fopen(filenameUtf8, "wb");
+    if (!file) {
         return false;
     }
 
@@ -4335,16 +4279,15 @@ bool Basic::saveProgram(std::string filenameUtf8) {
         if (ln.first < 0) {
             continue;
         }
-        fprintf(file, "%d %s\r\n", ln.first, ln.second.c_str());
+        file.fprintf("%d %s\r\n", ln.first, ln.second.c_str());
     }
-    fclose(file);
-    file = nullptr;
+    file.close();
     return true;
 }
 
 bool Basic::fileExists(const std::string& filenameUtf8, bool allowWildCard) {
     if (allowWildCard) {
-        return os->doesFileExist(findFirstFileNameWildcard(filenameUtf8));
+        return os->doesFileExist(os->findFirstFileNameWildcard(filenameUtf8));
     }
     return os->doesFileExist(filenameUtf8);
 }

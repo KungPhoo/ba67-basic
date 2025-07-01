@@ -18,6 +18,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
   - [Variables](#variables)
   - [Files](#files)
     - [Filesystem](#filesystem)
+    - [Cloud file storage](#cloud-file-storage)
     - [boot.bas](#boot-bas)
     - [Line 1 Hack](#line-1-hack)
   - [Keywords, Commands, Functions](#keywords--commands--functions)
@@ -52,6 +53,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [CATALOG](#catalog)
     - [CHAR](#char)
     - [CHARDEF](#chardef)
+    - [CLOUD](#cloud)
     - [DUMP](#dump)
     - [END](#end)
     - [FAST](#fast)
@@ -122,9 +124,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [XOR](#xor)
   - [Reserved Commands](#reserved-commands)
 - [ANNEX](#annex)
-  - [A - Using the Source Code](#a---using-the-source-code)
-    - [CHARDEF](#chardef)
-  - [B - ABC Music Notation](#b---abc-music-notation)
+  - [A - ABC Music Notation](#a---abc-music-notation)
     - [ABC Music Notation - Basics](#abc-music-notation---basics)
     - [Basic Structure](#basic-structure)
     - [Example:](#example-)
@@ -135,8 +135,11 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [Multi-Voice](#multi-voice)
     - [Editors](#editors)
     - [More Features](#more-features)
-  - [C - Developers](#c---developers)
-  - [D - Control Characters](#d---control-characters)
+  - [B - Build, Using the Source Code](#b---build--using-the-source-code)
+    - [CHARDEF](#chardef)
+  - [C - Cloud](#c---cloud)
+  - [D - Developers](#d---developers)
+  - [E - Escape (Control) Characters](#e---escape--control--characters)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
@@ -345,6 +348,14 @@ overwriting existing files.
 
 In most cases you can use wildcard characters `*` and `?`
 for loading existing files.
+
+### Cloud file storage
+With `CLOUD` you can specify a webserver, that BA67 can use
+as a remote drive. There are no subdirectories on a cloud
+storage.
+You simply `CHDIR "CLOUD"` to navigate the current directory
+to the previously defined cloud storage.
+See the `CLOUD` command for details.
 
 ### boot.bas
 The C++ class that derives from the C++ class `Os` should
@@ -673,6 +684,13 @@ Change into the given directory.
 The CHDIR command also supports wild-card characters.
 use `CHDIR ".."` to go one directory level up.
 
+BA67 uses the forward slash `/` on all platforms as
+as directory separator.
+
+The spacial command `CHDIR "CLOUD"` is described in the
+`CLOUD` command.
+
+
 ### CATALOG
 Lists all files and directories of the current directory.
 
@@ -746,7 +764,7 @@ Example:
 
 `CHARDEF "#", $00, $11, $11, $00,  $11, $22, $22, $11,  $12, $33, $33, $21,  $13, $44, $44, $31,  $14, $55, $55, $41,  $15, $66, $66, $51,  $01, $77, $77, $10,  $00, $18, $81, $00`
 
-**Usage:** `CHARDEF char$, bytes, [more bytes]`
+**Usage:** `CHARDEF char$, bytes [, more bytes]`
 
 You can read the bits of a character with the
 keyword `RCHARDEF`.
@@ -761,6 +779,23 @@ RUN
 
 **NOTE** If you break the program with the `ESC` key, the
 characters 0..127 (ASCII set) reset to the defaults.
+
+### CLOUD
+Specifies the cloud storage parameters.
+BA67 can load and write files to a cloud storage. See the
+file `cloud.php` in the `www.ba67.org` folder of the source
+code to host our own cloud service.
+
+**Usage:** `CLOUD email$ [, server$]`
+
+When you `CHDIR "CLOUD"`, all read and write access will
+be done on the cloud you provided. You can go back to
+your local file system with `CHDIR "."`.
+
+If you have a local directory "CLOUD" and want to change
+to that directory, you can do so with  `CHDIR "./CLOUD"`.
+
+See annex for more details.
 
 ### DUMP
 Prints all variable values to the current output device.
@@ -1482,17 +1517,8 @@ But then, also don't wait for their implementation ;)
 -------------------------------------------------------------
 # ANNEX
 
-## A - Using the Source Code
-### CHARDEF
-The line height must be a either 8 or 16 pixels.
-If you re-implement BA67 in your own project and your
-character height is defined to 16, but you only pass
-8 lines, each line will be duplicated.
-See ScreenInfo structure in the code.
 
-
-
-## B - ABC Music Notation
+## A - ABC Music Notation
 ### ABC Music Notation - Basics
 ABC notation is a simple text-based format for writing
 music.
@@ -1589,7 +1615,49 @@ or [abcnotation.com](https://abcnotation.com) (which,
 I'm afraid, is quite loaded with commercials).
 Here's the standard: [abcnotation.com/wiki](https://abcnotation.com/wiki/abc:standard:v2.1)
 
-## C - Developers
+
+## B - Build, Using the Source Code
+### CHARDEF
+The line height must be a either 8 or 16 pixels.
+If you re-implement BA67 in your own project and your
+character height is defined to 16, but you only pass
+8 lines, each line will be duplicated.
+See ScreenInfo structure in the code.
+
+
+## C - Cloud
+Using `CHDIR "CLOUD"` you can access and share files with
+multiple devices and users. The login-data is provided
+using the `CLOUD` command.
+
+This can be used to share code or high-score data. All
+file commands should work on the could, too.
+
+There are no directories in the cloud.
+
+All filenames are and will be made upper-case.
+
+You can use the provided demo server:
+`CLOUD "examples@ba67.org", "http://www.ba67.org/cloud.php"`.
+This is even the default value when you start BA67.
+Please do not change, add or delete files of this cloud user.
+You are even allowed to use your own email address with this
+server. You email will not be send in clear text, but the
+encryption is not strong, either.
+Data is sent over HTTP in clear text.
+
+You're not allowed to upload any material that might be illegal
+anywhere on this planet. Your data is not safe from being hacked.
+
+Do not "hack" this server. Everyone and his dog can do it.
+You're not doing anything special. Instead, learn to code something
+cool and show the world what you can do.
+
+If you host `cloud.php` on an https server, things might be
+a little more secure.
+
+
+## D - Developers
 Here's just a quick list of notes not to forget when
 this chapter will be filled.
 - Os::emojiPicker
@@ -1607,7 +1675,7 @@ like `CHAR ,,y,a$`.
 
 
 
-## D - Control Characters
+## E - Escape (Control) Characters
 Here's the list of CHR$() codes that produce special
 control characters.
 It's compatible with the Commodore PETSCII codes.

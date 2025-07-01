@@ -30,11 +30,20 @@ void Os::putToKeyboardBuffer(Os::KeyPress key, bool applyBufferLimit) {
 }
 
 std::string Os::getCurrentDirectory() {
+    if (currentDirIsCloud) {
+        return "CLOUD";
+    }
     return (const char*)(std::filesystem::current_path().u8string().c_str());
 }
 
 bool Os::setCurrentDirectory(const std::string& dir) {
-    // TODU umlaut does not work, yet.
+    if (dir == "CLOUD") {
+        currentDirIsCloud = true;
+        return true;
+    }
+    currentDirIsCloud = false;
+
+    const int cpp = __cplusplus;
     std::error_code ec;
     std::filesystem::current_path(dir, ec);
     return !ec; // Returns true if no error occurred
@@ -42,24 +51,98 @@ bool Os::setCurrentDirectory(const std::string& dir) {
 
 std::vector<Os::FileInfo> Os::listCurrentDirectory() {
     std::vector<Os::FileInfo> files, dirs;
-    Os::FileInfo info = {};
-    for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path())) {
-        info.isDirectory = entry.is_directory();
-        info.filesize    = info.isDirectory ? 0 : entry.file_size();
-        info.name        = (const char*)(entry.path().filename().u8string().c_str());
-        files.push_back(info);
+
+    if (currentDirIsCloud) {
+        // List files
+
+        std::string tmp = FilePtr::tempFileName();
+        systemCall("curl -sS -X LIST \"" + cloudUrl + "\" -H \"X-Auth: " + cloudUserHash() + "\" -o \"" + tmp + "\"", false);
+
+        currentDirIsCloud = false; // now we're writing to local disk
+        auto f            = fopen(tmp, "rb");
+        if (f == nullptr) {
+            return {};
+        }
+
+        char buffer[512] = { 0 };
+        while (!feof(f)) {
+            memset(buffer, 0, sizeof(buffer));
+            fgets(buffer, 512, f);
+            for (size_t i = 0; i < 512; ++i) {
+                if (buffer[i] == '\n' || buffer[i] == '\r' || buffer[i] == '\0') {
+                    buffer[i] = '\0';
+                    break;
+                }
+            }
+            Os::FileInfo fi;
+            fi.filesize   = atoi(buffer);
+            const char* c = buffer;
+            while (*c != '\0' && *c != ' ') {
+                ++c;
+            }
+            if (*c == ' ') {
+                ++c;
+            }
+            fi.name = c;
+            if (!fi.name.empty()) {
+                files.emplace_back(fi);
+            }
+        }
+        f.close();
+        scratchFile(tmp);
+
+        currentDirIsCloud = true; // restore cloud state
+    } else {
+        Os::FileInfo info = {};
+        for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path())) {
+            info.isDirectory = entry.is_directory();
+            info.filesize    = info.isDirectory ? 0 : entry.file_size();
+            info.name        = (const char*)(entry.path().filename().u8string().c_str());
+            files.push_back(info);
+        }
+        std::sort(files.begin(), files.end());
     }
-    std::sort(files.begin(), files.end());
+
     return files;
 }
 
 bool Os::doesFileExist(const std::string& path) {
-    return std::filesystem::exists(path);
+    if (currentDirIsCloud) {
+        auto files = listCurrentDirectory();
+        for (auto& f : files) {
+            if (f.name == path) {
+                return true;
+            }
+        }
+        return false;
+    } else {
+        return std::filesystem::exists(path);
+    }
 }
 
 bool Os::isDirectory(const std::string& path) {
+    if (path == "CLOUD") {
+        return true;
+    }
     return std::filesystem::is_directory(path);
 }
+
+bool Os::scratchFile(const std::string& fileName) {
+    if (currentDirIsCloud) {
+        std::string tmp = FilePtr::tempFileName();
+        systemCall("curl -sS -X DELETE \"" + cloudUrl + "\" -H \"X-Auth: " + cloudUserHash() + "\"", false);
+        return true;
+    } else {
+        if (doesFileExist(fileName)) {
+            return 0 == _unlink(fileName.c_str());
+        }
+    }
+    return false;
+}
+
+
+
+
 
 class NullSoundSystem : public SoundSystem {
 public:
@@ -68,6 +151,26 @@ public:
     // play an ABC music notation string in the background
     bool PLAY(const std::string& music) override { return true; }
 };
+
+std::string Os::cloudUserHash() const {
+    uint64_t hash = 5381, hash2 = 7109; // Start with a large prime (DJB2 base)
+    std::string username = (cloudUser + "asdfjka98324nkjn342i0nv8w08234x").substr(32);
+    for (char c : cloudUser) {
+        hash  = ((hash << 5) + hash) + static_cast<unsigned char>(c); // hash * 33 + c
+        hash2 = ((hash2 << 5) + hash2) + static_cast<unsigned char>(0xff - c); // hash * 33 + c
+    }
+
+    // Convert to hex string
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0');
+    for (int i = 56; i >= 0; i -= 8) {
+        oss << std::setw(2) << ((hash >> i) & 0xFF);
+    }
+    for (int i = 56; i >= 0; i -= 8) {
+        oss << std::setw(2) << ((hash2 >> i) & 0xFF);
+    }
+    return oss.str(); // 2x8 bytes in hex (32 hex characters)
+}
 
 SoundSystem& Os::soundSystem() {
     if (sound == nullptr) {
@@ -124,6 +227,7 @@ bool Os::keyboardBufferHasData() {
 #if defined(_WIN32)
     #include <Windows.h>
 int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
+
     std::string utf8;
     auto flushUtf8 = [&]() {
         if (printOutput) {
@@ -143,6 +247,12 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
     if (!Unicode::toU16String(commandLineUtf8.c_str(), cmd_w)) {
         return -1;
     }
+
+
+    #if defined(_DEBUG)
+    utf8 = commandLineUtf8 + "\n";
+    flushUtf8();
+    #endif
 
     SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
     HANDLE hReadOutput, hWriteOutput;
@@ -240,6 +350,8 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
 
     return exitCode;
 }
+
+
 #endif
 
 #if !defined(_WIN32)
@@ -375,3 +487,133 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
     return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 }
 #endif
+
+
+std::string Os::findFirstFileNameWildcard(std::string filenameUtf8, bool isDirectory) {
+    if (filenameUtf8.find('*') == std::string::npos && filenameUtf8.find('?') == std::string::npos) {
+        return filenameUtf8;
+    }
+    std::string cd = getCurrentDirectory();
+
+    std::string fixedDirs;
+    if (!currentDirIsCloud) {
+        for (;;) {
+            size_t endOfDir = filenameUtf8.find('/');
+            if (endOfDir == std::string::npos) {
+                break;
+            }
+
+            std::string folder = findFirstFileNameWildcard(filenameUtf8.substr(0, endOfDir), true);
+            fixedDirs += folder;
+            fixedDirs += '/';
+            filenameUtf8 = filenameUtf8.substr(endOfDir + 1);
+
+            if (!setCurrentDirectory(folder)) {
+                break;
+            }
+        }
+    }
+
+    std::string outpath = fixedDirs + filenameUtf8;
+
+    // list and search
+    std::u32string fileu32;
+    if (Unicode::toU32String(filenameUtf8.c_str(), fileu32)) {
+        auto files = listCurrentDirectory();
+        for (auto& f : files) {
+            std::u32string fu32;
+            if (f.isDirectory == isDirectory && Unicode::toU32String(f.name.c_str(), fu32)) {
+                if (Unicode::wildcardMatchNoCase(fu32.c_str(), fileu32.c_str())) {
+                    outpath = fixedDirs + f.name;
+                    break;
+                }
+            }
+        }
+    }
+
+    setCurrentDirectory(cd);
+    return outpath;
+}
+
+
+void Os::FilePtr::close() {
+    if (file != nullptr) {
+        fclose(file);
+        file = nullptr;
+    }
+    if (!cloudFileName.empty() && !localTempPath.empty()) {
+        // Upload a file
+        os->systemCall("curl -sS -X POST --data-binary @\"" + localTempPath + "\" \"" + os->cloudUrl + "?file=" + cloudFileName + "\" -H \"X-Auth: " + os->cloudUserHash() + "\"");
+    }
+    if (!localTempPath.empty()) {
+        std::error_code ec;
+        std::filesystem::remove(localTempPath, ec);
+        localTempPath.clear();
+    }
+}
+
+std::string Os::FilePtr::tempFileName() {
+    namespace fs = std::filesystem;
+
+    std::error_code ec;
+    fs::path tempDir = fs::temp_directory_path(ec);
+    if (!ec) {
+        // Generate a unique file path
+        for (int i = 0; i < 999; ++i) {
+            auto tempFile = tempDir / fs::path("ba67-cloud-" + std::to_string(std::rand()) + ".bas");
+            if (!fs::exists(tempFile)) {
+                return (const char*)(tempFile.u8string().c_str());
+            }
+        }
+    }
+    return "bad-path.tmp";
+}
+
+
+Os::FilePtr Os::fopen(std::string filenameUtf8, const char* mode) {
+    Os::FilePtr f(this);
+    if (currentDirIsCloud) {
+        f.localTempPath = FilePtr::tempFileName();
+        f.cloudFileName = filenameUtf8;
+        filenameUtf8    = f.localTempPath;
+        if (mode[0] == 'r') {
+            systemCall("curl -sS -X GET \"" + cloudUrl + "?file=" + f.cloudFileName + "\" -H \"X-Auth: " + cloudUserHash() + "\" -o \"" + f.localTempPath + "\"", false);
+        }
+    }
+
+    if (mode[0] == 'w') {
+        f.isWriting = true;
+
+#ifdef _WIN32
+        std::u16string u16;
+        Unicode::toU16String(filenameUtf8.c_str(), u16);
+        f.file = _wfsopen(reinterpret_cast<const wchar_t*>(u16.c_str()), L"wb", _SH_DENYNO); // allow shared reading - even if some editor has the file open
+#else
+        f.file = fopen(filenameUtf8.c_str(), "wb");
+#endif
+    } else if (mode[0] == 'r') {
+        f.isWriting = false;
+#ifdef _WIN32
+        std::u16string u16;
+        Unicode::toU16String(filenameUtf8.c_str(), u16);
+        f.file = _wfsopen(reinterpret_cast<const wchar_t*>(u16.c_str()), L"rb", _SH_DENYNO); // allow shared reading - even if some editor has the file open
+#else
+        f.file = fopen(filenameUtf8.c_str(), "rb");
+#endif
+    } else {
+        throw std::runtime_error("Os::fopen - only r and w supported");
+    }
+
+    return f;
+}
+
+// Cross-platform fprintf-like method
+int Os::FilePtr::fprintf(const char* fmt, ...) {
+    if (!file)
+        return -1;
+    va_list args;
+    va_start(args, fmt);
+    int result = std::vfprintf(file, fmt, args);
+    va_end(args);
+    return result;
+}

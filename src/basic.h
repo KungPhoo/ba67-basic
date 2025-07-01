@@ -9,12 +9,13 @@
 #include <variant>
 #include <vector>
 
-class Os;
+#include "Os.h"
+
 class SoundSystem;
 
 class Basic {
 public:
-    std::string version() { return "7.01"; }
+    std::string version() const { return "7.01"; }
 
     Os* os;
     Basic(Os* os, SoundSystem* ss = nullptr);
@@ -231,20 +232,7 @@ public:
     };
 
     // Files
-    class FileHandle {
-    public:
-        FileHandle()
-            : pfile(nullptr) {
-        }
-        virtual ~FileHandle() {
-            if (pfile) {
-                fclose(pfile);
-                pfile = nullptr;
-            }
-        }
-        FILE* pfile = nullptr;
-    };
-    std::array<FileHandle, 255> openFiles;
+    std::vector<Os::FilePtr> openFiles;
     size_t currentFileNo = 0;
 
     // Modules
@@ -420,8 +408,6 @@ public:
 
     void waitForKeypress();
 
-    std::string findFirstFileNameWildcard(std::string filenameUtf8, bool isDirectory = false);
-    FILE* fopenUtf8(const std::string& filenameUtf8, const char* mode);
     bool loadProgram(const char* filenameUtf8);
     bool loadProgram(std::string& inOutFilenameUtf8);
     bool saveProgram(std::string filenameUtf8);
