@@ -104,8 +104,8 @@ file(GLOB SOLOUD_H
 add_compile_definitions(WITH_MINIAUDIO=1)
 add_library(lib_soloud OBJECT "${SOLOUD_CPP}")
 
-
-
+# Minifetch
+add_subdirectory(minifetch)
 
 
 # FPL takes care of wWinMain and calls main
@@ -168,4 +168,6 @@ find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(${APP_NAME} PUBLIC OpenMP::OpenMP_CXX)
 endif()
+
+target_link_libraries(${APP_NAME} PRIVATE minifetch)
 

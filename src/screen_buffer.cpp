@@ -94,7 +94,11 @@ void ScreenBuffer::putC(char32_t c) {
         return;
     }
 
-    if (c == U'\n') {
+    // C64 does
+    // $0d/13 \r does carriage return and a newline
+    // $0a/10 \n only does a line feed - no carriage return
+    // See annex F for details why I chose to handle both the same way.
+    if (c == U'\n' || c == U'\r') {
         // hard terminate the current line to avoid trailing spaces
         // when inserting a character
         lines[cursor.y]->cols[cursor.x].ch = U'\0';

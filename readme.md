@@ -140,6 +140,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
   - [C - Cloud](#c---cloud)
   - [D - Developers](#d---developers)
   - [E - Escape (Control) Characters](#e---escape--control--characters)
+  - [F - The Newline Dilemma](#f---the-newline-dilemma)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
@@ -1683,6 +1684,8 @@ It's compatible with the Commodore PETSCII codes.
 +-----+--------------+-------------------------------------+
 |Code |How to Type   | Description                         |
 +-----+--------------+-------------------------------------+
+| $0d |              | carriage return (see annex F)       |
+| $0a |              | line feed (see annex F)             |
 | $11 | ALT+CRSR     | cursor down                         |
 | $1d | ALT+CRSR     | cursor right                        |
 | $91 | ALT+CRSR     | cursor up                           |
@@ -1710,6 +1713,54 @@ It's compatible with the Commodore PETSCII codes.
 | $9a | SHIFT+CTRL+7 | color light blue                    |
 | $95 | SHIFT+CTRL+8 | color brown                         |
 +-----+--------------+-------------------------------------+
+
+-------------------------------------------------------------
+## F - The Newline Dilemma
+As the newline war subsides, in the 1980s we were not aware of
+what was coming.
+
+There are two ASCII characters for "end of line":
++---------------+-----------+---+---+
+|Name           |Abbrevation|Hex|Dec|
++---------------+-----------+---+---+
+|Carriage Return|CR         |$0d| 10|
++---------------+-----------+---+---+
+|Line Feed      |LF         |$0a| 13|
++---------------+-----------+---+---+
+Originally designed, the CR moved the cursor or typewriter's
+print head to the left edge, where LF moved the cursor down
+or the paper up.
+
+Today, most systems agree, that a LF is enough to represent
+"end of line". Windows still has CR LF in text files, but
+can deal with just LF in most situations.
+
+The 8 bit computers - and here's where it starts to get
+complicated - each did their own thing.
+
+Here's a short list of what each one did with the cursor
+position:
++----------+---------+---------+
+|COMPUTER  | CR      | LF      |
++----------+---------+---------+
+|C64/C128  | X=0,Y+1 | Y+1     |
++----------+---------+---------+
+|BBC       | Y+1     | X=0     |
++----------+---------+---------+
+|CPC       | Y+1     | X=0     |
++----------+---------+---------+
+|Apple     | Y+1     | X=0,Y+1 |
++----------+---------+---------+
+|BA67      | X=0,Y+1 | X=0,Y+1 |
++----------+---------+---------+
+
+So how to stay compatible with Commodore BASIC, but have
+a modern implementation of it?
+How to deal with SYS command, loading and writing files?
+It hurts, but I decided to break compatibility and make act
+the very same way on the screen. This way the CR is compatible
+with Commodore and LF is compatible with modern systems.
+
 
 
 -------------------------------------------------------------

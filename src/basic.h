@@ -232,7 +232,7 @@ public:
     };
 
     // Files
-    std::vector<Os::FilePtr> openFiles;
+    std::vector<FilePtr> openFiles;
     size_t currentFileNo = 0;
 
     // Modules

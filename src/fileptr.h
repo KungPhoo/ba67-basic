@@ -1,0 +1,68 @@
+#pragma once
+
+#include <string>
+#include <cstdio>
+class Os;
+
+class FilePtr {
+    friend class Os;
+
+public:
+    FilePtr(Os* o)
+        : os(o) { }
+    FilePtr()                          = delete;
+    FilePtr(const FilePtr&)            = delete;
+    FilePtr& operator=(const FilePtr&) = delete;
+
+    inline FilePtr(FilePtr&& other) noexcept
+        : os(other.os)
+        , dirty(other.dirty)
+        , isWriting(other.isWriting)
+        , cloudFileName(std::move(other.cloudFileName))
+        , localTempPath(std::move(other.localTempPath))
+        , file(other.file) {
+        other.os   = nullptr;
+        other.file = nullptr;
+    }
+    inline FilePtr& operator=(FilePtr&& other) noexcept {
+        if (this != &other) {
+            close();
+
+            os            = other.os;
+            dirty         = other.dirty;
+            isWriting     = other.isWriting;
+            cloudFileName = std::move(other.cloudFileName);
+            localTempPath = std::move(other.localTempPath);
+            file          = other.file;
+
+            other.os   = nullptr;
+            other.file = nullptr;
+        }
+        return *this;
+    }
+
+    ~FilePtr() { close(); }
+    // operator FILE*() { return file; }
+    operator bool() const { return file != nullptr; }
+    void close();
+    static std::string tempFileName();
+
+    bool open(std::string filenameUtf8, const char* mode);
+
+    int printf(const char* fmt, ...);
+    void flush();
+    int seek(int offset, int origin);
+    size_t tell();
+    size_t read(void* buffer, size_t bytes);
+
+
+private:
+    Os* os         = nullptr;
+    bool dirty     = false;
+    bool isWriting = false;
+    std::string cloudFileName; // filename for cloud
+    std::string localTempPath; // in case this is a cloud file
+    FILE* file = nullptr;
+
+    void fopenLocal(std::string filenameUtf8, const char* mode);
+};

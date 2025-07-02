@@ -10570,7 +10570,7 @@ typedef struct fpl__LinuxInitState {
 } fpl__LinuxInitState;
 
 #if defined(FPL__ENABLE_WINDOW)
-#define FPL__LINUX_MAX_GAME_CONTROLLER_COUNT 4
+#define FPL__LINUX_MAX_GAME_CONTROLLER_COUNT 4+8 // same as XInput+DirectInput
 typedef struct fpl__LinuxGameController {
     char deviceName[512 + 1];
     char displayName[FPL_MAX_NAME_LENGTH];
@@ -20460,8 +20460,7 @@ fpl_platform_api size_t fplGetInputLocale(const fplLocaleFormat targetFormat, ch
 //
 // ############################################################################
 #if defined(FPL_PLATFORM_UNIX)
-fpl_internal void fpl__UnixReleasePlatform(fpl__PlatformInitState *initState, fpl__PlatformAppState *appState) {
-}
+fpl_internal void fpl__UnixReleasePlatform(fpl__PlatformInitState* initState, fpl__PlatformAppState* appState) {}
 
 fpl_internal bool fpl__UnixInitPlatform(const fplInitFlags initFlags, const fplSettings* initSettings, fpl__PlatformInitState* initState, fpl__PlatformAppState* appState) {
     return true;

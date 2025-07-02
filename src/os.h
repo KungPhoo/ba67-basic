@@ -3,6 +3,7 @@
 #include <bitset>
 #include <string>
 #include <vector>
+#include "fileptr.h"
 
 class Basic;
 class Os;
@@ -156,32 +157,11 @@ public:
             return name < i.name;
         }
     };
-    class FilePtr {
-        friend class Os;
-
-    public:
-        FilePtr(Os* o)
-            : os(o) { }
-        ~FilePtr() { close(); }
-        operator FILE*() { return file; }
-        operator bool() const { return file != nullptr; }
-        void close();
-        static std::string tempFileName();
-
-        int fprintf(const char* fmt, ...);
-
-    private:
-        Os* os         = nullptr;
-        bool isWriting = false;
-        std::string cloudFileName; // filename for cloud
-        std::string localTempPath; // in case this is a cloud file
-        FILE* file = nullptr;
-    };
-    FilePtr fopen(std::string filenameUtf8, const char* mode);
     virtual std::string getCurrentDirectory();
     virtual bool setCurrentDirectory(const std::string& dir);
     virtual std::vector<FileInfo> listCurrentDirectory();
     virtual bool doesFileExist(const std::string& path);
+    virtual bool isRelativePath(const std::string& path);
     virtual bool isDirectory(const std::string& path);
     virtual bool scratchFile(const std::string& fileName);
     virtual int systemCall(const std::string& commandLineUtf8, bool printOutput = true);
@@ -192,6 +172,7 @@ public:
     std::string cloudUser = "examples@ba67.org";
 
 private:
+    friend class FilePtr;
     bool currentDirIsCloud = false;
     std::string cloudUserHash() const;
 

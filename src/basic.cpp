@@ -369,6 +369,7 @@ void cmdFIND(Basic* basic, const std::vector<Basic::Value>& values) {
             .c_str(),
         find32);
 
+    basic->os->delay(1000);
     std::string sline;
     std::u32string u32;
     for (auto& ln : basic->currentModule().listing) {
@@ -393,6 +394,7 @@ void cmdFIND(Basic* basic, const std::vector<Basic::Value>& values) {
         basic->os->screen.cleanCurrentLine();
         basic->printUtf8String(sline);
         basic->handleEscapeKey(true);
+        basic->os->delay(50);
     }
 }
 
@@ -475,6 +477,7 @@ void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     if (ifile < 1 || size_t(ifile) >= basic->openFiles.size()) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
+    // file slot is already open
     if (basic->openFiles[ifile]) {
         {
             throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
@@ -502,7 +505,7 @@ void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
         }
     }
 
-    basic->openFiles[ifile] = basic->os->fopen(path, iomode);
+    basic->openFiles[ifile].open(path, iomode);
     if (!basic->openFiles[ifile]) {
         throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
     }
@@ -1011,7 +1014,7 @@ Basic::Options Basic::options; // static instance
 
 Basic::Basic(Os* os, SoundSystem* ss) {
     for (int i = 0; i < 256; ++i) {
-        openFiles.emplace_back(Os::FilePtr(os));
+        openFiles.emplace_back(FilePtr(os));
     }
 
     Module mainmodule;
@@ -2099,6 +2102,7 @@ void Basic::EndAndPopModule() {
 
 void Basic::doNEW() {
     auto& mod = currentModule();
+    mod.filenameQSAVE.clear();
     mod.variables.clear();
     mod.arrays.clear();
     mod.listing.clear();
@@ -3478,8 +3482,8 @@ void Basic::printUtf8String(const char* utf8, bool applyCtrlCodes) {
             currentFileNo = 0;
             throw Error(ErrorId::ILLEGAL_DEVICE);
         } else {
-            fprintf(pf, "%s", utf8);
-            fflush(pf);
+            pf.printf("%s", utf8);
+            pf.flush();
         }
     }
 }
@@ -4133,40 +4137,40 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
         inOutFilenameUtf8 = foundname;
     }
 
-    auto file = os->fopen(foundname, "rb");
+    FilePtr file(os);
+    file.open(foundname, "rb");
     if (!file) {
         return false;
     }
 
     doNEW();
 
-    fseek(file, 0, SEEK_END);
-    size_t length = ftell(file);
+    file.seek(0, SEEK_END);
+    size_t length = file.tell();
 
     // strip optional utf8 BOM
     uint8_t bom[4] = { 0, 0, 0, 0 };
-    fseek(file, 0, SEEK_SET);
+    file.seek(0, SEEK_SET);
     if (length > 2) {
-        auto nr = fread(bom, 3, 1, file);
+        auto nr = file.read(bom, 3);
     }
     if (bom[0] == 0xef && bom[1] == 0xbb && bom[2] == 0xbf) {
-        fseek(file, 3, SEEK_SET);
+        file.seek(3, SEEK_SET);
         length -= 3;
     } else {
-        fseek(file, 0, SEEK_SET);
+        file.seek(0, SEEK_SET);
     }
 
     char* buff = new char[length + 1];
     if (buff == nullptr) {
-        fclose(file);
+        file.close();
         return false;
     }
 
-    fread(buff, length, 1, file);
+    file.read(buff, length);
     buff[length] = '\0';
-    fclose(file);
-
-    file = nullptr;
+    file.close();
+    // file = nullptr;
 
     // Establish string and get the first token:
     char* next_token = nullptr;
@@ -4270,7 +4274,8 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
 }
 
 bool Basic::saveProgram(std::string filenameUtf8) {
-    Os::FilePtr file = os->fopen(filenameUtf8, "wb");
+    FilePtr file(os);
+    file.open(filenameUtf8, "wb");
     if (!file) {
         return false;
     }
@@ -4279,7 +4284,7 @@ bool Basic::saveProgram(std::string filenameUtf8) {
         if (ln.first < 0) {
             continue;
         }
-        file.fprintf("%d %s\r\n", ln.first, ln.second.c_str());
+        file.printf("%d %s\r\n", ln.first, ln.second.c_str());
     }
     file.close();
     return true;
