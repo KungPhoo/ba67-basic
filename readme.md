@@ -384,9 +384,30 @@ The line `1 REMBA67` also can add more keywords. These are
             characters. Use e.g.
             `petcat -70 -f -o "output.bas" -- "input.prg"`
 
-After loading, the parser returns to the default behavior.
+After loading, the parser returns to the default behaviour.
 Don't forget to backup and remove line `1` before saving.
 
+All PETSCII characters are mapped to Unicode pendants.
+Here's a test listing for you to see them:
+```
+1REMBA67 PETCAT
+10 PRINT " {$01}{$02}{$03}{$04}{$05}{$06}{$07}8tn{$0b}{$0c}r{$0e}{$0f}"
+20 PRINT "{$10}{$11}{$12}{$13}{$14}{$15}{$16}{$17}{$18}{$19}{$1a}{$1b}{$1c}{$1d}{$1e}{$1f}"
+30 PRINT "{$20}{$21}{$22}{$23}{$24}{$25}{$26}{$27}{$28}{$29}{$2a}{$2b}{$2c}{$2d}{$2e}{$2f}"
+40 PRINT "{$30}{$31}{$32}{$33}{$34}{$35}{$36}{$37}{$38}{$39}{$3a}{$3b}{$3c}{$3d}{$3e}{$3f}"
+50 PRINT "{$40}{$41}{$42}{$43}{$44}{$45}{$46}{$47}{$48}{$49}{$4a}{$4b}{$4c}{$4d}{$4e}{$4f}"
+60 PRINT "{$50}{$51}{$52}{$53}{$54}{$55}{$56}{$57}{$58}{$59}{$5a}{$5b}{$5c}{$5d}{$5e}{$5f}"
+70 PRINT "{$60}{$61}{$62}{$63}{$64}{$65}{$66}{$67}{$68}{$69}{$6a}{$6b}{$6c}{$6d}{$6e}{$6f}"
+80 PRINT "{$70}{$71}{$72}{$73}{$74}{$75}{$76}{$77}{$78}{$79}{$7a}{$7b}{$7c}{$7d}{$7e}{$7f}"
+90 PRINT "{$80}{$81}{$82}{$83}{$84}{$85}{$86}{$87}{$88}{$89}{$8a}{$8b}{$8c}{$8d}{$8e}{$8f}"
+100 PRINT "{$90}{$91}{$92}{$93}{$94}{$95}{$96}{$97}{$98}{$99}{$9a}{$9b}{$9c}{$9d}{$9e}{$9f}"
+110 PRINT "{$a0}{$a1}{$a2}{$a3}{$a4}{$a5}{$a6}{$a7}{$a8}{$a9}{$aa}{$ab}{$ac}{$ad}{$ae}{$af}"
+120 PRINT "{$b0}{$b1}{$b2}{$b3}{$b4}{$b5}{$b6}{$b7}{$b8}{$b9}{$ba}{$bb}{$bc}{$bd}{$be}{$bf}"
+130 PRINT "{$c0}{$c1}{$c2}{$c3}{$c4}{$c5}{$c6}{$c7}{$c8}{$c9}{$ca}{$cb}{$cc}{$cd}{$ce}{$cf}"
+140 PRINT "{$d0}{$d1}{$d2}{$d3}{$d4}{$d5}{$d6}{$d7}{$d8}{$d9}{$da}{$db}{$dc}{$dd}{$de}{$df}"
+150 PRINT "{$e0}{$e1}{$e2}{$e3}{$e4}{$e5}{$e6}{$e7}{$e8}{$e9}{$ea}{$eb}{$ec}{$ed}{$ee}{$ef}"
+160 PRINT "{$f0}{$f1}{$f2}{$f3}{$f4}{$f5}{$f6}{$f7}{$f8}{$f9}{$fa}{$fb}{$fc}{$fd}{$fe}{$ff}"
+```
 
 -------------------------------------------------------------
 ## Keywords, Commands, Functions
@@ -657,7 +678,7 @@ The default `color` values are:
 - 15 Light Blue
 - 16 Light Gray
 
-**Usage:** `COLOR source, color`
+**Usage:** `COLOR source405, color1`
 
 If you want to **redefine** a color, the syntax is:
 `COLOR color, red, green, blue`
@@ -677,6 +698,13 @@ In Detail:
 - Invert the colors (last argument of `CHAR`)
 - Print "M" with text color 8 (yellow)
 - Result: yellow M on red background
+
+In C128 BASIC, the background color could be changed with
+`POKE 53281, color0`. The border color can be set with
+`POKE 53280, color0`.
+The C64 can set the text color with `POKE 646, color0`.
+The C128 pendant would be `POKE 241, color0`, where
+`color0` is the zero based color index.
 
 ### CHDIR
 Change into the given directory.
@@ -713,7 +741,7 @@ the current text color.
 The command will leave the cursor at the end of the text
 and restore the current text color.
 
-**Usage:** `CHAR color, column, line, text$[, inverse]`
+**Usage:** `CHAR color, column0, line0, text$[, inverse]`
 
 ### CHARDEF
 **Monochrome**

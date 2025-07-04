@@ -632,7 +632,14 @@ void cmdPOKE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (address < 0 || address >= int64_t(basic->memory.size())) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
-    basic->memory[address] = value & 0xff;
+    uint8_t byt            = value & 0xff;
+    basic->memory[address] = byt;
+
+    // if (address >= 0x0400 && address < 0x0400 + 80 * 25) {
+    //     // char ram
+    // } else if (address >= 0xd800 && address < 0xd800 + 80 * 25) {
+    //     // color ram
+    // }
 }
 
 
@@ -3431,7 +3438,6 @@ void Basic::uppercaseProgram(std::string& codeline) {
         { 0x9a,  color (light blue)
         { 0x9b,  color (light gray)
         { 0x9f,  color (cyan)
-
 * */
 void Basic::printUtf8String(const char* utf8, bool applyCtrlCodes) {
     if (currentFileNo == 0) {
@@ -3551,7 +3557,6 @@ std::string Basic::inputLine(bool allowVertical) {
         if (!key.printable) {
             if (key.holdCtrl) {
                 char32_t ctrlChar = 0;
-
                 switch (key.code) {
 
                 case U'C': {

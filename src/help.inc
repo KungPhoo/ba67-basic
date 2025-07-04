@@ -22,10 +22,10 @@
 ,{"AUTO", R"RAW(AUTO [n])RAW"}
 ,{"CLOSE", R"RAW(CLOSE fileno)RAW"}
 ,{"CLR", R"RAW(CLR)RAW"}
-,{"COLOR", R"RAW(COLOR source, color)RAW"}
+,{"COLOR", R"RAW(COLOR source405, color1)RAW"}
 ,{"CHDIR", R"RAW(CHDIR directory)RAW"}
 ,{"CATALOG", R"RAW(CATALOG)RAW"}
-,{"CHAR", R"RAW(CHAR color, column, line, text$[, inverse])RAW"}
+,{"CHAR", R"RAW(CHAR color, column0, line0, text$[, inverse])RAW"}
 ,{"CHARDEF", R"RAW(CHARDEF char$, bytes [, more bytes])RAW"}
 ,{"CLOUD", R"RAW(CLOUD email$ [, server$])RAW"}
 ,{"DUMP", R"RAW(DUMP)RAW"}

@@ -18,6 +18,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
   - [Variables](#variables)
   - [Files](#files)
     - [Filesystem](#filesystem)
+    - [Cloud file storage](#cloud-file-storage)
     - [boot.bas](#boot-bas)
     - [Line 1 Hack](#line-1-hack)
   - [Keywords, Commands, Functions](#keywords--commands--functions)
@@ -52,6 +53,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [CATALOG](#catalog)
     - [CHAR](#char)
     - [CHARDEF](#chardef)
+    - [CLOUD](#cloud)
     - [DUMP](#dump)
     - [END](#end)
     - [FAST](#fast)
@@ -122,9 +124,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [XOR](#xor)
   - [Reserved Commands](#reserved-commands)
 - [ANNEX](#annex)
-  - [A - Using the Source Code](#a---using-the-source-code)
-    - [CHARDEF](#chardef)
-  - [B - ABC Music Notation](#b---abc-music-notation)
+  - [A - ABC Music Notation](#a---abc-music-notation)
     - [ABC Music Notation - Basics](#abc-music-notation---basics)
     - [Basic Structure](#basic-structure)
     - [Example:](#example-)
@@ -135,8 +135,12 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [Multi-Voice](#multi-voice)
     - [Editors](#editors)
     - [More Features](#more-features)
-  - [C - Developers](#c---developers)
-  - [D - Control Characters](#d---control-characters)
+  - [B - Build, Using the Source Code](#b---build--using-the-source-code)
+    - [CHARDEF](#chardef)
+  - [C - Cloud](#c---cloud)
+  - [D - Developers](#d---developers)
+  - [E - Escape (Control) Characters](#e---escape--control--characters)
+  - [F - The Newline Dilemma](#f---the-newline-dilemma)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
@@ -346,6 +350,14 @@ overwriting existing files.
 In most cases you can use wildcard characters `*` and `?`
 for loading existing files.
 
+### Cloud file storage
+With `CLOUD` you can specify a webserver, that BA67 can use
+as a remote drive. There are no subdirectories on a cloud
+storage.
+You simply `CHDIR "CLOUD"` to navigate the current directory
+to the previously defined cloud storage.
+See the `CLOUD` command for details.
+
 ### boot.bas
 The C++ class that derives from the C++ class `Os` should
 set the start directory to a location, where BASIC programs
@@ -372,9 +384,30 @@ The line `1 REMBA67` also can add more keywords. These are
             characters. Use e.g.
             `petcat -70 -f -o "output.bas" -- "input.prg"`
 
-After loading, the parser returns to the default behavior.
+After loading, the parser returns to the default behaviour.
 Don't forget to backup and remove line `1` before saving.
 
+All PETSCII characters are mapped to Unicode pendants.
+Here's a test listing for you to see them:
+```
+1REMBA67 PETCAT
+10 PRINT " {$01}{$02}{$03}{$04}{$05}{$06}{$07}8tn{$0b}{$0c}r{$0e}{$0f}"
+20 PRINT "{$10}{$11}{$12}{$13}{$14}{$15}{$16}{$17}{$18}{$19}{$1a}{$1b}{$1c}{$1d}{$1e}{$1f}"
+30 PRINT "{$20}{$21}{$22}{$23}{$24}{$25}{$26}{$27}{$28}{$29}{$2a}{$2b}{$2c}{$2d}{$2e}{$2f}"
+40 PRINT "{$30}{$31}{$32}{$33}{$34}{$35}{$36}{$37}{$38}{$39}{$3a}{$3b}{$3c}{$3d}{$3e}{$3f}"
+50 PRINT "{$40}{$41}{$42}{$43}{$44}{$45}{$46}{$47}{$48}{$49}{$4a}{$4b}{$4c}{$4d}{$4e}{$4f}"
+60 PRINT "{$50}{$51}{$52}{$53}{$54}{$55}{$56}{$57}{$58}{$59}{$5a}{$5b}{$5c}{$5d}{$5e}{$5f}"
+70 PRINT "{$60}{$61}{$62}{$63}{$64}{$65}{$66}{$67}{$68}{$69}{$6a}{$6b}{$6c}{$6d}{$6e}{$6f}"
+80 PRINT "{$70}{$71}{$72}{$73}{$74}{$75}{$76}{$77}{$78}{$79}{$7a}{$7b}{$7c}{$7d}{$7e}{$7f}"
+90 PRINT "{$80}{$81}{$82}{$83}{$84}{$85}{$86}{$87}{$88}{$89}{$8a}{$8b}{$8c}{$8d}{$8e}{$8f}"
+100 PRINT "{$90}{$91}{$92}{$93}{$94}{$95}{$96}{$97}{$98}{$99}{$9a}{$9b}{$9c}{$9d}{$9e}{$9f}"
+110 PRINT "{$a0}{$a1}{$a2}{$a3}{$a4}{$a5}{$a6}{$a7}{$a8}{$a9}{$aa}{$ab}{$ac}{$ad}{$ae}{$af}"
+120 PRINT "{$b0}{$b1}{$b2}{$b3}{$b4}{$b5}{$b6}{$b7}{$b8}{$b9}{$ba}{$bb}{$bc}{$bd}{$be}{$bf}"
+130 PRINT "{$c0}{$c1}{$c2}{$c3}{$c4}{$c5}{$c6}{$c7}{$c8}{$c9}{$ca}{$cb}{$cc}{$cd}{$ce}{$cf}"
+140 PRINT "{$d0}{$d1}{$d2}{$d3}{$d4}{$d5}{$d6}{$d7}{$d8}{$d9}{$da}{$db}{$dc}{$dd}{$de}{$df}"
+150 PRINT "{$e0}{$e1}{$e2}{$e3}{$e4}{$e5}{$e6}{$e7}{$e8}{$e9}{$ea}{$eb}{$ec}{$ed}{$ee}{$ef}"
+160 PRINT "{$f0}{$f1}{$f2}{$f3}{$f4}{$f5}{$f6}{$f7}{$f8}{$f9}{$fa}{$fb}{$fc}{$fd}{$fe}{$ff}"
+```
 
 -------------------------------------------------------------
 ## Keywords, Commands, Functions
@@ -645,7 +678,7 @@ The default `color` values are:
 - 15 Light Blue
 - 16 Light Gray
 
-**Usage:** `COLOR source, color`
+**Usage:** `COLOR source405, color1`
 
 If you want to **redefine** a color, the syntax is:
 `COLOR color, red, green, blue`
@@ -666,12 +699,26 @@ In Detail:
 - Print "M" with text color 8 (yellow)
 - Result: yellow M on red background
 
+In C128 BASIC, the background color could be changed with
+`POKE 53281, color0`. The border color can be set with
+`POKE 53280, color0`.
+The C64 can set the text color with `POKE 646, color0`.
+The C128 pendant would be `POKE 241, color0`, where
+`color0` is the zero based color index.
+
 ### CHDIR
 Change into the given directory.
 
 **Usage:** `CHDIR directory`
 The CHDIR command also supports wild-card characters.
 use `CHDIR ".."` to go one directory level up.
+
+BA67 uses the forward slash `/` on all platforms as
+as directory separator.
+
+The spacial command `CHDIR "CLOUD"` is described in the
+`CLOUD` command.
+
 
 ### CATALOG
 Lists all files and directories of the current directory.
@@ -694,7 +741,7 @@ the current text color.
 The command will leave the cursor at the end of the text
 and restore the current text color.
 
-**Usage:** `CHAR color, column, line, text$[, inverse]`
+**Usage:** `CHAR color, column0, line0, text$[, inverse]`
 
 ### CHARDEF
 **Monochrome**
@@ -746,7 +793,7 @@ Example:
 
 `CHARDEF "#", $00, $11, $11, $00,  $11, $22, $22, $11,  $12, $33, $33, $21,  $13, $44, $44, $31,  $14, $55, $55, $41,  $15, $66, $66, $51,  $01, $77, $77, $10,  $00, $18, $81, $00`
 
-**Usage:** `CHARDEF char$, bytes, [more bytes]`
+**Usage:** `CHARDEF char$, bytes [, more bytes]`
 
 You can read the bits of a character with the
 keyword `RCHARDEF`.
@@ -761,6 +808,23 @@ RUN
 
 **NOTE** If you break the program with the `ESC` key, the
 characters 0..127 (ASCII set) reset to the defaults.
+
+### CLOUD
+Specifies the cloud storage parameters.
+BA67 can load and write files to a cloud storage. See the
+file `cloud.php` in the `www.ba67.org` folder of the source
+code to host our own cloud service.
+
+**Usage:** `CLOUD email$ [, server$]`
+
+When you `CHDIR "CLOUD"`, all read and write access will
+be done on the cloud you provided. You can go back to
+your local file system with `CHDIR "."`.
+
+If you have a local directory "CLOUD" and want to change
+to that directory, you can do so with  `CHDIR "./CLOUD"`.
+
+See annex for more details.
 
 ### DUMP
 Prints all variable values to the current output device.
@@ -1286,23 +1350,40 @@ Returns the integer portion of a number.
 ### JOY
 Returns the status of a joypad/gamepad/joystick.
 The return value is the same as in BASIC V7, but when you
-press buttons 1 and 2, the value 128 ($100) is added
-and by pressing buttons 3 or 4, the value 512 ($200) is added.
+press buttons 1 and 2, the value 128 ($80) is added
+and by pressing buttons 3 or 4, the value 256 ($100) is added.
 
 The d-pad position is numbered in clockwise order, for the eight
 possible pad positions, you get:
 ```
- 7 0 1     + $100 button 1, 2
- 6 + 2     + $200 button 3, 4
- 5 6 3
- ```
+8 1 2     + $100 button 1, 2
+7 + 3     + $200 button 3, 4
+6 5 4
+```
 
- For the port, you can provide a value of 1..4.
- On Linux, maybe more gamepads are supported. 4 is the XInput
- limit on Windows.
+For the port, you can provide a value of 1..16.
+The ports 1..4 are used for XInput devices on Windows.
+If no such device is connected, DirectInput devices are
+used. If both, XInput device 1 and DirectInput device 1
+are present, only XInput device 1 will be queried.
 
- **Usage:** `J = JOY(port)`
+On Linux, maybe more gamepads are supported.
 
+**Usage:** `J = JOY(port) : REM 1..8 CW FROM 12:00. BUTTONS +128, +256`
+
+Example program to get the joypad directions:
+```
+500 J=JOY(N) : REM INPUT IS N, OUTPUT IS JX,JY AND JB
+510 PRINT "JOY(";N;")=";J;"       "
+520 D=J AND $0F
+530 JX=0:JY=0:JB=0
+540 IF D>=2 AND D=4 THEN JX=1
+550 IF D>5 THEN JX=-1
+560 IF D=1 OR D=2 OR D=8 THEN JY=-1
+570 IF D>=4 AND D<=6 THEN JY=1
+580 IF J AND $80 THEN JB=1
+590 IF J AND $100 THEN JB=JB+2
+```
 
 ### LCASE$
 Converts the string to lower case.
@@ -1465,17 +1546,8 @@ But then, also don't wait for their implementation ;)
 -------------------------------------------------------------
 # ANNEX
 
-## A - Using the Source Code
-### CHARDEF
-The line height must be a either 8 or 16 pixels.
-If you re-implement BA67 in your own project and your
-character height is defined to 16, but you only pass
-8 lines, each line will be duplicated.
-See ScreenInfo structure in the code.
 
-
-
-## B - ABC Music Notation
+## A - ABC Music Notation
 ### ABC Music Notation - Basics
 ABC notation is a simple text-based format for writing
 music.
@@ -1572,7 +1644,49 @@ or [abcnotation.com](https://abcnotation.com) (which,
 I'm afraid, is quite loaded with commercials).
 Here's the standard: [abcnotation.com/wiki](https://abcnotation.com/wiki/abc:standard:v2.1)
 
-## C - Developers
+
+## B - Build, Using the Source Code
+### CHARDEF
+The line height must be a either 8 or 16 pixels.
+If you re-implement BA67 in your own project and your
+character height is defined to 16, but you only pass
+8 lines, each line will be duplicated.
+See ScreenInfo structure in the code.
+
+
+## C - Cloud
+Using `CHDIR "CLOUD"` you can access and share files with
+multiple devices and users. The login-data is provided
+using the `CLOUD` command.
+
+This can be used to share code or high-score data. All
+file commands should work on the could, too.
+
+There are no directories in the cloud.
+
+All filenames are and will be made upper-case.
+
+You can use the provided demo server:
+`CLOUD "examples@ba67.org", "http://www.ba67.org/cloud.php"`.
+This is even the default value when you start BA67.
+Please do not change, add or delete files of this cloud user.
+You are even allowed to use your own email address with this
+server. You email will not be send in clear text, but the
+encryption is not strong, either.
+Data is sent over HTTP in clear text.
+
+You're not allowed to upload any material that might be illegal
+anywhere on this planet. Your data is not safe from being hacked.
+
+Do not "hack" this server. Everyone and his dog can do it.
+You're not doing anything special. Instead, learn to code something
+cool and show the world what you can do.
+
+If you host `cloud.php` on an https server, things might be
+a little more secure.
+
+
+## D - Developers
 Here's just a quick list of notes not to forget when
 this chapter will be filled.
 - Os::emojiPicker
@@ -1590,7 +1704,7 @@ like `CHAR ,,y,a$`.
 
 
 
-## D - Control Characters
+## E - Escape (Control) Characters
 Here's the list of CHR$() codes that produce special
 control characters.
 It's compatible with the Commodore PETSCII codes.
@@ -1598,6 +1712,8 @@ It's compatible with the Commodore PETSCII codes.
 +-----+--------------+-------------------------------------+
 |Code |How to Type   | Description                         |
 +-----+--------------+-------------------------------------+
+| $0d |              | carriage return (see annex F)       |
+| $0a |              | line feed (see annex F)             |
 | $11 | ALT+CRSR     | cursor down                         |
 | $1d | ALT+CRSR     | cursor right                        |
 | $91 | ALT+CRSR     | cursor up                           |
@@ -1625,6 +1741,54 @@ It's compatible with the Commodore PETSCII codes.
 | $9a | SHIFT+CTRL+7 | color light blue                    |
 | $95 | SHIFT+CTRL+8 | color brown                         |
 +-----+--------------+-------------------------------------+
+
+-------------------------------------------------------------
+## F - The Newline Dilemma
+As the newline war subsides, in the 1980s we were not aware of
+what was coming.
+
+There are two ASCII characters for "end of line":
++---------------+-----------+---+---+
+|Name           |Abbrevation|Hex|Dec|
++---------------+-----------+---+---+
+|Carriage Return|CR         |$0d| 10|
++---------------+-----------+---+---+
+|Line Feed      |LF         |$0a| 13|
++---------------+-----------+---+---+
+Originally designed, the CR moved the cursor or typewriter's
+print head to the left edge, where LF moved the cursor down
+or the paper up.
+
+Today, most systems agree, that a LF is enough to represent
+"end of line". Windows still has CR LF in text files, but
+can deal with just LF in most situations.
+
+The 8 bit computers - and here's where it starts to get
+complicated - each did their own thing.
+
+Here's a short list of what each one did with the cursor
+position:
++----------+---------+---------+
+|COMPUTER  | CR      | LF      |
++----------+---------+---------+
+|C64/C128  | X=0,Y+1 | Y+1     |
++----------+---------+---------+
+|BBC       | Y+1     | X=0     |
++----------+---------+---------+
+|CPC       | Y+1     | X=0     |
++----------+---------+---------+
+|Apple     | Y+1     | X=0,Y+1 |
++----------+---------+---------+
+|BA67      | X=0,Y+1 | X=0,Y+1 |
++----------+---------+---------+
+
+So how to stay compatible with Commodore BASIC, but have
+a modern implementation of it?
+How to deal with SYS command, loading and writing files?
+It hurts, but I decided to break compatibility and make act
+the very same way on the screen. This way the CR is compatible
+with Commodore and LF is compatible with modern systems.
+
 
 
 -------------------------------------------------------------
