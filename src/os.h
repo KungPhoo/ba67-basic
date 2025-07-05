@@ -170,6 +170,7 @@ public:
 
     std::string cloudUrl  = "http://www.ba67.org/cloud.php";
     std::string cloudUser = "examples@ba67.org";
+    bool dirIsInCloud() const { return currentDirIsCloud; }
 
 private:
     friend class FilePtr;

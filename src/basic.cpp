@@ -48,6 +48,68 @@ void cmdAUTO(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->currentModule().autoNumbering = basic->valueToInt(values[0]);
 }
 
+void cmdBAKE(Basic* basic, const std::vector<Basic::Value>& values) {
+
+    auto& listing = basic->currentModule().listing;
+
+    std::map<std::string, int> labelMap;
+    std::regex labelRegex(R"(REM\s+--(\w+)--)");
+    std::regex gotoLabelRegex(R"(\b(GOTO|GOSUB)\s+(\d*)([A-Z_]+)\b)");
+
+    // First pass: collect labels
+    for (const auto& [lineNumber, line] : listing) {
+        std::smatch match;
+        if (std::regex_search(line, match, labelRegex)) {
+            std::string label = match[1];
+            labelMap[label]   = lineNumber;
+        }
+    }
+
+    // Second pass: rewrite GOTO/GOSUB statements
+    for (auto itr = listing.begin(); itr != listing.end(); ++itr) { // auto& [lineNumber, line] : listing) {
+        int lineNumber    = itr->first;
+        std::string& line = itr->second;
+
+        std::smatch match;
+        std::string updatedLine = line;
+        size_t offset           = 0;
+        // Use regex iterator to replace multiple label refs in one line
+        auto begin = std::sregex_iterator(line.begin(), line.end(), gotoLabelRegex);
+        auto end   = std::sregex_iterator();
+
+        for (auto it = begin; it != end; ++it) {
+            size_t matchPos = it->position() + offset;
+            size_t matchLen = it->length();
+
+            bool inString = false;
+            for (size_t i = 0; i < matchPos; ++i) {
+                if (updatedLine[i] == '\"') {
+                    inString = !inString;
+                }
+            }
+            if (inString) {
+                continue;
+            }
+
+            std::string command     = (*it)[1];
+            std::string numberPart  = (*it)[2];
+            std::string label       = (*it)[3];
+            std::string matchedText = it->str(); // The exact text matched in the line
+
+            if (labelMap.count(label)) {
+                std::string newToken = command + " " + std::to_string(labelMap[label]) + label;
+                updatedLine.replace(it->position() + offset, matchedText.length(), newToken);
+                offset += newToken.length() - matchedText.length();
+            } else {
+                basic->programCounter().line     = itr;
+                basic->programCounter().position = 0;
+                throw Basic::Error(Basic::ErrorId::UNDEFD_STATEMENT);
+            }
+        }
+        line = updatedLine;
+    }
+}
+
 void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
     auto curPos = basic->os->screen.getCursorPos();
     int color = 0, x = int(curPos.x), y = int(curPos.y);
@@ -709,6 +771,9 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
         size_t len = basic->os->screen.width - 7;
         dirname    = dirname.substr(dirname.length() - len);
     }
+    if (basic->os->dirIsInCloud()) {
+        dirname += std::string((const char*)(u8" \x2601"));
+    }
     basic->os->screen.cleanCurrentLine();
     basic->printUtf8String((const char*)(u8"╔══"));
     basic->printUtf8String(dirname);
@@ -1054,6 +1119,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     keyShortcuts[5 - 1] = "\"SAVE \"";
     keyShortcuts[6 - 1] = "\"RUN \"+CHR$(13)";
     keyShortcuts[7 - 1] = "\"LIST \"+CHR$(13)";
+    keyShortcuts[9 - 1] = "\"CHDIR \"+CHR$(34)+\"CLOUD\"+CHR$(34)+CHR$(13)+\"CATALOG\"+CHR$(13)";
 
     // hard coded keywords
     keywords = { "ON", "GOTO", "GOSUB", "RETURN", "IF", "THEN", "LET", "FOR", "TO", "NEXT", "STEP", "RCHARDEF", "READ", "DATA", "RESTORE",
@@ -1064,6 +1130,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     commands.insert({
         { "ABOUT", cmdABOUT },
         { "AUTO", cmdAUTO },
+        { "BAKE", cmdBAKE },
         { "CHAR", cmdCHAR },
         { "CHDIR", cmdCHDIR },
         { "COLOR", cmdCOLOR },
@@ -2937,20 +3004,20 @@ void Basic::doGOTO(int line, bool isGoSub) {
 
 void Basic::handleGOTO(std::vector<Token>& tokens) {
     auto values = evaluateExpression(tokens, 1);
-    if (values.size() != 1) {
+    if (values.size() == 0 || values.size() > 2) {
         throw Error(ErrorId::SYNTAX);
     }
-    int64_t line = valueToInt(values.back());
+    int64_t line = valueToInt(values.front());
     tokens.clear();
     doGOTO(int(line), false);
 }
 
 void Basic::handleGOSUB(std::vector<Token>& tokens) {
     auto values = evaluateExpression(tokens, 1);
-    if (values.size() != 1) {
+    if (values.size() == 0 || values.size() > 2) {
         throw Error(ErrorId::SYNTAX);
     }
-    int64_t line = valueToInt(values.back());
+    int64_t line = valueToInt(values.front());
     tokens.clear();
     doGOTO(int(line), true);
 }
@@ -2959,6 +3026,7 @@ void Basic::handleONGOTO(std::vector<Token>& tokens) {
     // ON expression GOSUB/GOTO line1, line2
     size_t i   = 1;
     int64_t on = valueToInt(evaluateExpression(tokens, i, &i)[0]);
+
     auto lines = evaluateExpression(tokens, i + 1);
     if (tokens[i].value == "GOTO") {
         doGOTO(int(valueToInt(lines[(on - 1) * 2])), false); // 1=[0], 2=[2], 3=[4]
