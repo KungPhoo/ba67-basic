@@ -1349,7 +1349,7 @@ Converts a hex string to an integer number.
 **Usage:** `PRINT DEC("FF")`
 
 ### EXP
-Returns `e` raised to a power.
+Returns `e` (2.71828183..) raised to a power.
 
 **Usage:** `EXP(expr)`
 

@@ -22,30 +22,10 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [boot.bas](#boot-bas)
     - [Line 1 Hack](#line-1-hack)
   - [Keywords, Commands, Functions](#keywords--commands--functions)
-  - [Keywords](#keywords)
-    - [DATA](#data)
-    - [DEF FN](#def-fn)
-    - [DELETE](#delete)
-    - [DIM](#dim)
-    - [ON](#on)
-    - [FN](#fn)
-    - [FOR](#for)
-    - [GOSUB](#gosub)
-    - [GOTO](#goto)
-    - [IF](#if)
-    - [LET](#let)
-    - [KEY](#key)
-    - [NEXT](#next)
-    - [RCHARDEF](#rchardef)
-    - [READ](#read)
-    - [RESTORE](#restore)
-    - [RETURN](#return)
-    - [STEP](#step)
-    - [THEN](#then)
-    - [TO](#to)
-  - [Commands](#commands)
+  - [Commands and Keywords](#commands-and-keywords)
     - [ABOUT](#about)
     - [AUTO](#auto)
+    - [BAKE](#bake)
     - [CLOSE](#close)
     - [CLR](#clr)
     - [COLOR](#color)
@@ -54,19 +34,32 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [CHAR](#char)
     - [CHARDEF](#chardef)
     - [CLOUD](#cloud)
+    - [DATA](#data)
+    - [DEF FN](#def-fn)
+    - [DELETE](#delete)
+    - [DIM](#dim)
     - [DUMP](#dump)
     - [END](#end)
     - [FAST](#fast)
     - [FIND](#find)
+    - [FN](#fn)
+    - [FOR](#for)
     - [GET](#get)
     - [GRAPHIC](#graphic)
+    - [GOSUB](#gosub)
+    - [GOTO](#goto)
     - [HELP](#help)
+    - [IF](#if)
     - [INPUT](#input)
+    - [KEY](#key)
+    - [LET](#let)
     - [LIST](#list)
     - [LOAD](#load)
     - [MOVSPR](#movspr)
     - [NEW](#new)
     - [MODULE](#module)
+    - [NEXT](#next)
+    - [ON](#on)
     - [OPEN](#open)
     - [PLAY](#play)
       - [Technical Background](#technical-background)
@@ -75,8 +68,12 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [PRINT USING](#print-using)
     - [QUIT](#quit)
     - [QSAVE](#qsave)
+    - [RCHARDEF](#rchardef)
+    - [READ](#read)
     - [REM](#rem)
     - [RENUMBER](#renumber)
+    - [RESTORE](#restore)
+    - [RETURN](#return)
     - [RUN](#run)
     - [SAVE](#save)
     - [SCNCLR](#scnclr)
@@ -84,8 +81,11 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [SOUND](#sound)
     - [SPRDEF](#sprdef)
     - [SPRITE](#sprite)
+    - [STEP](#step)
     - [STOP](#stop)
     - [SYS](#sys)
+    - [THEN](#then)
+    - [TO](#to)
   - [Functions](#functions)
     - [ABS](#abs)
     - [ASC](#asc)
@@ -168,6 +168,7 @@ but also features some improvements.
 
 Here are the key features:
 - Compatible with the famous Commodore's BASIC
+- GOTO/GOSUB labels (compatible!)
 - Variable names can be longer than 2 characters
 - Unicode strings (no PETSCII or other exotic char sets)
 - Full Unicode character set (even emoji end stuff)
@@ -415,217 +416,13 @@ The following is a list of the BASIC hard-coded language
 tokens you can use to write programs. They are split in 3
 groups, where the first two can be considered as one - only
 if you want to look at the source code, you will find these
-two different groups.
+two different groups. So, here keywords and commands are
+put in the same list for a better reference.
 
 Functions always take at least one argument in braces.
 
 -------------------------------------------------------------
-## Keywords
-### DATA
-**Usage:** `DATA value, value, string, "string with spaces", ...`
-
-Provides data variables to be used with the READ keyword.
-Empty values `DATA ,,,` are not allowed.
-
-### DEF FN
-**Usage** `DEF FN NAME(ARG[, ARG2, ...]) = ARG+ARG2...*`
-
-Provides a way to define user functions, that can be called.
-Internally, the function name always starts with FN, so this
-is the only place, where `FN FOO` and `FNFOO` are valid and
-equal.
-
-### DELETE
-**Usage:** `DELETE from [- to]`
-
-Deletes the line numbers in the given range.
-
-
-### DIM
-**Usage:** `DIM var(size)`
-
-Allocates an array with the specified size.
-
-Example:
-```basic
-DIM A(10)
-```
-
-### ON
-**Usage:** `ON expr GOTO/GOSUB line1, line2, ...`
-
-Transfers execution to one of the specified lines based on
-the value of `expr`.
-
-Example:
-```basic
-ON X GOTO 100, 200, 300
-```
-
-### FN
-See the `DEF FN` description, please.
-
-### FOR
-**Usage:** `FOR var = start TO end [STEP increment]`
-
-Begins a loop with an optional increment.
-
-Example:
-```basic
-FOR I = 1 TO 10 STEP 2
-```
-
-Internally a call stack is used for all kind of loops.
-
-[C64-wiki.com](https://www.c64-wiki.com/wiki/FOR) states:
-C64 BASIC deals with information about FOR-NEXT loops on
-the return stack in one of four ways:
-
-- When the `FOR-NEXT` loop terminates normally,
-    the information is removed from the return stack.
-- When a program encounters a `NEXT` statement with an
-    explicit loop variable, all inner loops are
-    cancelled and their information removed from the
-    return stack.
-- All `FOR-NEXT` loops commenced within a subroutine are
-    terminated and their information removed
-    from the return stack when the program encounters a
-    `RETURN` statement.
-- If a `FOR` statement is encountered, any existing loop
-    using the same variable name along with
-    any subsequent unfinished `FOR-NEXT` loops are
-    terminated and their information removed from the
-    return stack.
-
-
-### GOSUB
-**Usage:** `GOSUB line`
-
-Calls a subroutine at the specified line number. Execution
-resumes after a `RETURN`. The `FOR-NEXT` stack from inside
-the subroutine is popped from the stack.
-See the `FOR` command for how the call stack is maintained,
-internally.
-
-Example:
-```basic
-GOSUB 200
-```
-
-### GOTO
-**Usage:** `GOTO line`
-
-Jumps to the specified line number unconditionally.
-
-Example:
-```basic
-GOTO 100
-```
-
-### IF
-**Usage:** `IF condition THEN statement|line_number_`
-
-Executes `statement` if `condition` evaluates as true. If
-the condition is false, the execution of this line stops.
-This differs from other BASICs.
-
-Example:
-```basic
-IF X = 10 THEN PRINT "Hello"
-```
-
-### LET
-**Usage:** `LET var = expr`
-
-Assigns a value to a variable. `LET` is optional.
-
-Example:
-```basic
-LET X = 5
-```
-
-### KEY
-**Usage:** `KEY [index, string]`
-The KEY keyword lets you specify the text, that's printed,
-when you press any of the F1..F12 function keys. Without
-arguments, the keyword lists the current keyboard shortcuts.
-
-### NEXT
-**Usage:** `NEXT [var]`
-
-Marks the end of a `FOR` loop, increasing `var` by `STEP`.
-
-Example:
-```basic
-NEXT I
-```
-
-### RCHARDEF
-Reads the pixels for a character image. See `CHARDEF`
-before reading this.
-
-The `mono` parameter will be filled with -1 (yes, mono) or
-0 (no, multicolor).
-The `bits1..bits8` will hold either 8 bit values or 32 bit
-values for each line of the character pixels.
-
-**Usage:** `RCHARDEF char$, mono, bits1, bits2, ..., bits8`
-
-
-### READ
-**Usage:** `READ var[, var [, var2] ]`
-
-Reads a variable from the next DATA keyword.
-
-### RESTORE
-**Usage:** `RESTORE [line]`
-
-Restores the next READ's DATA to the given line number or,
-if omitted, the start of the program.
-
-### RETURN
-**Usage:** `RETURN`
-
-Returns from a subroutine invoked with `GOSUB`.
-
-Example:
-```basic
-RETURN
-```
-
-### STEP
-Used in `FOR` loops to define an increment.
-**Usage:** `FOR var=start TO end STEP increment`
-
-Example:
-```basic
-FOR I = 1 TO 10 STEP 2
-```
-
-### THEN
-Used in conjunction with `IF` to specify the
-action when the condition is true.
-**Usage:** `IF condition THEN expression|line` 
-
-Example:
-```basic
-IF A > B THEN GOTO 100
-```
-
-### TO
-Used with `FOR` to specify the loop end value.
-**Usage:** `FOR var=start TO end [STEP increment]`
-
-Example:
-```basic
-FOR I = 1 TO 5
-```
-
-
-
--------------------------------------------------------------
-
-## Commands
+## Commands and Keywords
 ### ABOUT
 Prints the 'about this project' and license message.
 
@@ -641,6 +438,32 @@ When a line already exists, BA67 will print the contents of
 this line to prevent you from overwriting existing code.
 
 **Usage:** `AUTO [n]`
+
+### BAKE
+BA67 provides a compatible way to use labels for `GOTO` and
+`GOSUB` calls.
+
+The original CBM BASIC interpreter ignores any data behind
+the GOTO number until the next command. So we can append a
+label text after the number and the program still works.
+
+The `BAKE` command finds such GOTO/GOSUB line numbers and
+replaces them with the correct line numbers.
+
+In order to provide a label, just use a line with a `REM`
+comment, that only includes the label sourraounded by two
+minus characters like this:
+```
+REM --LABEL--
+```
+The label must not start with a number and only contain
+A-Z,a-z,0-9 and _ as characters. No spaces. The labels
+are case sensitive! Better only use uppercase letters.
+
+Attention: The does not work with `ON..GOTO/GOSUB` in
+CBM BASIC, so BA67 does not support it either.
+
+**Usage:** `BAKE`
 
 ### CLOSE
 Closes a file handle.
@@ -826,6 +649,36 @@ to that directory, you can do so with  `CHDIR "./CLOUD"`.
 
 See annex for more details.
 
+### DATA
+**Usage:** `DATA value, value, string, "string with spaces", ...`
+
+Provides data variables to be used with the READ keyword.
+Empty values `DATA ,,,` are not allowed.
+
+### DEF FN
+**Usage** `DEF FN NAME(ARG[, ARG2, ...]) = ARG+ARG2...*`
+
+Provides a way to define user functions, that can be called.
+Internally, the function name always starts with FN, so this
+is the only place, where `FN FOO` and `FNFOO` are valid and
+equal.
+
+### DELETE
+**Usage:** `DELETE from [- to]`
+
+Deletes the line numbers in the given range.
+
+
+### DIM
+**Usage:** `DIM var(size)`
+
+Allocates an array with the specified size.
+
+Example:
+```basic
+DIM A(10)
+```
+
 ### DUMP
 Prints all variable values to the current output device.
 
@@ -853,6 +706,41 @@ the search string was matches.
 
 **Usage:** `FIND "print*hello world"`
 
+### FN
+See the `DEF FN` description, please.
+
+### FOR
+**Usage:** `FOR var = start TO end [STEP increment]`
+
+Begins a loop with an optional increment.
+
+Example:
+```basic
+FOR I = 1 TO 10 STEP 2
+```
+
+Internally a call stack is used for all kind of loops.
+
+[C64-wiki.com](https://www.c64-wiki.com/wiki/FOR) states:
+C64 BASIC deals with information about FOR-NEXT loops on
+the return stack in one of four ways:
+
+- When the `FOR-NEXT` loop terminates normally,
+    the information is removed from the return stack.
+- When a program encounters a `NEXT` statement with an
+    explicit loop variable, all inner loops are
+    cancelled and their information removed from the
+    return stack.
+- All `FOR-NEXT` loops commenced within a subroutine are
+    terminated and their information removed
+    from the return stack when the program encounters a
+    `RETURN` statement.
+- If a `FOR` statement is encountered, any existing loop
+    using the same variable name along with
+    any subsequent unfinished `FOR-NEXT` loops are
+    terminated and their information removed from the
+    return stack.
+
 ### GET
 Gets a key press from the keyboard buffer. Will return
 an empty string, if the buffer is empty.
@@ -872,11 +760,53 @@ pixels. You can change that in the code. See also `CHARDEF`.
 
 **Usage:** `GRAPHIC mode5`
 
+### GOSUB
+**Usage:** `GOSUB line`
+
+Calls a subroutine at the specified line number. Execution
+resumes after a `RETURN`. The `FOR-NEXT` stack from inside
+the subroutine is popped from the stack.
+
+See the `FOR` command for how the call stack is maintained,
+internally.
+
+See the `BAKE` command for how to use labels instead of
+line numbers.
+
+Example:
+```basic
+GOSUB 200
+```
+
+### GOTO
+**Usage:** `GOTO line`
+
+Jumps to the specified line number unconditionally.
+
+Example:
+```basic
+GOTO 100
+```
+
+See the `BAKE` command for how to use labels instead of
+line numbers.
+
 ### HELP
 Prints a small information about how to use the command.
 
 **Usage:** `HELP command`
 
+### IF
+**Usage:** `IF condition THEN statement|line_number_`
+
+Executes `statement` if `condition` evaluates as true. If
+the condition is false, the execution of this line stops.
+This differs from other BASICs.
+
+Example:
+```basic
+IF X = 10 THEN PRINT "Hello"
+```
 
 ### INPUT
 Prompts for user input.
@@ -886,6 +816,22 @@ Prompts for user input.
 Example:
 ```basic
 INPUT X
+```
+
+### KEY
+**Usage:** `KEY [index, string]`
+The KEY keyword lets you specify the text, that's printed,
+when you press any of the F1..F12 function keys. Without
+arguments, the keyword lists the current keyboard shortcuts.
+
+### LET
+**Usage:** `LET var = expr`
+
+Assigns a value to a variable. `LET` is optional.
+
+Example:
+```basic
+LET X = 5
 ```
 
 ### LIST
@@ -973,6 +919,27 @@ IN MAIN 1
 IN MODL 2
 IN MODL 3
 IN MAIN 1
+```
+
+### NEXT
+**Usage:** `NEXT [var]`
+
+Marks the end of a `FOR` loop, increasing `var` by `STEP`.
+
+Example:
+```basic
+NEXT I
+```
+
+### ON
+**Usage:** `ON expr GOTO/GOSUB line1, line2, ...`
+
+Transfers execution to one of the specified lines based on
+the value of `expr`.
+
+Example:
+```basic
+ON X GOTO 100, 200, 300
 ```
 
 ### OPEN
@@ -1079,13 +1046,27 @@ Quits the interpreter.
 
 **Usage:** `QUIT`
 
-
 ### QSAVE
 Saves the current listing as the name that was last
 loaded or saved.
 
 **Usage:** `QSAVE`
 
+### RCHARDEF
+Reads the pixels for a character image. See `CHARDEF`
+before reading this.
+
+The `mono` parameter will be filled with -1 (yes, mono) or
+0 (no, multicolor).
+The `bits1..bits8` will hold either 8 bit values or 32 bit
+values for each line of the character pixels.
+
+**Usage:** `RCHARDEF char$, mono, bits1, bits2, ..., bits8`
+
+### READ
+**Usage:** `READ var[, var [, var2] ]`
+
+Reads a variable from the next DATA keyword.
 
 ### REM
 Adds a comment in the program.
@@ -1110,6 +1091,9 @@ number, then. The default is zero - no milestone.
 
 *DO SAVE YOUR WORK* before you renumber the listing.
 
+Please also see the `BAKE` command for using labels instead
+of line numbers.
+
 **Usage:** `RENUMBER [new__start, increment, old__start, milestone]`
 
 **Example:**
@@ -1130,6 +1114,21 @@ LIST
 180 RETURN
 ```
 
+### RESTORE
+**Usage:** `RESTORE [line]`
+
+Restores the next READ's DATA to the given line number or,
+if omitted, the start of the program.
+
+### RETURN
+**Usage:** `RETURN`
+
+Returns from a subroutine invoked with `GOSUB`.
+
+Example:
+```basic
+RETURN
+```
 
 ### RUN
 Executes the program. Optionally a line number can be passed
@@ -1269,6 +1268,16 @@ Sprites can be moved with `MOVSPR`.
 
 **Usage:** `SPRITE number, on, color, priority, x2, y2`
 
+
+### STEP
+Used in `FOR` loops to define an increment.
+**Usage:** `FOR var=start TO end STEP increment`
+
+Example:
+```basic
+FOR I = 1 TO 10 STEP 2
+```
+
 ### STOP
 Stops the program, is if the escape key was pressed with the
 `?BREAK IN line__number` message.
@@ -1285,6 +1294,26 @@ If a number is given, the command prints an error message.
 
 It's required to have the command in quotes, so you can
 use variables.
+
+### THEN
+Used in conjunction with `IF` to specify the
+action when the condition is true.
+**Usage:** `IF condition THEN expression|line` 
+
+Example:
+```basic
+IF A > B THEN GOTO 100
+```
+
+### TO
+Used with `FOR` to specify the loop end value.
+**Usage:** `FOR var=start TO end [STEP increment]`
+
+Example:
+```basic
+FOR I = 1 TO 5
+```
+
 
 
 -------------------------------------------------------------
@@ -1320,7 +1349,7 @@ Converts a hex string to an integer number.
 **Usage:** `PRINT DEC("FF")`
 
 ### EXP
-Returns `e` raised to a power.
+Returns `e` (2.71828183..) raised to a power.
 
 **Usage:** `EXP(expr)`
 
