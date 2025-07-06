@@ -1,4 +1,6 @@
 #include "charmap.h"
+#include <cstdint>
+#include <cstring>
 
 CharMap::CharMap()
     : ascii {} {

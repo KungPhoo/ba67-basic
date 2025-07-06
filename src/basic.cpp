@@ -772,7 +772,7 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
         dirname    = dirname.substr(dirname.length() - len);
     }
     if (basic->os->dirIsInCloud()) {
-        dirname += std::string((const char*)(u8" \x2601"));
+        dirname += std::string((const char*)(u8" \u2601"));
     }
     basic->os->screen.cleanCurrentLine();
     basic->printUtf8String((const char*)(u8"╔══"));

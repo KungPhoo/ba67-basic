@@ -264,8 +264,8 @@ bool SoundSystemSoLoud::PLAY(const std::string& music) {
         cmd = std::string("\"") + fluidsynth + "\" -ni \"" + soundfont + "\" \"" + tempfileMidi + "\" -F \"" + tempfileWav + "\" -r 44100";
         os->systemCall(cmd.c_str(), printOutput);
 #if defined(NDEBUG)
-        _unlink(tempfileAbc.c_str());
-        _unlink(tempfileMidi.c_str());
+        os->scratchFile(tempfileAbc.c_str());
+        os->scratchFile(tempfileMidi.c_str());
 #endif
     } else {
         AbcMusic abc;
@@ -280,9 +280,9 @@ bool SoundSystemSoLoud::PLAY(const std::string& music) {
     }
 
 #if defined(NDEBUG)
-    _unlink(tempfileAbc.c_str());
-    _unlink(tempfileMidi.c_str());
-    _unlink(tempfileWav.c_str());
+    os->scratchFile(tempfileAbc.c_str());
+    os->scratchFile(tempfileMidi.c_str());
+    os->scratchFile(tempfileWav.c_str());
 #endif
     return rv;
 }
