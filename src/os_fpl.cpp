@@ -943,7 +943,7 @@ std::vector<char32_t> OsFPL::emojiPicker() {
     ScreenBuffer::copyWithLock(sb, screen);
     std::string oldCb = this->getClipboardData();
     setClipboardData("");
-    std::string cmd = std::string("\"") + emojiPanelPath + "\" --nomove --nocls --stdin --ascii";
+    std::string cmd = std::string("\"") + emojiPanelPath + "\" --nomove --nocls --ascii";
     Os::systemCall(cmd.c_str(), true);
     std::string newCb = this->getClipboardData();
     std::vector<char32_t> chars;
