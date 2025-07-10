@@ -3,20 +3,16 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
-#include <cstring>
+// #include <cstring>
+#include "string_helper.h"
 #include "minifetch.h"
-
-#if defined(_WIN32) || defined(_WIN64)
-    /* We are on Windows */
-    #define strtok_r strtok_s
-#endif
 
 // static instance
 BA68settings Os::settings = {};
 
 Os::KeyPress Os::getFromKeyboardBuffer() {
     while (!keyboardBufferHasData()) {
-        delay(150);
+        delay(150); // this cools the CPU when we wait for keyboard input
     }
     auto k = keyboardBuffer.back();
     keyboardBuffer.pop_back();
@@ -85,7 +81,7 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
         // }
 
         char* next_line = nullptr;
-        char* buffer    = strtok_r((char*)(&resp.bytes[0]), "\r\n", &next_line);
+        char* buffer    = StringHelper::strtok_r((char*)(&resp.bytes[0]), "\r\n", &next_line);
         while (buffer != nullptr) {
             for (size_t i = 0; i < 512; ++i) {
                 if (buffer[i] == '\n' || buffer[i] == '\r' || buffer[i] == '\0') {
@@ -107,7 +103,7 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
                 files.emplace_back(fi);
             }
 
-            buffer = strtok_r(nullptr, "\r\n", &next_line);
+            buffer = StringHelper::strtok_r(nullptr, "\r\n", &next_line);
         }
         // char buffer[512] = { 0 };
         // while (!feof(f)) {
@@ -290,11 +286,11 @@ bool Os::keyboardBufferHasData() {
     static uint64_t nextPoll = 0;
 
     if (keyboardBuffer.empty()) {
-        uint64_t now = tick();
-        if (nextPoll < now) {
-            nextPoll = now + 100;
-            updateKeyboardBuffer();
-        }
+        // uint64_t now = tick();
+        // if (nextPoll < now) {
+        //     nextPoll = now + 10;
+        updateKeyboardBuffer();
+        // }
     }
     return !keyboardBuffer.empty();
 }

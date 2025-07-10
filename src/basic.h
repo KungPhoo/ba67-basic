@@ -22,7 +22,7 @@ public:
 
     struct Options {
         bool noSpaceSeparator = false; // 'true' allows FORI=1TO10 without spaces
-        bool dotAsZero        = false; // 'true' allows a=. instead of a=0
+        bool dotAsZero        = true; // 'true' allows a=. instead of a=0
     };
     static Options options;
 
@@ -370,7 +370,7 @@ protected:
 
     void handleIFTHEN(std::vector<Token>& tokens);
 
-    Value readNextData();
+    void readNextData(Value* pval, char valuePostfix);
     void handleREAD(std::vector<Token>& tokens);
     void handleRESTORE(std::vector<Token>& tokens);
 

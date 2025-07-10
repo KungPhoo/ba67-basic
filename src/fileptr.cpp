@@ -133,6 +133,15 @@ size_t FilePtr::read(void* buffer, size_t bytes) {
     return fread(buffer, bytes, 1, file);
 }
 
+std::vector<uint8_t> FilePtr::readAll() {
+    seek(0, SEEK_END);
+    size_t len = tell();
+    seek(0, SEEK_SET);
+    std::vector<uint8_t> bytes(len);
+    read(&bytes[0], len);
+    return bytes;
+}
+
 void FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {
     dirty = false;
     if (mode[0] == 'w') {

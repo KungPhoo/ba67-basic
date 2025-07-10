@@ -1,7 +1,8 @@
 #include "unicode.h"
 #include <codecvt>
-#include <cstring>
+// #include <cstring>
 #include <locale>
+#include "string_helper.h"
 
 char32_t Unicode::parseNextUtf8(const char*& utf8) {
     char32_t codepoint = 0;
@@ -118,7 +119,7 @@ std::string Unicode::toUtf8String(const char16_t* str) {
 
 bool Unicode::toU32String(const char* utf8String, std::u32string& result) {
     result.clear();
-    size_t len = strlen(utf8String);
+    size_t len = StringHelper::strlen(utf8String);
     if (result.capacity() < len) {
         result.reserve(len);
     }
@@ -134,7 +135,7 @@ bool Unicode::toU32String(const char* utf8String, std::u32string& result) {
 
 bool Unicode::toU16String(const char* utf8String, std::u16string& result) {
     result.clear();
-    size_t len = strlen(utf8String);
+    size_t len = StringHelper::strlen(utf8String);
     if (result.capacity() < len) {
         result.reserve(len);
     }

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cstdio>
+#include <vector>
 class Os;
 
 class FilePtr {
@@ -54,6 +55,7 @@ public:
     int seek(int offset, int origin);
     size_t tell();
     size_t read(void* buffer, size_t bytes);
+    std::vector<uint8_t> readAll();
 
 
 private:

@@ -5,11 +5,11 @@
 #include "string_helper.h"
 #include "unicode.h"
 #include <cmath>
-#include <cstring>
+// #include <cstring>
 #include <iostream>
 #include <regex>
 #include <variant>
-
+#include "prg_tool.h"
 
 #if defined(__cplusplus) && __cplusplus > 202002L
     #include <format>
@@ -1440,7 +1440,7 @@ int64_t Basic::strToInt(const std::string& str) {
 inline bool Basic::parseKeyword(const char*& str, std::string* keyword) {
     skipWhite(str);
     for (auto& k : keywords) {
-        if (strncmp(str, k.c_str(), k.length()) == 0
+        if (StringHelper::strncmp(str, k.c_str(), k.length()) == 0
             && (isEndOfWord(str[k.length()]) || options.noSpaceSeparator)) {
             if (keyword != nullptr) {
                 *keyword = std::string(str, str + k.length());
@@ -1455,7 +1455,7 @@ inline bool Basic::parseKeyword(const char*& str, std::string* keyword) {
 inline bool Basic::parseCommand(const char*& str, std::string* command) {
     skipWhite(str);
     for (auto& k : commands) {
-        if (strncmp(str, k.first.c_str(), k.first.length()) == 0
+        if (StringHelper::strncmp(str, k.first.c_str(), k.first.length()) == 0
             && (isEndOfWord(str[k.first.length()]) || options.noSpaceSeparator) /*this differs from MS BASIC*/
         ) {
             if (command != nullptr) {
@@ -1472,7 +1472,7 @@ inline bool Basic::parseString(const char*& str, std::string* stringUnquoted) {
     skipWhite(str);
     if (*str == '\"' || *str == '\'') {
         // char quoteChar = *str;
-        const char* end = strchr(str + 1, *str /* quoteChar */);
+        const char* end = StringHelper::strchr(str + 1, *str /* quoteChar */);
         if (end == nullptr) {
             throw Error(ErrorId::SYNTAX);
         }
@@ -1490,17 +1490,17 @@ inline bool Basic::parseOperator(const char*& str, std::string* op) {
     const char* start = str;
 
     if (options.noSpaceSeparator) {
-        if (strncmp(str, "AND", 3) == 0) {
+        if (StringHelper::strncmp(str, "AND", 3) == 0) {
             *op = std::string(str, str + 3);
             str += 3;
             return true;
         }
-        if (strncmp(str, "NOT", 3) == 0) {
+        if (StringHelper::strncmp(str, "NOT", 3) == 0) {
             *op = std::string(str, str + 3);
             str += 3;
             return true;
         }
-        if (strncmp(str, "OR", 2) == 0) {
+        if (StringHelper::strncmp(str, "OR", 2) == 0) {
             *op = std::string(str, str + 2);
             str += 2;
             return true;
@@ -3261,7 +3261,7 @@ void Basic::handleIFTHEN(std::vector<Token>& tokens) {
     }
 }
 
-Basic::Value Basic::readNextData() {
+void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
     auto& cm = currentModule();
 
     std::vector<Basic::Token> tokens;
@@ -3270,7 +3270,9 @@ Basic::Value Basic::readNextData() {
         try {
             tokens = tokenize(&cm.readDataPosition);
         } catch (...) {
-            throw ErrorId::INTERNAL;
+            // that's a syntax error in a line above the DATA
+            // throw Error(ErrorId::INTERNAL);
+            tokens = {};
         }
 
         if (tokens.empty()) {
@@ -3285,30 +3287,70 @@ Basic::Value Basic::readNextData() {
             auto pcAfterThisData = cm.readDataPosition; // where to read next DATA
             cm.readDataPosition  = pcOfThisData; // rewind to this DATA for more values
 
-            int nthData = 0;
-            for (auto& t : tokens) {
-                if (t.type == TokenType::STRING || t.type == TokenType::IDENTIFIER) {
-                    if (nthData == cm.readDataIndex) {
-                        ++cm.readDataIndex;
-                        return t.value;
-                    }
-                    ++nthData;
+            bool previousWasComma = false;
+            int nthData           = 0;
+
+            // this is a hack. When the last data is a comma, there is
+            // one empty data piece at the end of that line - which is not tokenized!
+            // This way, we add an empty item.
+            if (tokens.back().type == TokenType::COMMA) {
+                Token t {};
+                if (valuePostfix == '$') {
+                    t.type  = TokenType::STRING;
+                    t.value = "";
+                } else {
+                    t.type  = TokenType::INTEGER;
+                    t.value = "0";
                 }
-                if (t.type == TokenType::INTEGER) {
-                    if (nthData == cm.readDataIndex) {
-                        ++cm.readDataIndex;
-                        return strToInt(t.value);
-                    }
-                    ++nthData;
-                }
-                if (t.type == TokenType::NUMBER) {
-                    if (nthData == cm.readDataIndex) {
-                        ++cm.readDataIndex;
-                        return atof(t.value.c_str());
-                    }
-                    ++nthData;
-                }
+                tokens.push_back(t);
             }
+
+            for (size_t itok = 1 /* skip "DATA"*/; itok < tokens.size(); ++itok) {
+                auto& t = tokens[itok];
+                if (nthData == cm.readDataIndex) {
+                    ++cm.readDataIndex;
+                    bool skipComma = true;
+                    switch (t.type) {
+                    case TokenType::STRING:
+                    case TokenType::IDENTIFIER:
+                        if (valuePostfix != '$') {
+                            throw Error(ErrorId::TYPE_MISMATCH);
+                        }
+                        *pval = t.value;
+                        break;
+                    case TokenType::INTEGER:
+                        if (valuePostfix == '$') {
+                            throw Error(ErrorId::TYPE_MISMATCH);
+                        }
+                        *pval = strToInt(t.value);
+                        break;
+                    case TokenType::NUMBER:
+                        if (valuePostfix == '$') {
+                            throw Error(ErrorId::TYPE_MISMATCH);
+                        }
+                        *pval = atof(t.value.c_str());
+                        break;
+                    case TokenType::COMMA:
+                        skipComma = false;
+                        // empty data statement
+                        if (valuePostfix == '$') {
+                            *pval = std::string("");
+                        } else {
+                            *pval = int64_t(0);
+                        }
+                        break;
+                    }
+                    // skip following comma
+                    if (skipComma && itok + 1 < tokens.size() && tokens[itok + 1].type == TokenType::COMMA) {
+                        ++cm.readDataIndex;
+                    }
+                    return;
+                }
+                ++nthData;
+            }
+
+
+
 
             // end of this DATA - read from next DATA
             ASSERT(nthData == cm.readDataIndex);
@@ -3317,7 +3359,9 @@ Basic::Value Basic::readNextData() {
             cm.readDataIndex    = 0;
         }
     }
-    return Value();
+
+
+    throw Error(ErrorId::INTERNAL);
 }
 
 void Basic::handleREAD(std::vector<Token>& tokens) {
@@ -3328,27 +3372,10 @@ void Basic::handleREAD(std::vector<Token>& tokens) {
             if (pval == nullptr) {
                 throw Error(ErrorId::SYNTAX);
             }
+            readNextData(pval, valuePostfix(tk));
 
-            Value val = readNextData();
-
-            // std::string dbg = valueToString(programCounter().line->first) + ": " + valueToString(val) + "\n";
+            // std::string dbg = valueToString(programCounter().line->first) + ": " + valueToString(*pval) + "\n";
             // printUtf8String(dbg);
-
-            switch (valuePostfix(tk)) {
-            case '$':
-                if (!valueIsString(val)) {
-                    throw Error(ErrorId::TYPE_MISMATCH);
-                }
-                break;
-            default:
-            case '%':
-            case '#':
-                if (valueIsString(val)) {
-                    throw Error(ErrorId::TYPE_MISMATCH);
-                }
-                break;
-            }
-            *pval = val;
         }
     }
 }
@@ -4194,11 +4221,6 @@ bool Basic::loadProgram(const char* filenameUtf8) {
     return loadProgram(path);
 }
 
-#if defined(_WIN32) || defined(_WIN64)
-    /* We are on Windows */
-    #define strtok_r strtok_s
-#endif
-
 
 #include "font.h"
 bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
@@ -4210,44 +4232,59 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
         inOutFilenameUtf8 = foundname;
     }
 
-    FilePtr file(os);
-    file.open(foundname, "rb");
-    if (!file) {
-        return false;
-    }
-
     doNEW();
+    std::vector<char> buff;
 
-    file.seek(0, SEEK_END);
-    size_t length = file.tell();
 
-    // strip optional utf8 BOM
-    uint8_t bom[4] = { 0, 0, 0, 0 };
-    file.seek(0, SEEK_SET);
-    if (length > 2) {
-        auto nr = file.read(bom, 3);
-    }
-    if (bom[0] == 0xef && bom[1] == 0xbb && bom[2] == 0xbf) {
-        file.seek(3, SEEK_SET);
-        length -= 3;
+    if (inOutFilenameUtf8.length() > 4 && Unicode::toLowerAscii(inOutFilenameUtf8.substr(inOutFilenameUtf8.length() - 4).c_str()) == ".prg") {
+        // load PRG
+        FilePtr fprg(os);
+        if (!fprg.open(foundname, "rb")) {
+            return false;
+        }
+        auto bytes        = fprg.readAll();
+        std::string basic = PrgTool::PRGtoBASIC(&bytes[0]);
+        fprg.close();
+        buff.resize(basic.length() + 1);
+        StringHelper::memcpy(&buff[0], basic.c_str(), basic.length());
+        buff[basic.length()] = '\0';
+
+        // TODO as long as we can't write PRG, rename QSAVE to .bas
+        inOutFilenameUtf8 = inOutFilenameUtf8.substr(0, inOutFilenameUtf8.length() - 4) + ".bas";
+
     } else {
+        // load BAS
+        FilePtr file(os);
+        file.open(foundname, "rb");
+        if (!file) {
+            return false;
+        }
+        file.seek(0, SEEK_END);
+        size_t length = file.tell();
+
+        // strip optional utf8 BOM
+        uint8_t bom[4] = { 0, 0, 0, 0 };
         file.seek(0, SEEK_SET);
-    }
+        if (length > 2) {
+            auto nr = file.read(bom, 3);
+        }
+        if (bom[0] == 0xef && bom[1] == 0xbb && bom[2] == 0xbf) {
+            file.seek(3, SEEK_SET);
+            length -= 3;
+        } else {
+            file.seek(0, SEEK_SET);
+        }
 
-    char* buff = new char[length + 1];
-    if (buff == nullptr) {
+        buff.resize(length + 1);
+
+        file.read(&buff[0], length);
+        buff[length] = '\0';
         file.close();
-        return false;
     }
-
-    file.read(buff, length);
-    buff[length] = '\0';
-    file.close();
-    // file = nullptr;
 
     // Establish string and get the first token:
     char* next_token = nullptr;
-    char* line       = strtok_r(buff, "\r\n", &next_token);
+    char* line       = StringHelper::strtok_r(&buff[0], "\r\n", &next_token);
 
     std::string str;
     auto& listmodule  = moduleListingStack.back()->second;
@@ -4271,11 +4308,11 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
 
             const char* programline = skipWhite(pc);
 
-            if (iline == 1 && strncmp(programline, "REMBA67", 7) == 0) {
+            if (iline == 1 && StringHelper::strncmp(programline, "REMBA67", 7) == 0) {
                 options.noSpaceSeparator = true;
                 options.dotAsZero        = true;
 
-                if (strstr(programline, "PETCAT") != nullptr) {
+                if (StringHelper::strstr(programline, "PETCAT") != nullptr) {
                     escapePetcat = true;
                 }
             }
@@ -4334,13 +4371,11 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
         } else {
             listmodule.listing[iline] = skipWhite(pc);
         }
-        line = strtok_r(NULL, "\r\n", &next_token);
+        line = StringHelper::strtok_r(nullptr, "\r\n", &next_token);
     }
     listmodule.setProgramCounterToEnd();
 
-    delete[] buff;
-    buff = nullptr;
-
+    buff.clear();
     options.noSpaceSeparator = false;
 
     return rv;

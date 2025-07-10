@@ -10,10 +10,11 @@
 #include "unicode.h"
 #include <array>
 #include <cmath>
-#include <cstring>
+// #include <cstring>
 #include <filesystem>
 #include <thread>
 #include <chrono>
+#include "string_helper.h"
 
 #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
     #include <GL/gl.h>
@@ -43,7 +44,7 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     const int border            = 64;
     settings.window.isResizable = true;
     settings.window.windowSize  = { 640 + 2 * border, 400 + 2 * border };
-    strcpy(settings.window.title, "BA67 BASIC");
+    StringHelper::strcpy(settings.window.title, "BA67 BASIC");
     settings.window.fullscreenRefreshRate = 60;
     settings.video.isAutoSize             = false; // we resize ourself
 
@@ -54,7 +55,7 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     settings.input.controllerDetectionFrequency = 5000;
 
 #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
-    if (this->settings.renderMode == BA68settings::OpenGL) {
+    if (this->settings.renderMode == BA68settings::RenderMode::OpenGL) {
         // Use Legacy OpenGL (1.1)
         settings.video.backend                          = fplVideoBackendType_OpenGL;
         settings.video.graphics.opengl.compabilityFlags = fplOpenGLCompabilityFlags_Legacy;
@@ -156,7 +157,6 @@ void OsFPL::delay(int ms) {
 
 #if !defined(_WIN32)
     #include <cstdio>
-    #include <cstring>
 // Return the amount of free memory in kilobytes.
 // Returns -1 if something went wrong.
 // https://stackoverflow.com/a/17518259/2721136
@@ -179,7 +179,7 @@ int getFreeMemoryProcMeminfo() {
             }
             buffer[BUFFER_SIZE - 1] = 0;
             // Look for serial number
-            if (strncmp(buffer, "MemFree:", 8) == 0) {
+            if (StringHelper::strncmp(buffer, "MemFree:", 8) == 0) {
                 printf("found MemFree:\n");
                 // Extract mem free from the line.
                 for (loop = 0; loop < BUFFER_SIZE; loop++) {
@@ -307,12 +307,12 @@ void displayUpdateThread(OsFPL* fpl) {
             dirty          = true;
         }
 
-        // if (!dirty) {
-        //     if (sleepAfter < now) {
-        //         fplThreadSleep(50);
-        //     }
-        //     continue;
-        // }
+        if (!dirty) {
+            //     if (sleepAfter < now) {
+            //         fplThreadSleep(50);
+            //     }
+            continue;
+        }
 
         // render chars and sprites to palette based buffer
         state.screen.updateScreenPixelsPalette();
@@ -507,12 +507,12 @@ void OsFPL::presentScreen() {
 
     buffered.crtEmulation = settings.emulateCRT;
     switch (settings.renderMode) {
-    case BA68settings::OpenGL:
+    case BA68settings::RenderMode::OpenGL:
 #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
         renderOpenGL();
         break;
 #endif
-    case BA68settings::Software:
+    case BA68settings::RenderMode::Software:
         renderSoftware();
         break;
     }
@@ -554,7 +554,7 @@ void OsFPL::renderSoftware() {
         buffered.imageCreated = false;
         videoLock.lock();
         if (vidBackBuffer != nullptr && vidBackBuffer->pixels != nullptr && vidBackBuffer->width * vidBackBuffer->height == memBackBuffer.size()) {
-            memcpy(vidBackBuffer->pixels, &memBackBuffer[0], sizeof(uint32_t) * memBackBuffer.size());
+            StringHelper::memcpy(vidBackBuffer->pixels, &memBackBuffer[0], sizeof(uint32_t) * memBackBuffer.size());
         }
         videoLock.unlock();
         fplVideoFlip();
@@ -598,13 +598,13 @@ void OsFPL::renderOpenGL() {
 }
 
 void OsFPL::updateKeyboardBuffer() {
-    static auto lastTick = tick();
-    auto tickNow         = tick();
-    auto deltaTick       = tickNow - lastTick;
-    if (deltaTick < 16) {
-        delay(int(deltaTick));
-        lastTick = tickNow;
-    }
+    // static auto lastTick = tick();
+    // auto tickNow         = tick();
+    // auto deltaTick       = tickNow - lastTick;
+    // if (deltaTick < 16) {
+    //     delay(int(deltaTick));
+    //     lastTick = tickNow;
+    // }
 
     fplWindowSize sz { 0, 0 };
     fplGetWindowSize(&sz);

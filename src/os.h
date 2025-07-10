@@ -19,13 +19,15 @@ public:
 class BA68settings {
 public:
     bool fullscreen = false;
-    enum RenderMode {
-        Software = 0,
-        OpenGL   = 1
+    struct RenderMode {
+        enum Enum {
+            Software = 0,
+            OpenGL   = 1
+        };
     };
-    RenderMode renderMode = Software;
-    bool emulateCRT       = true;
-    bool demoMode         = false; // slowly process the input buffer for creating videos
+    RenderMode::Enum renderMode = RenderMode::Software;
+    bool emulateCRT             = true;
+    bool demoMode               = false; // slowly process the input buffer for creating videos
 };
 
 class Os {

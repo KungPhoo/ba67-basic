@@ -98,7 +98,7 @@ public:
         }
         auto it = unicode->find(c);
         if (it == unicode->end()) {
-            return unicode->begin()->second;
+            return ascii['?'];
         }
         return it->second;
     }

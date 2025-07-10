@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
         }
         if (args[i] == "--video") {
             if (args[i + 1] == "opengl") {
-                sets.renderMode = BA68settings::OpenGL;
+                sets.renderMode = BA68settings::RenderMode::OpenGL;
                 printf("Render mode: OpenGL\n");
             } else {
                 printf("Render mode: Software\n");
