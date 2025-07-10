@@ -170,6 +170,7 @@ but also features some improvements.
 Here are the key features:
 - Compatible with the famous Commodore BASIC
 - Can load .prg files
+- Can save .prg files. Sort of.
 - GOTO/GOSUB labels (backwards compatible!)
 - Variable names can be longer than 2 characters
 - Unicode strings (no PETSCII or other exotic char sets)
@@ -340,9 +341,10 @@ as non-array variables and are treated as separate variables.
 There are built-in variables, that will be updated before
 each statement is evaluated. These are:
 
-| Variable  |  Value                           |
-| --------- | -------------------------------- |
-| TI        | current system time in 1/60 sec. |
+| Variable  |  Value                             |
+| --------- | ---------------------------------- |
+| TI        | current system time in 1/60 sec.   |
+| ST        | file I/O status (currently not set)|
 
 -------------------------------------------------------------
 ## Files
@@ -358,10 +360,16 @@ for loading existing files.
 ### Supported file formats
 BA67 can load .prg files from the C64 (BASIC V2)and
 C128 (BASIC 7.0) natively. The filename foe `QSAVE` is
-changed to a '.bas' file extension, though, since we can't
-write '.prg' files, yet.
+changed to a '.bas' file extension, though, since some
+graphical characters are mapped to Unicode and cannot be
+mapped back to PETSCII properly, yet.
 
-All other files are loaded as UTF-8 text files. a UTF-8 BOM
+You can, however, save as a '.prg' file that you can load
+in your emulator (try drag&drop) or edit it with
+[DirMaster](https://style64.org/dirmaster).
+
+All other files are loaded as UTF-8 text files. a UTF-8
+[BOM](https://en.wikipedia.org/wiki/Byte_order_mark)
 is accepted but mandatory. Saving will write UTF-8 without BOM.
 
 

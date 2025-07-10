@@ -133,6 +133,13 @@ size_t FilePtr::read(void* buffer, size_t bytes) {
     return fread(buffer, bytes, 1, file);
 }
 
+size_t FilePtr::write(void* buffer, size_t bytes) {
+    if (!file) {
+        return 0;
+    }
+    return fwrite(buffer, bytes, 1, file);
+}
+
 std::vector<uint8_t> FilePtr::readAll() {
     seek(0, SEEK_END);
     size_t len = tell();
