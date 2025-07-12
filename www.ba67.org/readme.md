@@ -18,6 +18,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
   - [Variables](#variables)
   - [Files](#files)
     - [Filesystem](#filesystem)
+    - [Supported file formats](#supported-file-formats)
     - [Cloud file storage](#cloud-file-storage)
     - [boot.bas](#boot-bas)
     - [Line 1 Hack](#line-1-hack)
@@ -167,8 +168,10 @@ This BASIC is compatible with COMMODORE's BASIC V7,
 but also features some improvements.
 
 Here are the key features:
-- Compatible with the famous Commodore's BASIC
-- GOTO/GOSUB labels (compatible!)
+- Compatible with the famous Commodore BASIC
+- Can load .prg files
+- Can save .prg files. Sort of.
+- GOTO/GOSUB labels (backwards compatible!)
 - Variable names can be longer than 2 characters
 - Unicode strings (no PETSCII or other exotic char sets)
 - Full Unicode character set (even emoji end stuff)
@@ -247,10 +250,10 @@ command instead of the variable name.
 In order to avoid confusions, this BASIC requires separating
 commands from variables.
 
-There is a hack, though. If you add the line number 1 and
-start with the comment `1 REMBA67` - no spaces between `REM`
-and `BA67` - then the interpreter switches to the Commodore
-style parsing and reformats your code with spaces.
+If you load a '.prg' program file, the spaces will be added
+automatically. Attention: This might cause lines to be
+longer than 80 characters - which is not supported by the
+8 bit computers.
 
 ### Quotes
 You can use double and single quotes. This way it's easier
@@ -309,8 +312,10 @@ Integers can be given up to 64 bits. A prefixed `$` is
 interpreted as a hex number. `a = $7ffffff`.
 
 Commodore allowed the dot `.` to be interpreted as zero.
-BA67 does not allow this, but you can convert your old code
-with the `1 REMBA67` line hack. See `Syntax`.
+BA67 can allow this with the options.dotAsZero=true set.
+That's the default. Please don't do this in new projects.
+People did this because parsing '.' was faster than '0' in
+Commodore BASIC.
 
 -------------------------------------------------------------
 ## Unicode
@@ -336,9 +341,10 @@ as non-array variables and are treated as separate variables.
 There are built-in variables, that will be updated before
 each statement is evaluated. These are:
 
-| Variable  |  Value                           |
-| --------- | -------------------------------- |
-| TI        | current system time in 1/60 sec. |
+| Variable  |  Value                             |
+| --------- | ---------------------------------- |
+| TI        | current system time in 1/60 sec.   |
+| ST        | file I/O status (currently not set)|
 
 -------------------------------------------------------------
 ## Files
@@ -350,6 +356,22 @@ overwriting existing files.
 
 In most cases you can use wildcard characters `*` and `?`
 for loading existing files.
+
+### Supported file formats
+BA67 can load .prg files from the C64 (BASIC V2)and
+C128 (BASIC 7.0) natively. The filename foe `QSAVE` is
+changed to a '.bas' file extension, though, since some
+graphical characters are mapped to Unicode and cannot be
+mapped back to PETSCII properly, yet.
+
+You can, however, save as a '.prg' file that you can load
+in your emulator (try drag&drop) or edit it with
+[DirMaster](https://style64.org/dirmaster).
+
+All other files are loaded as UTF-8 text files. a UTF-8
+[BOM](https://en.wikipedia.org/wiki/Byte_order_mark)
+is accepted but mandatory. Saving will write UTF-8 without BOM.
+
 
 ### Cloud file storage
 With `CLOUD` you can specify a webserver, that BA67 can use
@@ -375,6 +397,9 @@ The interpreter can load files without line numbers and will
 numerate them automatically.
 
 ### Line 1 Hack
+
+!! TODO do not use this anymore - BA67 can load .prg files !!
+
 If you add the line number 1 and start with the comment
 `1 REMBA67` - no spaces between `REM` and `BA67` - then
 the interpreter switches to the Commodore style parsing and
@@ -653,7 +678,8 @@ See annex for more details.
 **Usage:** `DATA value, value, string, "string with spaces", ...`
 
 Provides data variables to be used with the READ keyword.
-Empty values `DATA ,,,` are not allowed.
+Empty values `DATA ,,,` are also allowed. But, please don't
+use them.
 
 ### DEF FN
 **Usage** `DEF FN NAME(ARG[, ARG2, ...]) = ARG+ARG2...*`
