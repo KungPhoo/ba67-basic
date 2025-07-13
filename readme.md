@@ -78,6 +78,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [RUN](#run)
     - [SAVE](#save)
     - [SCNCLR](#scnclr)
+    - [SCRATCH](#scratch)
     - [SLOW](#slow)
     - [SOUND](#sound)
     - [SPRDEF](#sprdef)
@@ -1167,6 +1168,7 @@ Optionally, a line number can be specified.
 
 **Usage:** `RUN [start_line_number]`
 
+
 ### SAVE
 Saves the BASIC program of the current module to a file on
 the disk drive. The file extension ".BA67" is recommended.
@@ -1182,11 +1184,28 @@ Clears the screen and puts the cursor in the top left corner.
 The optional parameter is ignored.
 **Usage:** `SCNCLR [n]`
 
+
+### SCRATCH
+Scratches (deletes, removes, unlinks) a file from the current
+directory. It also works on the CLOUD.
+
+You are allowed to use wildcard characters `?` and `*`.
+
+In direct mode `ARE YOU SURE (Y/N)?` will be requested, which
+has to be answered with 'Y' for every file to be deleted.
+
+Use this command really with caution. I will not take any
+liability if the command might cause damage to your data.
+
+**Usage:** `SCRATCH "FILENAME"`
+
+
 ### SLOW
 Slow mode is enabled. This adds a delay for every
 instruction to approximately simulate the speed of a C64.
 
 **Usage:** `SLOW`
+
 
 ### SOUND
 Plays a sound in the background. The parameters are passed
@@ -1601,7 +1620,7 @@ But then, also don't wait for their implementation ;)
 -------------------------------------------------------------
 # ANNEX
 
-
+-------------------------------------------------------------
 ## A - ABC Music Notation
 ### ABC Music Notation - Basics
 ABC notation is a simple text-based format for writing
@@ -1699,7 +1718,7 @@ or [abcnotation.com](https://abcnotation.com) (which,
 I'm afraid, is quite loaded with commercials).
 Here's the standard: [abcnotation.com/wiki](https://abcnotation.com/wiki/abc:standard:v2.1)
 
-
+-------------------------------------------------------------
 ## B - Build, Using the Source Code
 ### CHARDEF
 The line height must be a either 8 or 16 pixels.
@@ -1708,7 +1727,7 @@ character height is defined to 16, but you only pass
 8 lines, each line will be duplicated.
 See ScreenInfo structure in the code.
 
-
+-------------------------------------------------------------
 ## C - Cloud
 Using `CHDIR "CLOUD"` you can access and share files with
 multiple devices and users. The login-data is provided
@@ -1740,7 +1759,7 @@ cool and show the world what you can do.
 If you host `cloud.php` on an https server, things might be
 a little more secure.
 
-
+-------------------------------------------------------------
 ## D - Developers
 Here's just a quick list of notes not to forget when
 this chapter will be filled.
@@ -1758,7 +1777,7 @@ as individual arguments, because you can leave out arguments
 like `CHAR ,,y,a$`.
 
 
-
+-------------------------------------------------------------
 ## E - Escape (Control) Characters
 Here's the list of CHR$() codes that produce special
 control characters.

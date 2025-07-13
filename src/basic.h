@@ -106,6 +106,7 @@ public:
     };
 
     std::map<ErrorId, std::string> errorMessages = {
+        {              ErrorId::INTERNAL,              "INTERNAL ERROR" },
         {                ErrorId::SYNTAX,                "SYNTAX ERROR" },
         {        ErrorId::FILE_NOT_FOUND,        "FILE NOT FOUND ERROR" },
         {        ErrorId::ILLEGAL_DEVICE,        "ILLEGAL DEVICE ERROR" },
@@ -269,6 +270,10 @@ public:
         void setProgramCounterToEnd() {
             programCounter.line     = listing.end();
             programCounter.position = 0;
+        }
+
+        bool isInDirectMode() const {
+            return (programCounter.line == listing.end() || programCounter.line->first <= 0);
         }
     };
 

@@ -171,7 +171,7 @@ bool Os::isRelativePath(const std::string& path) {
     if (path.starts_with("/")) {
         return false;
     }
-    return false;
+    return true;
 }
 
 bool Os::isDirectory(const std::string& path) {
@@ -204,7 +204,7 @@ bool Os::scratchFile(const std::string& fileName) {
         return true;
     } else {
         if (doesFileExist(fileName)) {
-            return 0 == std::filesystem::remove(fileName.c_str());
+            return std::filesystem::remove(fileName.c_str());
         }
     }
     return false;

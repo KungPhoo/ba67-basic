@@ -529,6 +529,41 @@ void cmdQSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     cmdSAVE(basic, { filename });
 }
 
+void cmdSCRATCH(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() != 1) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+
+
+
+    std::string filename = basic->valueToString(values[0]);
+
+    for (int ifile = 0; ifile < 999; ++ifile) {
+        std::string fn = basic->os->findFirstFileNameWildcard(filename);
+        if (!basic->fileExists(fn, false)) {
+            if (ifile == 0) {
+                throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
+            }
+            break;
+        }
+
+        if (basic->currentModule().isInDirectMode()) {
+            basic->os->screen.cleanCurrentLine();
+            basic->printUtf8String("SCRATCH ");
+            basic->printUtf8String(fn);
+            basic->printUtf8String(". ARE YOU SURE (Y/N)?");
+            std::string yesno = basic->inputLine(false);
+            if (yesno.length() == 0 || Unicode::toUpperAscii(yesno[0]) != u'Y') {
+                break;
+            }
+        }
+
+        if (!basic->os->scratchFile(fn)) {
+            throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
+        }
+    }
+}
+
 // TODO: OPEN no,drive, !!15!!: direct mode "S:file" = scratch
 void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 3) {
@@ -1149,6 +1184,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "SAVE", cmdSAVE },
         { "QSAVE", cmdQSAVE },
         { "RENUMBER", cmdRENUMBER },
+        { "SCRATCH", cmdSCRATCH },
         { "SYS", cmdSYS },
         { "PLAY", cmdPLAY },
         { "POKE", cmdPOKE },
