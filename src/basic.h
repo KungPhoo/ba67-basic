@@ -35,6 +35,7 @@ public:
         Operator(const Operator&) = default;
         Operator(const std::string& s) { value = s; }
         Operator& operator=(const Operator&) = default;
+        bool operator==(const Operator& o) const { return o.value == value; }
         std::string value;
     };
 
@@ -193,12 +194,34 @@ public:
     };
     struct Array {
         std::vector<Value> data;
+        std::list<std::pair<Value, Value>> dict;
+        bool isDictionary = false;
         ArrayIndex bounds = {}; // 5 = [0..4]
 
         // dim a(4) = (0..4)
         void dim(size_t i0, size_t i1 = 0, size_t i2 = 0, size_t i3 = 0);
         void dim(const ArrayIndex& ai);
+        void setIsDictionary(bool isDict) {
+            isDictionary = isDict;
+            if (isDict) {
+                data.clear();
+            } else {
+                dict.clear();
+            }
+        }
         Value& at(const ArrayIndex& ix);
+        Value& atKey(const Value& key) {
+            if (!isDictionary) {
+                throw Basic::Error(Basic::ErrorId::TYPE_MISMATCH);
+            }
+            for (auto& p : dict) {
+                if (p.first == key) {
+                    return p.second;
+                }
+            }
+            dict.emplace_back(key, Value {});
+            return dict.back().second;
+        }
     };
 
     struct ProgramCounter {
@@ -342,6 +365,7 @@ protected:
 
     void doNEW();
     void doEND();
+    void handleCLR();
     void handleLET(const std::vector<Token>& tokens);
     void handleRUN(const std::vector<Token>& tokens);
     void handleMODULE(const std::vector<Token>& tokens);

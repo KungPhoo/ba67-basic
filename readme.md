@@ -175,6 +175,7 @@ Here are the key features:
 - Can save .prg files. Sort of.
 - GOTO/GOSUB labels (backwards compatible!)
 - Variable names can be longer than 2 characters
+- Dictionaries (key/value pair lookup tables)
 - Unicode strings (no PETSCII or other exotic char sets)
 - Full Unicode character set (even emoji end stuff)
 - 64 bit precision for numbers
@@ -711,6 +712,20 @@ Allocates an array with the specified size.
 Example:
 ```basic
 DIM A(10)
+```
+
+If the size is omitted, the CBM BASIC yields a
+`SYNTAX ERROR`. BA67 will set the array as a
+dictionary. You can then use any kind of values
+as the key and store data.
+
+**Example:**
+```
+10 DIM A$() : REM CREATE DICTIONARY
+20 A$("KEY1") = "VALUE 1"
+...
+30 PRINT A$("KEY1")
+DUMP
 ```
 
 ### DUMP

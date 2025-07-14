@@ -1025,9 +1025,9 @@ Basic::Value fktRND(Basic* basic, const std::vector<Basic::Value>& args) {
     }
     int64_t n = basic->valueToInt(args[0]);
     if (n < 0) {
-        srand(-n);
+        srand(int(-n));
     } else if (n == 0) {
-        srand(basic->os->tick());
+        srand(int(basic->os->tick()));
     }
     return double(rand()) / double(RAND_MAX);
 }
@@ -1092,6 +1092,7 @@ void Basic::Array::dim(size_t i0, size_t i1, size_t i2, size_t i3) {
 }
 
 void Basic::Array::dim(const ArrayIndex& ai) {
+    setIsDictionary(false);
     this->bounds.index = ai.index;
     size_t elems       = 1 + ai.index[0]; // add the end element, too. dim a(5) = 0..5
     size_t old         = elems;
@@ -1114,6 +1115,9 @@ void Basic::Array::dim(const ArrayIndex& ai) {
 }
 
 Basic::Value& Basic::Array::at(const Basic::ArrayIndex& ix) {
+    if (isDictionary) {
+        throw Error(ErrorId::TYPE_MISMATCH);
+    }
     size_t i   = 0;
     size_t blk = 1;
 
@@ -1312,10 +1316,12 @@ int Basic::colorForModule(const std::string& str) const {
 // Represent value as string
 
 inline std::string Basic::valueToString(const Value& v) {
-    if (auto s = std::get_if<std::string>(&v))
+    if (auto s = std::get_if<std::string>(&v)) {
         return *s;
-    if (auto i = std::get_if<int64_t>(&v))
+    }
+    if (auto i = std::get_if<int64_t>(&v)) {
         return std::to_string(*i);
+    }
     if (auto d = std::get_if<double>(&v)) {
 #if defined(__cplusplus) && __cplusplus > 202002L
         return return std::format("{:.9g}", *d);
@@ -2240,6 +2246,13 @@ void Basic::doEND() {
     EndAndPopModule();
 }
 
+void Basic::handleCLR() {
+    auto& modl = currentModule();
+    modl.variables.clear();
+    modl.arrays.clear();
+    modl.loopStack.clear();
+}
+
 // LET statement (assignment)
 inline void Basic::handleLET(const std::vector<Token>& tokens) {
     size_t i = 0;
@@ -2309,6 +2322,8 @@ void Basic::handleRUN(const std::vector<Token>& tokens) {
 
         // debug("MODULE LISTING "); debug(moduleListingStack.back()->first.c_str()); debug("\n");
     }
+
+    handleCLR();
     currentModule().restoreDataPosition();
     auto& listing = currentListing();
     for (auto it = listing.begin(); it != listing.end(); ++it) {
@@ -2779,12 +2794,20 @@ inline void Basic::handleDIM(const std::vector<Token>& tokens) {
             continue;
         }
 
-        auto vals   = evaluateExpression(tokens, i + 1, &end);
-        auto bounds = indexFromValues(vals);
-        arrays[varName].dim(bounds);
-        if (end > i) {
-            i = end - 1;
+        auto vals = evaluateExpression(tokens, i + 1, &end);
+
+        // DIM a$() -> dictionary
+        if (vals.empty()) {
+            arrays[varName].setIsDictionary(true);
+        } else {
+            auto bounds = indexFromValues(vals);
+            arrays[varName].dim(bounds);
+            if (end > i) {
+                i = end - 1;
+            }
         }
+
+
         if (tokens[i + 1].type != TokenType::PARENTHESIS) {
             throw Error(ErrorId::SYNTAX);
         }
@@ -3030,9 +3053,18 @@ Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tok
             *endPtr = i;
         }
         if (arrit != arrays.end()) {
-            // array(index)
-            auto arridx = this->indexFromValues(args);
-            return &arrit->second.at(arridx);
+            auto& arr = arrit->second;
+
+            if (arr.isDictionary) {
+                if (args.size() != 1) {
+                    throw Error(ErrorId::BAD_SUBSCRIPT);
+                }
+                return &arr.atKey(args[0]);
+            } else {
+                // array(index)
+                auto arridx = this->indexFromValues(args);
+                return &arr.at(arridx);
+            }
         } else {
             return nullptr;
         }
@@ -3562,9 +3594,7 @@ void Basic::executeTokens(std::vector<Token>& tokens) {
             handleONGOTO(tokens);
         } else if (tokens[0].value == "REM") {
         } else if (tokens[0].value == "CLR") {
-            modl.variables.clear();
-            modl.arrays.clear();
-            modl.loopStack.clear();
+            handleCLR();
         } else if (tokens[0].value == "SCNCLR") {
             os->screen.clear();
             os->presentScreen();
@@ -4038,16 +4068,29 @@ inline void Basic::dumpVariables() {
     }
     for (auto& v : currentModule().arrays) {
         auto& arr = v.second;
+
+        if (arr.isDictionary) {
+            int count = 0;
+            for (auto& p : arr.dict) {
+                oss << v.first << "(" << valueToString(p.first) << ") = " << valueToString(p.second) << std::endl;
+                if (++count > 9) {
+                    oss << "..." << std::endl;
+                    break;
+                }
+            }
+
+            continue;
+        }
+
         switch (arr.bounds.dimensions()) {
         case 1:
             oss << v.first << "(" << arr.bounds.index[0] << " )" << std::endl;
             for (size_t i = 0; i < std::min(size_t(10), arr.bounds.index[0]); ++i) {
-                oss << "    (" << int(i) << ") = " << valueToString(arr.at({ i })) << std::endl;
+                oss << "    (" << int(i) << ") = " << valueToString(arr.at(ArrayIndex(i))) << std::endl;
             }
             if (arr.bounds.index[0] >= 10) {
-                oss << "    (" << int(arr.bounds.index[0]) << ") = " << valueToString(arr.at({ arr.bounds.index[0] })) << std::endl;
+                oss << "    (" << int(arr.bounds.index[0]) << ") = " << valueToString(arr.at(arr.bounds.index[0])) << std::endl;
             }
-
             break;
         case 2: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << " )" << std::endl; break;
         case 3: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << ", " << arr.bounds.index[2] << " )" << std::endl; break;
