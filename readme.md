@@ -59,6 +59,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [MOVSPR](#movspr)
     - [NEW](#new)
     - [MODULE](#module)
+    - [NETGET](#netget)
     - [NEXT](#next)
     - [ON](#on)
     - [OPEN](#open)
@@ -178,8 +179,10 @@ Here are the key features:
 - Full Unicode character set (even emoji end stuff)
 - 64 bit precision for numbers
 - 64 bit integers
-- Direct access to your local file system
 - Modular programming (See keyword `MODULE`)
+- Direct access to your local file system
+- Easy access to proprietary cloud storage (See `CLOUD`)
+- Get data from the internet (See `NETGET`)
 - Written in C++ (using some C libraries)
 - Very easy to use as a scripting language in your projects
 - Easy to port to other platforms
@@ -450,9 +453,12 @@ Functions always take at least one argument in braces.
 -------------------------------------------------------------
 ## Commands and Keywords
 ### ABOUT
+**Usage:** `ABOUT`
+
 Prints the 'about this project' and license message.
 
 ### AUTO
+**Usage:** `AUTO [n]`
 Enables automatic line numbering. This aids you when writing
 programs by printing the next line number at the input prompt
 after a line has been programmed by adding `n` to the
@@ -463,9 +469,10 @@ Calling AUTO with no argument disables this feature.
 When a line already exists, BA67 will print the contents of
 this line to prevent you from overwriting existing code.
 
-**Usage:** `AUTO [n]`
 
 ### BAKE
+**Usage:** `BAKE`
+
 BA67 provides a compatible way to use labels for `GOTO` and
 `GOSUB` calls.
 
@@ -489,19 +496,19 @@ are case sensitive! Better only use uppercase letters.
 Attention: The does not work with `ON..GOTO/GOSUB` in
 CBM BASIC, so BA67 does not support it either.
 
-**Usage:** `BAKE`
-
 ### CLOSE
-Closes a file handle.
-
 **Usage:** `CLOSE fileno`
 
-### CLR
-Clears all variables.
+Closes a file handle.
 
+### CLR
 **Usage:** `CLR`
 
+Clears all variables.
+
 ### COLOR
+**Usage:** `COLOR source405, color1`
+
 Set text or background color. The `source` is an indicator
 what color to change.
 ```
@@ -526,8 +533,6 @@ The default `color` values are:
 - 14 Light Green
 - 15 Light Blue
 - 16 Light Gray
-
-**Usage:** `COLOR source405, color1`
 
 If you want to **redefine** a color, the syntax is:
 `COLOR color, red, green, blue`
@@ -556,9 +561,10 @@ The C128 pendant would be `POKE 241, color0`, where
 `color0` is the zero based color index.
 
 ### CHDIR
+**Usage:** `CHDIR directory`
+
 Change into the given directory.
 
-**Usage:** `CHDIR directory`
 The CHDIR command also supports wild-card characters.
 use `CHDIR ".."` to go one directory level up.
 
@@ -570,12 +576,14 @@ The spacial command `CHDIR "CLOUD"` is described in the
 
 
 ### CATALOG
-Lists all files and directories of the current directory.
-
 **Usage:** `CATALOG`
+
+Lists all files and directories of the current directory.
 
 
 ### CHAR
+**Usage:** `CHAR color, column0, line0, text$[, inverse]`
+
 Positions the cursor position to `column,line`, where the top
 left screen corner is at position `0,0`.
 Then prints the given string at that position and leaves the
@@ -590,12 +598,13 @@ the current text color.
 The command will leave the cursor at the end of the text
 and restore the current text color.
 
-**Usage:** `CHAR color, column0, line0, text$[, inverse]`
-
 ### CHARDEF
-**Monochrome**
+**Usage:** `CHARDEF char$, bytes [, more bytes]`
 
 Defines the pixels of a character symbol.
+
+**Monochrome**
+
 You can define any Unicode character with this command.
 Each parameter is a byte (8 bits), that describe the
 horizontal pixels of a line. You must pass 8 lines.
@@ -642,8 +651,6 @@ Example:
 
 `CHARDEF "#", $00, $11, $11, $00,  $11, $22, $22, $11,  $12, $33, $33, $21,  $13, $44, $44, $31,  $14, $55, $55, $41,  $15, $66, $66, $51,  $01, $77, $77, $10,  $00, $18, $81, $00`
 
-**Usage:** `CHARDEF char$, bytes [, more bytes]`
-
 You can read the bits of a character with the
 keyword `RCHARDEF`.
 
@@ -659,12 +666,12 @@ RUN
 characters 0..127 (ASCII set) reset to the defaults.
 
 ### CLOUD
+**Usage:** `CLOUD email$ [, server$]`
+
 Specifies the cloud storage parameters.
 BA67 can load and write files to a cloud storage. See the
 file `cloud.php` in the `www.ba67.org` folder of the source
 code to host our own cloud service.
-
-**Usage:** `CLOUD email$ [, server$]`
 
 When you `CHDIR "CLOUD"`, all read and write access will
 be done on the cloud you provided. You can go back to
@@ -707,22 +714,24 @@ DIM A(10)
 ```
 
 ### DUMP
-Prints all variable values to the current output device.
-
 **Usage:** `DUMP`
 
-### END
-Terminates program execution.
+Prints all variable values to the current output device.
 
+### END
 **Usage:** `END`
 
+Terminates program execution.
+
 ### FAST
+**Usage:** `FAST`
+
 Enables fast mode for this `MODULE`. That's the default
 speed. No delay will be added. See also `SLOW`.
 
-**Usage:** `FAST`
-
 ### FIND
+**Usage:** `FIND "print*hello world"`
+
 Searches the current module's program listing for the given
 search string. The search is performed case-insensitive
 and you can use the wild-cards `*` and `?`.
@@ -730,8 +739,6 @@ A `*` is appended at the front and the back, internally.
 
 The command will act as `LIST`, but only list the lines where
 the search string was matches.
-
-**Usage:** `FIND "print*hello world"`
 
 ### FN
 See the `DEF FN` description, please.
@@ -769,13 +776,15 @@ the return stack in one of four ways:
     return stack.
 
 ### GET
+**Usage:** `GET a$ [, b$, ...]`
+
 Gets a key press from the keyboard buffer. Will return
 an empty string, if the buffer is empty.
 
-**Usage:** `GET a$ [, b$, ...]`
-
 
 ### GRAPHIC
+**Usage:** `GRAPHIC mode5`
+
 Changes the current graphics mode. Currently only two modes
 are supported:
  - `1..4` Switches back to default 40 column mode
@@ -784,8 +793,6 @@ are supported:
 In the 80 column mode, each character still is 8x8 pixels.
 However, the display is scaled to it looks like they're 8x16
 pixels. You can change that in the code. See also `CHARDEF`.
-
-**Usage:** `GRAPHIC mode5`
 
 ### GOSUB
 **Usage:** `GOSUB line`
@@ -819,9 +826,9 @@ See the `BAKE` command for how to use labels instead of
 line numbers.
 
 ### HELP
-Prints a small information about how to use the command.
-
 **Usage:** `HELP command`
+
+Prints a small information about how to use the command.
 
 ### IF
 **Usage:** `IF condition THEN statement|line_number_`
@@ -836,9 +843,9 @@ IF X = 10 THEN PRINT "Hello"
 ```
 
 ### INPUT
-Prompts for user input.
-
 **Usage:** `INPUT var`
+
+Prompts for user input.
 
 Example:
 ```basic
@@ -847,6 +854,7 @@ INPUT X
 
 ### KEY
 **Usage:** `KEY [index, string]`
+
 The KEY keyword lets you specify the text, that's printed,
 when you press any of the F1..F12 function keys. Without
 arguments, the keyword lists the current keyboard shortcuts.
@@ -862,31 +870,33 @@ LET X = 5
 ```
 
 ### LIST
+**Usage:** `LIST [from][-][to]`
+
 Displays the program listing.
 
-**Usage:** `LIST`
-
 ### LOAD
+**Usage:** `LOAD "bas*folder/*.bas"`
+
 Loads a program from the disk drive. You can use the forward
 slash character to specify directories like `dir/file.bas`.
 Wild-card characters `*` and `?` are supported in folders as
 well as in file names.
 
-**Usage:** `LOAD "bas*folder/*.bas"`
-
 ### MOVSPR
+**Usage:** `MOVSPR number, x25, y50`
+
 Moves a sprite to a given screen location. The position
 (0, 0), however is in the border. The top left coordinate
 of the first visible character is (25, 50).
 
-**Usage:** `MOVSPR number, x25, y50`
-
 ### NEW
-Clears the current program from memory.
-
 **Usage:** `NEW`
 
+Clears the current program from memory.
+
 ### MODULE
+**Usage:** `MODULE name`
+
 Modules are a great way to modularize complex code and reuse
 existing listings. The interpreter holds a list of variable
 spaces for each module as well as a program counter
@@ -909,8 +919,6 @@ Passing arguments back and forth can be done by prefixing
 the variable name with the module name followed by a period
 operator. `module.varname = 123`, which can be called from
 any other module.
-
-**Usage:** `MODULE name`
 
 Example:
 Type this example line by line into the interpreter:
@@ -948,6 +956,16 @@ IN MODL 3
 IN MAIN 1
 ```
 
+### NETGET
+***Usage:** `NETGET url$, c$`
+
+Downloads a website and stores the returned bytes in c$,
+which is interpreted as a UTF-8 string when `PRINT`ing.
+
+It's best to provide the protocol (https:// or http://)
+at the beginning of the URL. If it's omitted, https://
+will be tried first, then http://.
+
 ### NEXT
 **Usage:** `NEXT [var]`
 
@@ -970,6 +988,8 @@ ON X GOTO 100, 200, 300
 ```
 
 ### OPEN
+**Usage:** `OPEN fileno, "filename , MODE_RW"`
+
 Opens a file for reading or writing. When reading, wild-card
 characters are supported. The mode "R" for reading or "W"
 for writing must be part of the filename argument and
@@ -979,13 +999,11 @@ Use `PRINT#1` to print to the opened fileno #1.
 
 Don't forget to `CLOSE` the file afterwards.
 
-**Usage:** `OPEN fileno, "filename , MODE_RW"`
-
 ### PLAY
+**Usage:** `PLAY abc_notation$`
+
 The PLAY command plays a music score in the background of
 your program. The music string is in ABC music notation.
-
-**Usage:** `PLAY abc_notation$`
 
 See the annex for details.
 
@@ -1042,9 +1060,9 @@ PRINT "Hello, World!"
 ```
 
 ### PRINT USING
-Outputs text or values as a formatted string to the screen.
-
 **Usage:** `PRINT USING format; expr [, expr ...]`
+
+Outputs text or values as a formatted string to the screen.
 
 Example:
 ```basic
@@ -1069,17 +1087,19 @@ Example:
 ```
 
 ### QUIT
-Quits the interpreter.
-
 **Usage:** `QUIT`
 
+Quits the interpreter.
+
 ### QSAVE
+**Usage:** `QSAVE`
+
 Saves the current listing as the name that was last
 loaded or saved.
 
-**Usage:** `QSAVE`
-
 ### RCHARDEF
+**Usage:** `RCHARDEF char$, mono, bits1, bits2, ..., bits8`
+
 Reads the pixels for a character image. See `CHARDEF`
 before reading this.
 
@@ -1088,17 +1108,15 @@ The `mono` parameter will be filled with -1 (yes, mono) or
 The `bits1..bits8` will hold either 8 bit values or 32 bit
 values for each line of the character pixels.
 
-**Usage:** `RCHARDEF char$, mono, bits1, bits2, ..., bits8`
-
 ### READ
 **Usage:** `READ var[, var [, var2] ]`
 
 Reads a variable from the next DATA keyword.
 
 ### REM
-Adds a comment in the program.
-
 **Usage:** `REM comment`
+
+Adds a comment in the program.
 
 Example:
 ```basic
@@ -1106,6 +1124,8 @@ REM This is a comment
 ```
 
 ### RENUMBER
+**Usage:** `RENUMBER [new__start, increment, old__start, milestone]`
+
 Renumbers the program lines.
 Where `new__start` specifies the first new line number to
 use. The `old__start` parameter is the first line of the
@@ -1120,8 +1140,6 @@ number, then. The default is zero - no milestone.
 
 Please also see the `BAKE` command for using labels instead
 of line numbers.
-
-**Usage:** `RENUMBER [new__start, increment, old__start, milestone]`
 
 **Example:**
 ```basic
@@ -1158,6 +1176,8 @@ RETURN
 ```
 
 ### RUN
+**Usage:** `RUN [start_line_number]`
+
 Executes the program. Optionally a line number can be passed
 as the start of the processing.
 
@@ -1166,26 +1186,26 @@ the active program listing to the module's code.
 
 Optionally, a line number can be specified.
 
-**Usage:** `RUN [start_line_number]`
-
 
 ### SAVE
+**Usage:** `SAVE "test.bas"`
+
 Saves the BASIC program of the current module to a file on
 the disk drive. The file extension ".BA67" is recommended.
 If no file extension is given, it will be appended.
 
 See also `QSAVE`.
 
-**Usage:** `SAVE "test.bas"`
-
 
 ### SCNCLR
-Clears the screen and puts the cursor in the top left corner.
-The optional parameter is ignored.
 **Usage:** `SCNCLR [n]`
 
+Clears the screen and puts the cursor in the top left corner.
+The optional parameter is ignored.
 
 ### SCRATCH
+**Usage:** `SCRATCH "FILENAME"`
+
 Scratches (deletes, removes, unlinks) a file from the current
 directory. It also works on the CLOUD.
 
@@ -1197,17 +1217,17 @@ has to be answered with 'Y' for every file to be deleted.
 Use this command really with caution. I will not take any
 liability if the command might cause damage to your data.
 
-**Usage:** `SCRATCH "FILENAME"`
-
 
 ### SLOW
+**Usage:** `SLOW`
+
 Slow mode is enabled. This adds a delay for every
 instruction to approximately simulate the speed of a C64.
 
-**Usage:** `SLOW`
-
 
 ### SOUND
+**Usage:** `SOUND voice, play$`
+
 Plays a sound in the background. The parameters are passed
 as a string, that's separated by spaces, commas or colons.
 
@@ -1279,9 +1299,9 @@ REM play noise wave with default values
 SOUND 1, "wave_type:3"
 ```
 
-**Usage:** `SOUND voice, play$`
-
 ### SPRDEF
+**Usage:** `SPRDEF number, chars$`
+
 Defines a sprite. You have 256 sprites to use. They are
 overlaid over the character graphics and can be moved on
 a per pixel basis.
@@ -1293,10 +1313,10 @@ You can select any color index to be transparent with the
 3rd parameter. If you omit it, the sprite will not be
 transparent.
 
-**Usage:** `SPRDEF number, chars$`
-
 
 ### SPRITE
+**Usage:** `SPRITE number, on, color, priority, x2, y2`
+
 Changes the visibility and characteristics of a sprite.
 The `on` parameter enables 1 or disables 0 the sprite.
 
@@ -1311,49 +1331,47 @@ of the sprite to twice it's size.
 
 Sprites can be moved with `MOVSPR`.
 
-**Usage:** `SPRITE number, on, color, priority, x2, y2`
-
 
 ### STEP
-Used in `FOR` loops to define an increment.
 **Usage:** `FOR var=start TO end STEP increment`
 
+Used in `FOR` loops to define an increment.
 Example:
 ```basic
 FOR I = 1 TO 10 STEP 2
 ```
 
 ### STOP
+**Usage:** `STOP`
+
 Stops the program, is if the escape key was pressed with the
 `?BREAK IN line__number` message.
 
-**Usage:** `STOP`
-
 ### SYS
+**Usage:** `SYS "wget " + CHR$(22) + "www.ba67.org" + CHR$(22)`
+
 If a string is given, the system's command is executed.
 The string must be quoted. Otherwise we could not use
 variables in the command string.
 If a number is given, the command prints an error message.
 
-**Usage:** `SYS "wget " + CHR$(22) + "www.ba67.org" + CHR$(22)`
-
 It's required to have the command in quotes, so you can
 use variables.
 
 ### THEN
-Used in conjunction with `IF` to specify the
-action when the condition is true.
 **Usage:** `IF condition THEN expression|line` 
 
+Used in conjunction with `IF` to specify the
+action when the condition is true.
 Example:
 ```basic
 IF A > B THEN GOTO 100
 ```
 
 ### TO
-Used with `FOR` to specify the loop end value.
 **Usage:** `FOR var=start TO end [STEP increment]`
 
+Used with `FOR` to specify the loop end value.
 Example:
 ```basic
 FOR I = 1 TO 5
@@ -1364,64 +1382,67 @@ FOR I = 1 TO 5
 -------------------------------------------------------------
 ## Functions
 ### ABS
-Returns the absolute value of a number.
-
 **Usage:** `ABS(expr)`
 
-### ASC
-Returns the ASCII code of a character.
+Returns the absolute value of a number.
 
+### ASC
 **Usage:** `ASC("char")`
 
-### ATN
-Returns the arctangent of a number.
+Returns the ASCII code of a character.
 
+### ATN
 **Usage:** `ATN(expr)`
 
-### CHR$
-Returns the character corresponding to an ASCII code.
+Returns the arctangent of a number.
 
+### CHR$
 **Usage:** `CHR$(code)`
 
-### COS
-Returns the cosine of an angle in radians.
+Returns the character corresponding to an ASCII code.
 
+### COS
 **Usage:** `COS(expr)`
 
-### DEC
-Converts a hex string to an integer number.
+Returns the cosine of an angle in radians.
 
+### DEC
 **Usage:** `PRINT DEC("FF")`
 
-### EXP
-Returns `e` (2.71828183..) raised to a power.
+Converts a hex string to an integer number.
 
+### EXP
 **Usage:** `EXP(expr)`
 
+Returns `e` (2.71828183..) raised to a power.
+
 ### FRE
+**Usage:** `FRE(0)`
+
 Returns the amount of memory for PEEK and POKE operations.
 On a C64, this would print the memory available for your
 BASIC program.
 
-**Usage:** `FRE(0)`
-
 ### HEX$
-Returns a string representation of an integer number.
-
 **Usage:** `PRINT HEX$( $ff001234 )`
 
+Returns a string representation of an integer number.
+
 ### INSTR
-**Usage: `position=INSTR(haystack$, needle$, [start__pos])`
+**Usage:** `position=INSTR(haystack$, needle$, [start__pos])`
+
 Returns the first occurrence of `needle$` in `haystack$`.
 The first character is the index `1`. A return value of
 `0` indicates, that no match was found.
 
 ### INT
-Returns the integer portion of a number.
-
 **Usage:** `INT(expr)`
 
+Returns the integer portion of a number.
+
 ### JOY
+**Usage:** `J = JOY(port) : REM 1..8 CW FROM 12:00. BUTTONS +128, +256`
+
 Returns the status of a joypad/gamepad/joystick.
 The return value is the same as in BASIC V7, but when you
 press buttons 1 and 2, the value 128 ($80) is added
@@ -1443,8 +1464,6 @@ are present, only XInput device 1 will be queried.
 
 On Linux, maybe more gamepads are supported.
 
-**Usage:** `J = JOY(port) : REM 1..8 CW FROM 12:00. BUTTONS +128, +256`
-
 Example program to get the joypad directions:
 ```
 500 J=JOY(N) : REM INPUT IS N, OUTPUT IS JX,JY AND JB
@@ -1460,50 +1479,52 @@ Example program to get the joypad directions:
 ```
 
 ### LCASE$
-Converts the string to lower case.
-
 **Usage:** `LCASE$(s$)`
 
+Converts the string to lower case.
+
 ### LEFT$
+**Usage:** `LEFT$(string, n)`
+
 Returns the leftmost `n` characters of a string. A character
 is a Unicode code point.
 
-**Usage:** `LEFT$(string, n)`
-
 ### LEN
+**Usage:** `LEN(string)`
+
 Returns the length of a string by counting the Unicode code
 points.
 
-**Usage:** `LEN(string)`
-
 ### LOG
-Returns the natural logarithm of a number.
-
 **Usage:** `LOG(expr)`
 
-### MAX
-Returns the largest of the given argument values.
+Returns the natural logarithm of a number.
 
+### MAX
 **Usage:** `n=MAX(a,b [,c] [,d] ...)`
 
+Returns the largest of the given argument values.
+
 ### MID$
+**Usage:** `MID$(string, start1, length)`
+
 Extracts a substring from a string. Each character is a
 Unicode code point. The start index start with 1 for the
 first character in the string.
 
-**Usage:** `MID$(string, start1, length)`
-
 ### MIN
-Returns the smallest of the given argument values.
-
 **Usage:** `n=MIN(a,b [,c] [,d] ...)`
 
-### PEEK
-Returns the value from a memory address.
+Returns the smallest of the given argument values.
 
+### PEEK
 **Usage:** `PEEK(address)`
 
+Returns the value from a memory address.
+
 ### PEN
+**Usage:** `PEN(X0_Y1_X2_Y3_BT4)`
+
 Returns the light pen position on the screen. In BA67, this
 presents the mouse cursor positions on the screen. BA67 returns
 25,50 for the top-left pixel of the first character on the screen.
@@ -1516,90 +1537,98 @@ The return value depends on the argument value that is passed:
 - `3` Y position
 - `4` Mouse button bits: 1, 2 and 4.
 
-**Usage:** `PEN(X0_Y1_X2_Y3_BT4)`
-
 ### POS
+**Usage:** `POS(0)`
+
 Returns the current horizontal cursor position.
 The first column returns the number 0.
 An argument must be passed, is however not evaluated.
 
-**Usage:** `POS(0)`
-
 ### POSY
+**Usage:** `POSY(0)`
+
 Returns the current vertical cursor position.
 The first row returns the number 0.
 An argument must be passed, is however not evaluated.
 
-**Usage:** `POSY(0)`
-
 ### RIGHT$
+**Usage:** `RIGHT$(string, n)`
+
 Returns the rightmost `n` characters of a string. A character
 is a Unicode code point.
 
-**Usage:** `RIGHT$(string, n)`
-
 ### RND
-Returns a random number.
+**Usage:** `RND(n): REM 0..1`
 
-**Usage:** `RND(expr)`
+The function RND generates pseudo random floating point numbers
+in range [0..1].
+
+ - By using RND(positive number) gives a different random number.
+ - Using RND(negative number) sets the seed value.
+ - With RND(0) the negative number is taken from the timer value.
+
+Repeatedly calling RND with the same negative number results
+in the same result. Typical use is to call RND(negative number)
+once and then repeatedly call RND(positive number).
+
+The get an integer number, call `INT(RND(N) * MAXVAL%)`
 
 ### SGN
-Returns the sign of a number (-1, 0, or 1).
-
 **Usage:** `SGN(expr)`
 
-### SIN
-Returns the sine of an angle in radians.
+Returns the sign of a number (-1, 0, or 1).
 
+### SIN
 **Usage:** `SIN(expr)`
 
-### SPC
-Outputs spaces in a `PRINT` statement.
+Returns the sine of an angle in radians.
 
+### SPC
 **Usage:** `SPC(n)`
 
-### SQR
-Returns the square root of a number.
+Outputs spaces in a `PRINT` statement.
 
+### SQR
 **Usage:** `SQR(expr)`
 
-### STR$
-Converts a number to a string.
+Returns the square root of a number.
 
+### STR$
 **Usage:** `STR$(expr)`
 
-### TAB
-Moves the cursor to a specified column in `PRINT`.
+Converts a number to a string.
 
+### TAB
 **Usage:** `TAB(n)`
 
-### TAN
-Returns the tangent of an angle in radians.
+Moves the cursor to a specified column in `PRINT`.
 
+### TAN
 **Usage:** `TAN(expr)`
 
-### UCASE$
-Converts the string to upper case.
+Returns the tangent of an angle in radians.
 
+### UCASE$
 **Usage:** `UCASE$(s$)`
 
-### VAL
-Converts a string to a number.
+Converts the string to upper case.
 
+### VAL
 **Usage:** `VAL(string)`
 
-### XOR
-Binary XOR operator.
+Converts a string to a number.
 
+### XOR
 **Usage:** `A = XOR(3,2)`
+
+Binary XOR operator.
 
 
 ## Reserved Commands
 Here's a list of commands and constants, that might be
 implemented once. So don't use these as variable names.
 But then, also don't wait for their implementation ;)
-- EL, ER, ERR$, DS, DS$
-- SCRATCH
+- EL, ER, ERR$, DS, DS$, ST, ST$
 - LOF
 - DO, LOOP, UNTIL, WHILE
 - TRAP

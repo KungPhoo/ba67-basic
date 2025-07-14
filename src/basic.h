@@ -350,6 +350,7 @@ protected:
     void handlePRINT_USING(const std::vector<Token>& tokens);
     void handleGET(const std::vector<Token>& tokens, bool waitForKeypress);
     void handleINPUT(const std::vector<Token>& tokens);
+    void handleNETGET(const std::vector<Token>& tokens);
     void handleDIM(const std::vector<Token>& tokens);
     void handleLIST(const std::vector<Token>& tokens);
 

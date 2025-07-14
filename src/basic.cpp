@@ -10,6 +10,7 @@
 #include <regex>
 #include <variant>
 #include "prg_tool.h"
+#include "minifetch.h"
 
 #if defined(__cplusplus) && __cplusplus > 202002L
     #include <format>
@@ -1018,6 +1019,20 @@ Basic::Value fktRIGHT$(Basic* basic, const std::vector<Basic::Value>& args) {
     return Unicode::substr(str, length - right);
 }
 
+Basic::Value fktRND(Basic* basic, const std::vector<Basic::Value>& args) {
+    if (args.size() != 1) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    int64_t n = basic->valueToInt(args[0]);
+    if (n < 0) {
+        srand(-n);
+    } else if (n == 0) {
+        srand(basic->os->tick());
+    }
+    return double(rand()) / double(RAND_MAX);
+}
+
+
 Basic::Value fktLCASE$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -1158,7 +1173,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 
     // hard coded keywords
     keywords = { "ON", "GOTO", "GOSUB", "RETURN", "IF", "THEN", "LET", "FOR", "TO", "NEXT", "STEP", "RCHARDEF", "READ", "DATA", "RESTORE",
-                 "END", "RUN", "DIM", "PRINT", "?", "GET", "HELP", "INPUT", "REM", "CLR", "SCNCLR", "NEW", "LIST", "MODULE", "KEY", "GETKEY", "DEF", "FN", "DELETE", "USING",
+                 "END", "RUN", "DIM", "PRINT", "?", "GET", "NETGET", "HELP", "INPUT", "REM", "CLR", "SCNCLR", "NEW", "LIST", "MODULE", "KEY", "GETKEY", "DEF", "FN", "DELETE", "USING",
                  "DUMP" };
 
     // commands
@@ -1233,7 +1248,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "POS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().x); } },
         { "POSY", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().y); } },
         { "RIGHT$", fktRIGHT$ },
-        { "RND", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return double(rand()) / double(RAND_MAX); } },
+        { "RND", fktRND },
         { "SGN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value {
              nargs(args, 1);
              double d = basic->valueToDouble(args[0]);
@@ -2693,6 +2708,45 @@ void Basic::handleINPUT(const std::vector<Token>& tokens) {
     }
 }
 
+void Basic::handleNETGET(const std::vector<Token>& tokens) {
+    if (tokens.size() != 4) {
+        throw Error(ErrorId::ARGUMENT_COUNT);
+    }
+
+    size_t starttok  = 1;
+    auto firstValues = evaluateExpression(tokens, starttok, &starttok, true);
+    if (firstValues.size() != 1) {
+        throw Error(ErrorId::SYNTAX);
+    }
+
+    MiniFetch fetch;
+    fetch.request.fillServerFromUrl(valueToString(firstValues[0]));
+    auto response = fetch.fetch();
+
+
+    bool firstInput = true;
+    for (size_t itk = starttok; itk < tokens.size(); ++itk) {
+        auto& tk = tokens[itk];
+        if (tk.type != TokenType::COMMA) {
+            Value* pval = findLeftValue(currentModule(), tokens, itk, &itk);
+            if (pval == nullptr) {
+                throw Error(ErrorId::SYNTAX);
+            }
+
+            switch (valuePostfix(tk)) {
+            case '$':
+                *pval = response.toString();
+                break;
+            default:
+                throw Error(ErrorId::TYPE_MISMATCH);
+                break;
+            }
+        }
+    }
+}
+
+
+
 // DIM statement (array declaration)
 inline void Basic::handleDIM(const std::vector<Token>& tokens) {
     if (tokens.size() < 2)
@@ -3500,6 +3554,8 @@ void Basic::executeTokens(std::vector<Token>& tokens) {
             handleINPUT(tokens);
         } else if (tokens[0].value == "GET") {
             handleGET(tokens, false);
+        } else if (tokens[0].value == "NETGET") {
+            handleNETGET(tokens);
         } else if (tokens[0].value == "GETKEY") {
             handleGET(tokens, true);
         } else if (tokens[0].value == "ON") {
