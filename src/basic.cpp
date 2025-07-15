@@ -1027,7 +1027,7 @@ Basic::Value fktRND(Basic* basic, const std::vector<Basic::Value>& args) {
     if (n < 0) {
         srand(int(-n));
     } else if (n == 0) {
-        srand(int(basic->os->tick()));
+        srand(int(basic->os->tick()) + rand());
     }
     return double(rand()) / double(RAND_MAX);
 }
