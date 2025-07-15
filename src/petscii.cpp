@@ -191,9 +191,9 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
               /* 0xA2, */ 0x00002584, // (!) lower half block
               /* 0xA3, */ 0x000000A3, // (*) pound sign (compatible with ASCII!)
               /* 0xA4, */ 0x00002581, // (!) lower one eighth block
-              /* 0xA5, */ 0x0000258F, // (!) left one eighth block
+              /* 0xA5, */ 0x0000258E, // (!) left one quarter block  258F, // (!) left one eighth block
               /* 0xA6, */ 0x00002592, // (!) medium shade
-              /* 0xA7, */ 0x00002595, // (!) right one eighth block
+              /* 0xA7, */ 0x0000258E, // (!) left one quarter block   // 0x00002595, // (!) right one eighth block
               /* 0xA8, */ 0x0001FB8F, // (!) LOWER HALF MEDIUM SHADE
               /* 0xA9, */ 0x000025E4, // (!) black upper left triangle
               /* 0xAA, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
@@ -252,9 +252,9 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
               /* 0xDC, */ 0x0001FB8C, // (!) LEFT HALF MEDIUM SHADE
               /* 0xDD, */ 0x00002502, // (!) box drawings light vertical
               /* 0xDE, */ 0x000003C0, // (!) greek small letter pi
-              /* 0xDF, */ 0X0001FB98, // (!) medium shade slashed left  --- from lowercase
+              /* 0xDF, */ 0X0001FB98, // (!) UPPER LEFT TO LOWER RIGHT FILL '\\'  --- from lowercase
 
-              /* 0xE0, */ 0x000000E0, // (-) no-break space
+              /* 0xE0, */ 0x000000A0, // (!) no-break space
               /* 0xE1, */ 0x0000258C, // (!) left half block
               /* 0xE2, */ 0x00002584, // (!) lower half block
               /* 0xE3, */ 0x00002594, // (!) upper one eighth block
@@ -263,7 +263,7 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
               /* 0xE6, */ 0x00002592, // (!) medium shade
               /* 0xE5, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK           /* 0xE7, */ 0x00002595, // (!) right one eighth block
               /* 0xE8, */ 0x0001FB8F, // (!) LOWER HALF MEDIUM SHADE
-              /* 0xE9, */ 0x00002034, // (!) slashed block right -> tripple prime
+              /* 0xE9, */ 0x0001fb99, // (!) UPPER RIGHT TO LOWER LEFT FILL '//'
               /* 0xEA, */ 0x0001FB87, // (!) right one quarter block
               /* 0xEB, */ 0x00002523, // (!) box drawings heavy vertical and right
               /* 0xEC, */ 0x00002597, // (!) black small square lower right

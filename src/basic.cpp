@@ -2036,7 +2036,8 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
 
 
         // PRINT "X" TAB(8) "Y" must return after each single piece
-        if (breakEarly && !values.empty() && ops.empty()) {
+        // but PRINT 1+1 must be evaluated
+        if (breakEarly && !values.empty() && ops.empty() && toki.type != TokenType::OPERATOR) {
             return values;
         }
 

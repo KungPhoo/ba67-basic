@@ -899,7 +899,7 @@ void CharMap::init(char32_t from, char32_t to) {
         { 0x3bd, { 0, 0, 66, 66, 36, 36, 24, 0 } },
         { 0x3be, { 28, 32, 32, 24, 32, 64, 60, 6 } },
         { 0x3bf, { 0, 0, 60, 66, 66, 66, 60, 0 } },
-        { 0x3c0, { 0, 0, 1, 62, 84, 20, 20, 0 } },
+        { 0x003C0, { 0x00, 0x00, 0x03, 0x3e, 0x76, 0x36, 0x36, 0x00 } }, // GREEK SMALL LETTER PI
         { 0x3c1, { 0, 0, 60, 66, 98, 92, 64, 64 } },
         { 0x3c2, { 0, 0, 62, 64, 64, 60, 2, 12 } },
         { 0x3c3, { 0, 0, 62, 72, 68, 68, 56, 0 } },
@@ -1359,7 +1359,7 @@ void CharMap::init(char32_t from, char32_t to) {
         { 0x2398, { 63, 33, 9, 125, 9, 33, 63, 0 } },
         { 0x2399, { 0, 28, 54, 93, 65, 65, 62, 0 } },
         { 0x239a, { 0, 0, 62, 65, 65, 65, 62, 0 } },
-        { 0x23b7, { 1, 2, 68, 72, 80, 96, 64, 0 } },
+        { 0x23b7, { 1, 2, 68, 72, 80, 96, 64, 0 } }, // radical symbol bottom
         { 0x23cd, { 8, 107, 73, 65, 65, 65, 127, 0 } },
         { 0x2422, { 32, 56, 96, 44, 50, 50, 44, 0 } },
         { 0x2423, { 0, 0, 0, 0, 0, 66, 126, 0 } },
@@ -1385,7 +1385,7 @@ void CharMap::init(char32_t from, char32_t to) {
         { 0x2468, { 126, 66, 66, 126, 6, 6, 6, 0 } },
         { 0x24ea, { 62, 65, 65, 65, 65, 65, 62, 0 } },
         // Drawing & Gemetric
-        { 0x2500, { 0, 0, 0, 0, 255, 0, 0, 0 } },
+        { 0x02500, { 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00 } },
         { 0x02501, { 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00 } }, // $40 PETSCII box drawings light horizontal
         { 0x02502, { 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18 } }, // $5D PETSCII box drawings light vertical
         { 0x250C, { 0x00, 0x00, 0x00, 0x1f, 0x1f, 0x18, 0x18, 0x18 } }, // $70 PETSCII box drawings light down and right
@@ -1897,8 +1897,8 @@ void CharMap::init(char32_t from, char32_t to) {
         { 0x1fb95, { 204, 204, 51, 51, 204, 204, 51, 51 } },
         { 0x1fb96, { 51, 51, 204, 204, 51, 51, 204, 204 } },
         { 0x1fb97, { 0, 0, 255, 255, 0, 0, 255, 255 } },
-        { 0x1fb98, { 204, 102, 51, 153, 204, 102, 51, 153 } },
-        { 0x1fb99, { 153, 51, 102, 204, 153, 51, 102, 204 } },
+        { 0x1FB98, { 0x33, 0x99, 0xcc, 0x66, 0x33, 0x99, 0xcc, 0x66 } }, // UPPER LEFT TO LOWER RIGHT FILL '\\'
+        { 0x1FB99, { 0xcc, 0x99, 0x33, 0x66, 0xcc, 0x99, 0x33, 0x66 } }, // UPPER RIGHT TO LOWER LEFT FILL '//'
         { 0x1fb9a, { 255, 126, 60, 24, 24, 60, 126, 255 } },
         { 0x1fb9b, { 129, 195, 231, 255, 255, 231, 195, 129 } },
         { 0x1fb9c, { 170, 84, 168, 80, 160, 64, 128, 0 } },
@@ -2002,7 +2002,7 @@ void CharMap::init(char32_t from, char32_t to) {
         { 0x231c, 0x250c },
         { 0x23ce, 0x21b5 },
         { 0x2ba0, 0x21b5 },
-        { 0x2713, 0x23b7 },
+        // { 0x2713, 0x23b7 },
         { 0x2e28, 0x2985 },
         { 0x2e29, 0x2986 },
         { 0x2e40,   0x3d },
@@ -2540,7 +2540,7 @@ void CharMap::init(char32_t from, char32_t to) {
         { 0x2469, 0x24ea },
         { 0x260f, 0x260e },
         { 0x2613,   0xd7 },
-        { 0x2713, 0x23b7 },
+        // { 0x2713, 0x23b7 },
         { 0x279b, 0x2192 },
         { 0x279d, 0x2192 },
         { 0x2710, 0x270f },
@@ -2599,6 +2599,7 @@ void CharMap::init(char32_t from, char32_t to) {
         }
     }
 
+#if 0
     for (auto& c : synonyms) {
         if (c.second < 0) {
             continue;
@@ -2615,4 +2616,5 @@ void CharMap::init(char32_t from, char32_t to) {
             this->at(c.first) = (*this)[c.second];
         }
     }
+#endif
 }
