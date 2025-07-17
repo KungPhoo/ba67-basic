@@ -45,9 +45,14 @@ void ScreenBuffer::putC(char32_t c) {
     // $0a/10 \n only does a line feed - no carriage return
     // See annex F for details why I chose to handle both the same way.
     if (c == U'\n' || c == U'\r') {
+        // a newline ends the reverse mode
+        reverse = false;
+
+        // TODO: do this differently. But don't mess with the screen buffer.
+        // Otherwise print "XX<<" would overwrite the first X with a null.
         // hard terminate the current line to avoid trailing spaces
         // when inserting a character
-        lines[cursor.y]->cols[cursor.x].ch = U'\0';
+        // lines[cursor.y]->cols[cursor.x].ch = U'\0';
 
         // here's the magic in printing 40 chars per line w/o wrapping
         // print 40 chars, then print '\n'.
@@ -61,6 +66,12 @@ void ScreenBuffer::putC(char32_t c) {
         manageOverflow();
         return;
     }
+    // printing a null character just ensures the basic listing line really ends.
+    if (c == '\0') {
+        lines[cursor.y]->cols[cursor.x].ch = U'\0';
+        return;
+    }
+
 
     SChar sc;
     sc.ch  = c;
@@ -158,6 +169,7 @@ void ScreenBuffer::cleanCurrentLine() {
         lines[y]->clear();
     }
 }
+
 
 ScreenBuffer::Cursor ScreenBuffer::getCursorPos() const {
     return cursor;

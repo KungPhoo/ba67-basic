@@ -377,11 +377,9 @@ protected:
     void handleNETGET(const std::vector<Token>& tokens);
     void handleDIM(const std::vector<Token>& tokens);
     void handleLIST(const std::vector<Token>& tokens);
-
     void handleDELETE(const std::vector<Token>& tokens);
-
+    void handleDUMP(const std::vector<Token>& tokens);
     void handleKEY(const std::vector<Token>& tokens);
-
     void handleRCHARDEF(const std::vector<Token>& tokens);
 
     char valuePostfix(const Token& t) const; // returns '#', '%', '$'
@@ -418,9 +416,6 @@ public:
     void printUtf8String(const char* utf8, bool applyCtrlCodes = false);
     inline void printUtf8String(const std::string& utf8, bool applyCtrlCodes = false) { printUtf8String(utf8.c_str(), applyCtrlCodes); }
     // inline void printUtf8String(const char8_t* utf8, bool applyCtrlCodes = false) { printUtf8String((const char*)utf8, applyCtrlCodes); }
-
-    // List all variables and their values
-    void dumpVariables();
 
     enum class ParseStatus {
         PS_ERROR = 0,

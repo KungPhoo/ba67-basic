@@ -4,18 +4,18 @@
 {"ABOUT", R"RAW(ABOUT)RAW"}
 ,{"AUTO", R"RAW(AUTO [n])RAW"}
 ,{"BAKE", R"RAW(BAKE)RAW"}
+,{"CATALOG", R"RAW(CATALOG [filter$])RAW"}
 ,{"CLOSE", R"RAW(CLOSE fileno)RAW"}
 ,{"CLR", R"RAW(CLR)RAW"}
 ,{"COLOR", R"RAW(COLOR source405, color1)RAW"}
-,{"CHDIR", R"RAW(CHDIR directory)RAW"}
-,{"CATALOG", R"RAW(CATALOG)RAW"}
 ,{"CHAR", R"RAW(CHAR color, column0, line0, text$[, inverse])RAW"}
 ,{"CHARDEF", R"RAW(CHARDEF char$, bytes [, more bytes])RAW"}
+,{"CHDIR", R"RAW(CHDIR directory)RAW"}
 ,{"CLOUD", R"RAW(CLOUD email$ [, server$])RAW"}
 ,{"DATA", R"RAW(DATA value, value, string, "string with spaces", ...)RAW"}
 ,{"DELETE", R"RAW(DELETE from [- to])RAW"}
 ,{"DIM", R"RAW(DIM var(size))RAW"}
-,{"DUMP", R"RAW(DUMP)RAW"}
+,{"DUMP", R"RAW(DUMP [var][,var ...])RAW"}
 ,{"END", R"RAW(END)RAW"}
 ,{"FAST", R"RAW(FAST)RAW"}
 ,{"FIND", R"RAW(FIND "print*hello world")RAW"}

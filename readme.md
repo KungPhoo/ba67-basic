@@ -1,5 +1,5 @@
 ﻿# BA67 - 80s BASIC Interpreter
-Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
+Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
 
 ## Contents
 <!-- do not edit TOC_START and TOC_END lines. -->
@@ -21,19 +21,19 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
     - [Supported file formats](#supported-file-formats)
     - [Cloud file storage](#cloud-file-storage)
     - [boot.bas](#boot-bas)
-    - [Line 1 Hack](#line-1-hack)
+    - [PETCAT](#petcat)
   - [Keywords, Commands, Functions](#keywords--commands--functions)
   - [Commands and Keywords](#commands-and-keywords)
     - [ABOUT](#about)
     - [AUTO](#auto)
     - [BAKE](#bake)
+    - [CATALOG](#catalog)
     - [CLOSE](#close)
     - [CLR](#clr)
     - [COLOR](#color)
-    - [CHDIR](#chdir)
-    - [CATALOG](#catalog)
     - [CHAR](#char)
     - [CHARDEF](#chardef)
+    - [CHDIR](#chdir)
     - [CLOUD](#cloud)
     - [DATA](#data)
     - [DEF FN](#def-fn)
@@ -144,6 +144,7 @@ Visit the project Homepage: [www.ba67.org](http://www.ba67.org).
   - [D - Developers](#d---developers)
   - [E - Escape (Control) Characters](#e---escape--control--characters)
   - [F - The Newline Dilemma](#f---the-newline-dilemma)
+  - [G - Going from PETSCII to Unicode](#g---going-from-petscii-to-unicode)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
@@ -172,7 +173,7 @@ but also features some improvements.
 Here are the key features:
 - Compatible with the famous Commodore BASIC
 - Can load .prg files
-- Can save .prg files. Sort of.
+- Can save .prg files
 - GOTO/GOSUB labels (backwards compatible!)
 - Variable names can be longer than 2 characters
 - Dictionaries (key/value pair lookup tables)
@@ -377,6 +378,9 @@ All other files are loaded as UTF-8 text files. a UTF-8
 [BOM](https://en.wikipedia.org/wiki/Byte_order_mark)
 is accepted but mandatory. Saving will write UTF-8 without BOM.
 
+When saving to a .prg file (only for export - don't use this
+as your development format!), the Unicode characters in
+strings are mapped back to PETSCII. See annex G for details.
 
 ### Cloud file storage
 With `CLOUD` you can specify a webserver, that BA67 can use
@@ -401,8 +405,7 @@ adjust the `KEY` shortcuts etc.
 The interpreter can load files without line numbers and will
 numerate them automatically.
 
-### Line 1 Hack
-
+### PETCAT
 !! TODO do not use this anymore - BA67 can load .prg files !!
 
 If you add the line number 1 and start with the comment
@@ -418,27 +421,7 @@ The line `1 REMBA67` also can add more keywords. These are
 After loading, the parser returns to the default behaviour.
 Don't forget to backup and remove line `1` before saving.
 
-All PETSCII characters are mapped to Unicode pendants.
-Here's a test listing for you to see them:
-```
-1REMBA67 PETCAT
-10 PRINT " {$01}{$02}{$03}{$04}{$05}{$06}{$07}8tn{$0b}{$0c}r{$0e}{$0f}"
-20 PRINT "{$10}{$11}{$12}{$13}{$14}{$15}{$16}{$17}{$18}{$19}{$1a}{$1b}{$1c}{$1d}{$1e}{$1f}"
-30 PRINT "{$20}{$21}{$22}{$23}{$24}{$25}{$26}{$27}{$28}{$29}{$2a}{$2b}{$2c}{$2d}{$2e}{$2f}"
-40 PRINT "{$30}{$31}{$32}{$33}{$34}{$35}{$36}{$37}{$38}{$39}{$3a}{$3b}{$3c}{$3d}{$3e}{$3f}"
-50 PRINT "{$40}{$41}{$42}{$43}{$44}{$45}{$46}{$47}{$48}{$49}{$4a}{$4b}{$4c}{$4d}{$4e}{$4f}"
-60 PRINT "{$50}{$51}{$52}{$53}{$54}{$55}{$56}{$57}{$58}{$59}{$5a}{$5b}{$5c}{$5d}{$5e}{$5f}"
-70 PRINT "{$60}{$61}{$62}{$63}{$64}{$65}{$66}{$67}{$68}{$69}{$6a}{$6b}{$6c}{$6d}{$6e}{$6f}"
-80 PRINT "{$70}{$71}{$72}{$73}{$74}{$75}{$76}{$77}{$78}{$79}{$7a}{$7b}{$7c}{$7d}{$7e}{$7f}"
-90 PRINT "{$80}{$81}{$82}{$83}{$84}{$85}{$86}{$87}{$88}{$89}{$8a}{$8b}{$8c}{$8d}{$8e}{$8f}"
-100 PRINT "{$90}{$91}{$92}{$93}{$94}{$95}{$96}{$97}{$98}{$99}{$9a}{$9b}{$9c}{$9d}{$9e}{$9f}"
-110 PRINT "{$a0}{$a1}{$a2}{$a3}{$a4}{$a5}{$a6}{$a7}{$a8}{$a9}{$aa}{$ab}{$ac}{$ad}{$ae}{$af}"
-120 PRINT "{$b0}{$b1}{$b2}{$b3}{$b4}{$b5}{$b6}{$b7}{$b8}{$b9}{$ba}{$bb}{$bc}{$bd}{$be}{$bf}"
-130 PRINT "{$c0}{$c1}{$c2}{$c3}{$c4}{$c5}{$c6}{$c7}{$c8}{$c9}{$ca}{$cb}{$cc}{$cd}{$ce}{$cf}"
-140 PRINT "{$d0}{$d1}{$d2}{$d3}{$d4}{$d5}{$d6}{$d7}{$d8}{$d9}{$da}{$db}{$dc}{$dd}{$de}{$df}"
-150 PRINT "{$e0}{$e1}{$e2}{$e3}{$e4}{$e5}{$e6}{$e7}{$e8}{$e9}{$ea}{$eb}{$ec}{$ed}{$ee}{$ef}"
-160 PRINT "{$f0}{$f1}{$f2}{$f3}{$f4}{$f5}{$f6}{$f7}{$f8}{$f9}{$fa}{$fb}{$fc}{$fd}{$fe}{$ff}"
-```
+See Annex G for mapping PETSCII to Unicode.
 
 -------------------------------------------------------------
 ## Keywords, Commands, Functions
@@ -496,6 +479,14 @@ are case sensitive! Better only use uppercase letters.
 
 Attention: The does not work with `ON..GOTO/GOSUB` in
 CBM BASIC, so BA67 does not support it either.
+
+
+### CATALOG
+**Usage:** `CATALOG [filter$]`
+
+Lists all files and directories of the current directory.
+Optionally, you can provide a wildcard filter string.
+
 
 ### CLOSE
 **Usage:** `CLOSE fileno`
@@ -560,26 +551,6 @@ In C128 BASIC, the background color could be changed with
 The C64 can set the text color with `POKE 646, color0`.
 The C128 pendant would be `POKE 241, color0`, where
 `color0` is the zero based color index.
-
-### CHDIR
-**Usage:** `CHDIR directory`
-
-Change into the given directory.
-
-The CHDIR command also supports wild-card characters.
-use `CHDIR ".."` to go one directory level up.
-
-BA67 uses the forward slash `/` on all platforms as
-as directory separator.
-
-The spacial command `CHDIR "CLOUD"` is described in the
-`CLOUD` command.
-
-
-### CATALOG
-**Usage:** `CATALOG`
-
-Lists all files and directories of the current directory.
 
 
 ### CHAR
@@ -666,6 +637,22 @@ RUN
 **NOTE** If you break the program with the `ESC` key, the
 characters 0..127 (ASCII set) reset to the defaults.
 
+
+### CHDIR
+**Usage:** `CHDIR directory`
+
+Change into the given directory.
+
+The CHDIR command also supports wild-card characters.
+use `CHDIR ".."` to go one directory level up.
+
+BA67 uses the forward slash `/` on all platforms as
+as directory separator.
+
+The spacial command `CHDIR "CLOUD"` is described in the
+`CLOUD` command.
+
+
 ### CLOUD
 **Usage:** `CLOUD email$ [, server$]`
 
@@ -729,9 +716,12 @@ DUMP
 ```
 
 ### DUMP
-**Usage:** `DUMP`
+**Usage:** `DUMP [var][,var ...]`
 
 Prints all variable values to the current output device.
+
+Optionally, you can specify only the variable name to
+dump.
 
 ### END
 **Usage:** `END`
@@ -1785,7 +1775,7 @@ There are no directories in the cloud.
 All filenames are and will be made upper-case.
 
 You can use the provided demo server:
-`CLOUD "examples@ba67.org", "http://www.ba67.org/cloud.php"`.
+`CLOUD "examples@ba67.org", "https://www.ba67.org/cloud.php"`.
 This is even the default value when you start BA67.
 Please do not change, add or delete files of this cloud user.
 You are even allowed to use your own email address with this
@@ -1840,8 +1830,6 @@ It's compatible with the Commodore PETSCII codes.
 | $14 | ALT+DEL      | delete                              |
 | $93 | ALT.END      | clear                               |
 | $94 | no key yet   | insert (not implemented)            |
-| $12 | no key yet   | reverse on (implemented as a hack)  |
-| $92 | no key yet   | reverse off (implemented as a hack) |
 | $90 | CTRL+1       | color black                         |
 | $05 | CTRL+2       | color white                         |
 | $1c | CTRL+3       | color red                           |
@@ -1850,6 +1838,8 @@ It's compatible with the Commodore PETSCII codes.
 | $1e | CTRL+6       | color green                         |
 | $1f | CTRL+7       | color blue                          |
 | $9e | CTRL+8       | color yellow                        |
+| $12 | CTRL+9       | reverse on (implemented as a hack)  |
+| $92 | CTRL+0       | reverse off (implemented as a hack) |
 | $97 | SHIFT+CTRL+1 | color dark gray                     |
 | $9b | SHIFT+CTRL+2 | color light gray                    |
 | $96 | SHIFT+CTRL+3 | color pink/light red                |
@@ -1866,13 +1856,13 @@ As the newline war subsides, in the 1980s we were not aware of
 what was coming.
 
 There are two ASCII characters for "end of line":
-+---------------+-----------+---+---+
-|Name           |Abbrevation|Hex|Dec|
-+---------------+-----------+---+---+
-|Carriage Return|CR         |$0d| 10|
-+---------------+-----------+---+---+
-|Line Feed      |LF         |$0a| 13|
-+---------------+-----------+---+---+
++---------------+------------+---+---+
+|Name           |Abbreviation|Hex|Dec|
++---------------+------------+---+---+
+|Carriage Return|CR          |$0d| 10|
++---------------+------------+---+---+
+|Line Feed      |LF          |$0a| 13|
++---------------+------------+---+---+
 Originally designed, the CR moved the cursor or typewriter's
 print head to the left edge, where LF moved the cursor down
 or the paper up.
@@ -1902,12 +1892,60 @@ position:
 
 So how to stay compatible with Commodore BASIC, but have
 a modern implementation of it?
-How to deal with SYS command, loading and writing files?
-It hurts, but I decided to break compatibility and make act
-the very same way on the screen. This way the CR is compatible
-with Commodore and LF is compatible with modern systems.
 
+How to deal with the SYS command, loading and writing files?
 
+It hurts, but I decided to break compatibility and make both
+act the very same way on the screen. This way the CR is
+compatible with Commodore and LF is compatible with
+modern systems.
+
+-------------------------------------------------------------
+## G - Going from PETSCII to Unicode
+
+When importing a .prg file or using the PETCAT hack,
+all PETSCII characters are mapped to Unicode pendants.
+
+Here's a test listing for you to see them:
+```
+1REMBA67 PETCAT
+10 REM PRINT "{$01}{$02}{$03}{$04}{$05}{$06}{$07}8tn{$0b}{$0c}r{$0e}{$0f}"
+20 REM PRINT "{$10}v{$12}hd{$15}{$16}{$17}{$18}{$19}{$1a}{$1b}{$1c}>{$1e}{$1f}"
+30 PRINT "{$20}{$21}{$22}{$23}{$24}{$25}{$26}{$27}{$28}{$29}{$2a}{$2b}{$2c}{$2d}{$2e}{$2f}"
+40 PRINT "{$30}{$31}{$32}{$33}{$34}{$35}{$36}{$37}{$38}{$39}{$3a}{$3b}{$3c}{$3d}{$3e}{$3f}"
+50 PRINT "{$40}{$41}{$42}{$43}{$44}{$45}{$46}{$47}{$48}{$49}{$4a}{$4b}{$4c}{$4d}{$4e}{$4f}"
+60 PRINT "{$50}{$51}{$52}{$53}{$54}{$55}{$56}{$57}{$58}{$59}{$5a}{$5b}{$5c}{$5d}{$5e}{$5f}"
+70 PRINT "{$60}{$61}{$62}{$63}{$64}{$65}{$66}{$67}{$68}{$69}{$6a}{$6b}{$6c}{$6d}{$6e}{$6f}"
+80 PRINT "{$70}{$71}{$72}{$73}{$74}{$75}{$76}{$77}{$78}{$79}{$7a}{$7b}{$7c}{$7d}{$7e}{$7f}"
+90 REM PRINT "{$80}{$81}{$82}{$83}{$84}{$85}{$86}{$87}{$88}{$89}{$8a}{$8b}{$8c}{$8d}{$8e}{$8f}"
+100 REM PRINT "{$90}^{$92}{$93}{$94}{$95}{$96}{$97}{$98}{$99}{$9a}{$9b}{$9c}<{$9e}{$9f}"
+110 PRINT "{$a0}{$a1}{$a2}{$a3}{$a4}{$a5}{$a6}{$a7}{$a8}{$a9}{$aa}{$ab}{$ac}{$ad}{$ae}{$af}"
+120 PRINT "{$b0}{$b1}{$b2}{$b3}{$b4}{$b5}{$b6}{$b7}{$b8}{$b9}{$ba}{$bb}{$bc}{$bd}{$be}{$bf}"
+130 PRINT "{$c0}{$c1}{$c2}{$c3}{$c4}{$c5}{$c6}{$c7}{$c8}{$c9}{$ca}{$cb}{$cc}{$cd}{$ce}{$cf}"
+140 PRINT "{$d0}{$d1}{$d2}{$d3}{$d4}{$d5}{$d6}{$d7}{$d8}{$d9}{$da}{$db}{$dc}{$dd}{$de}{$df}"
+150 PRINT "{$e0}{$e1}{$e2}{$e3}{$e4}{$e5}{$e6}{$e7}{$e8}{$e9}{$ea}{$eb}{$ec}{$ed}{$ee}{$ef}"
+160 PRINT "{$f0}{$f1}{$f2}{$f3}{$f4}{$f5}{$f6}{$f7}{$f8}{$f9}{$fa}{$fb}{$fc}{$fd}{$fe}{$ff}"
+```
+
+For more details about how BA67 maps PETSCII to Unicode, see
+the function `PETSCII::toUnicode`.
+
+If you save a .prg file, the mapping is done in reverse
+order. Not all Unicode characters can be mapped, obviously.
+If the mapping fails, the character $ff gets exported.
+(Which defaults to π in the upper-case font.)
+
+The following image shows what graphical symbol each
+PETSCII code maps to. All characters of the CBM should be
+represented, thus.
+
+![image](petscii-mapping.png)
+ - blue:   character is from upper case font
+ - orange: character is ASCII -> not compatible with
+           upper nor lowercase PETSCII
+ - green:  character is taken from lower case PETSCII font
+
+Image taken from [style64.org](https://style64.org/petscii/)
 
 -------------------------------------------------------------
 # Disclaimer

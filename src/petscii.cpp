@@ -1,4 +1,5 @@
 #include "petscii.h"
+#include <unordered_map>
 
 char32_t PETSCII::toUnicode(uint8_t petscii) {
     // Mapping of PETSCII.BA67 to Unicode
@@ -193,7 +194,7 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
               /* 0xA4, */ 0x00002581, // (!) lower one eighth block
               /* 0xA5, */ 0x0000258E, // (!) left one quarter block  258F, // (!) left one eighth block
               /* 0xA6, */ 0x00002592, // (!) medium shade
-              /* 0xA7, */ 0x0000258E, // (!) left one quarter block   // 0x00002595, // (!) right one eighth block
+              /* 0xA7, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
               /* 0xA8, */ 0x0001FB8F, // (!) LOWER HALF MEDIUM SHADE
               /* 0xA9, */ 0x000025E4, // (!) black upper left triangle
               /* 0xAA, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
@@ -290,4 +291,18 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
           };
 
     return petsciiMapping[petscii];
+}
+
+uint8_t PETSCII::fromUnicode(char32_t c, uint8_t fallback) {
+    static std::unordered_map<char32_t, uint8_t> mapping;
+    if (mapping.empty()) {
+        for (size_t i = 0; i < 0x00ff; ++i) {
+            mapping[toUnicode(uint8_t(i & 0xff))] = uint8_t(i & 0xff);
+        }
+    }
+    auto it = mapping.find(c);
+    if (it == mapping.end()) {
+        return fallback;
+    }
+    return it->second;
 };

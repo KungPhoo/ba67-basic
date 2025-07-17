@@ -321,7 +321,7 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
                     }
                 }
             }
-            if (!isToken) {
+            if (!isToken) { // any other character
                 if (*src == '\n' || *src == '\0') {
                     prg.push_back(0);
 
@@ -333,7 +333,13 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
                     prg.pop_back();
                     break;
                 } else {
-                    prg.push_back(*src);
+                    if (quote) {
+                        char32_t c32 = Unicode::parseNextUtf8(src);
+                        prg.push_back(PETSCII::fromUnicode(c32, uint8_t('?')));
+                        --src; // because we're incrementing at the end of the loop
+                    } else {
+                        prg.push_back(*src);
+                    }
                 }
                 ++src;
             }

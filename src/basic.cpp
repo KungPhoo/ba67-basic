@@ -770,8 +770,13 @@ void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
-    if (values.size() != 0) {
+    if (values.size() > 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+
+    std::string filter = "";
+    if (values.size() > 0) {
+        filter = basic->valueToString(values[0]);
     }
 
     // file size, 4 characters wide
@@ -815,8 +820,21 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->printUtf8String(dirname);
     basic->printUtf8String((const char*)(u8"═══\n"));
     std::string str;
+
+    std::u32string filter32;
+    Unicode::toU32String(filter.c_str(), filter32);
+
     for (size_t i = 0; i < files.size(); ++i) {
         auto& f = files[i].name;
+
+        if (!filter.empty()) {
+            std::u32string f32;
+            Unicode::toU32String(f.c_str(), f32);
+            if (!Unicode::wildcardMatchNoCase(f32.c_str(), filter32.c_str())) {
+                continue;
+            }
+        }
+
         // 5 chars+space for file size - space for CHDIR command
         str = (const char*)(u8"║") + sizestrings[i] + " \"" + f + "\"\n";
         basic->os->screen.cleanCurrentLine();
@@ -1168,7 +1186,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 
     keyShortcuts[1 - 1] = "\"CHDIR\"";
     keyShortcuts[2 - 1] = "\"LOAD \"";
-    keyShortcuts[3 - 1] = "\"CATALOG \"+CHR$(13)";
+    keyShortcuts[3 - 1] = "\"CATALOG \""; // +CHR$(13)
     keyShortcuts[4 - 1] = "\"SCNCLR \"+CHR$(13)";
     keyShortcuts[5 - 1] = "\"SAVE \"";
     keyShortcuts[6 - 1] = "\"RUN \"+CHR$(13)";
@@ -2866,6 +2884,7 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
         sline += '\n';
         os->screen.cleanCurrentLine();
         printUtf8String(sline);
+        os->screen.putC('\0');
 
         handleEscapeKey(true);
         os->delay(50);
@@ -2895,6 +2914,77 @@ void Basic::handleDELETE(const std::vector<Token>& tokens) {
         } else {
             ++ln;
         }
+    }
+}
+
+
+// List all variables and their values
+void Basic::handleDUMP(const std::vector<Token>& tokens) {
+    std::set<std::string> varnames;
+    for (auto& tok : tokens) {
+        if (tok.type != TokenType::IDENTIFIER) {
+            continue;
+        }
+        varnames.insert(tok.value);
+    }
+
+
+
+    std::ostringstream oss;
+    oss << "MODULE " << moduleVariableStack.back()->first << std::endl;
+    if (currentModule().variables.empty() && currentModule().arrays.empty()) {
+        return;
+    }
+
+    for (auto& v : currentModule().variables) {
+        if (!varnames.empty() && !varnames.contains(v.first)) {
+            continue;
+        }
+        oss << v.first << " = " << valueToString(v.second) << std::endl;
+    }
+    for (auto& v : currentModule().arrays) {
+        auto& arr = v.second;
+        if (!varnames.empty() && !varnames.contains(v.first)) {
+            continue;
+        }
+
+        if (arr.isDictionary) {
+            int count = 0;
+            for (auto& p : arr.dict) {
+                oss << v.first << "(" << valueToString(p.first) << ") = " << valueToString(p.second) << std::endl;
+                if (++count > 9) {
+                    oss << "..." << std::endl;
+                    break;
+                }
+            }
+
+            continue;
+        }
+
+        switch (arr.bounds.dimensions()) {
+        case 1:
+            oss << v.first << "(" << arr.bounds.index[0] << " )" << std::endl;
+            for (size_t i = 0; i < std::min(size_t(10), arr.bounds.index[0]); ++i) {
+                oss << "    (" << int(i) << ") = " << valueToString(arr.at(ArrayIndex(i))) << std::endl;
+            }
+            if (arr.bounds.index[0] >= 10) {
+                oss << "    (" << int(arr.bounds.index[0]) << ") = " << valueToString(arr.at(arr.bounds.index[0])) << std::endl;
+            }
+            break;
+        case 2: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << " )" << std::endl; break;
+        case 3: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << ", " << arr.bounds.index[2] << " )" << std::endl; break;
+        case 4: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << ", " << arr.bounds.index[2] << ", " << arr.bounds.index[3] << " )" << std::endl; break;
+        }
+    }
+
+    // print and allow shift to slowdown
+    auto lines = StringHelper::split(oss.str(), "\r\n");
+    std::string sline;
+    for (auto& ln : lines) {
+        os->screen.cleanCurrentLine();
+        printUtf8String(ln + "\n");
+        handleEscapeKey(true);
+        os->delay(50);
     }
 }
 
@@ -3621,7 +3711,7 @@ void Basic::executeTokens(std::vector<Token>& tokens) {
         } else if (tokens[0].value == "DELETE") {
             handleDELETE(tokens);
         } else if (tokens[0].value == "DUMP") {
-            dumpVariables();
+            handleDUMP(tokens);
         } else {
             throw Error(ErrorId::UNIMPLEMENTED_COMMAND);
         }
@@ -3692,7 +3782,6 @@ void Basic::printUtf8String(const char* utf8, bool applyCtrlCodes) {
                     os->screen.putC(c);
                 }
             }
-            os->screen.reverseMode(false); // reverse off
         } else {
             while (*utf8 != '\0') {
                 os->screen.putC(Unicode::parseNextUtf8(utf8));
@@ -3873,6 +3962,20 @@ std::string Basic::inputLine(bool allowVertical) {
                         ctrlChar = 0x95; // brown
                     } else {
                         ctrlChar = 0x9e; // yellow
+                    }
+                    break;
+                case u'9':
+                    if (key.holdShift) {
+                        // ctrlChar = 0x95; // brown
+                    } else {
+                        ctrlChar = 0x12; // reverse on
+                    }
+                    break;
+                case u'0':
+                    if (key.holdShift) {
+                        // ctrlChar = 0x95; // brown
+                    } else {
+                        ctrlChar = 0x92; // reverse off
                     }
                     break;
                 }
@@ -4056,59 +4159,6 @@ std::string Basic::inputLine(bool allowVertical) {
     return str;
 }
 
-// List all variables and their values
-inline void Basic::dumpVariables() {
-    std::ostringstream oss;
-    oss << "MODULE " << moduleVariableStack.back()->first << std::endl;
-    if (currentModule().variables.empty() && currentModule().arrays.empty()) {
-        return;
-    }
-
-    for (auto& v : currentModule().variables) {
-        oss << v.first << " = " << valueToString(v.second) << std::endl;
-    }
-    for (auto& v : currentModule().arrays) {
-        auto& arr = v.second;
-
-        if (arr.isDictionary) {
-            int count = 0;
-            for (auto& p : arr.dict) {
-                oss << v.first << "(" << valueToString(p.first) << ") = " << valueToString(p.second) << std::endl;
-                if (++count > 9) {
-                    oss << "..." << std::endl;
-                    break;
-                }
-            }
-
-            continue;
-        }
-
-        switch (arr.bounds.dimensions()) {
-        case 1:
-            oss << v.first << "(" << arr.bounds.index[0] << " )" << std::endl;
-            for (size_t i = 0; i < std::min(size_t(10), arr.bounds.index[0]); ++i) {
-                oss << "    (" << int(i) << ") = " << valueToString(arr.at(ArrayIndex(i))) << std::endl;
-            }
-            if (arr.bounds.index[0] >= 10) {
-                oss << "    (" << int(arr.bounds.index[0]) << ") = " << valueToString(arr.at(arr.bounds.index[0])) << std::endl;
-            }
-            break;
-        case 2: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << " )" << std::endl; break;
-        case 3: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << ", " << arr.bounds.index[2] << " )" << std::endl; break;
-        case 4: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << ", " << arr.bounds.index[2] << ", " << arr.bounds.index[3] << " )" << std::endl; break;
-        }
-    }
-
-    // print and allow shift to slowdown
-    auto lines = StringHelper::split(oss.str(), "\r\n");
-    std::string sline;
-    for (auto& ln : lines) {
-        os->screen.cleanCurrentLine();
-        printUtf8String(ln + "\n");
-        handleEscapeKey(true);
-        os->delay(50);
-    }
-}
 
 void Basic::restoreColorsAndCursor(bool resetFont) {
     if (resetFont) {
@@ -4124,6 +4174,7 @@ void Basic::restoreColorsAndCursor(bool resetFont) {
 
     os->screen.setBackgroundColor(11);
     os->screen.setTextColor(colorForModule(moduleVariableStack.back()->first));
+    os->screen.reverseMode(false);
     insertMode = false;
 
     for (auto& s : os->screen.sprites) {

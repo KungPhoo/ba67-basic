@@ -170,7 +170,7 @@ public:
 
     std::string findFirstFileNameWildcard(std::string filenameUtf8, bool isDirectory = false);
 
-    std::string cloudUrl  = "http://www.ba67.org/cloud.php";
+    std::string cloudUrl  = "https://www.ba67.org/cloud.php";
     std::string cloudUser = "examples@ba67.org";
     bool dirIsInCloud() const { return currentDirIsCloud; }
 
