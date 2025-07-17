@@ -145,6 +145,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
   - [E - Escape (Control) Characters](#e---escape--control--characters)
   - [F - The Newline Dilemma](#f---the-newline-dilemma)
   - [G - Going from PETSCII to Unicode](#g---going-from-petscii-to-unicode)
+  - [H - Hardcore Assembler Language](#h---hardcore-assembler-language)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
@@ -172,6 +173,7 @@ but also features some improvements.
 
 Here are the key features:
 - Compatible with the famous Commodore BASIC
+- Can even run 6502 assembler subroutines
 - Can load .prg files
 - Can save .prg files
 - GOTO/GOSUB labels (backwards compatible!)
@@ -1358,10 +1360,12 @@ Stops the program, is if the escape key was pressed with the
 If a string is given, the system's command is executed.
 The string must be quoted. Otherwise we could not use
 variables in the command string.
-If a number is given, the command prints an error message.
 
 It's required to have the command in quotes, so you can
 use variables.
+
+If a number is given, the assembler code at that memory
+address is executed. See Annex H for details.
 
 ### THEN
 **Usage:** `IF condition THEN expression|line` 
@@ -1946,6 +1950,28 @@ represented, thus.
  - green:  character is taken from lower case PETSCII font
 
 Image taken from [style64.org](https://style64.org/petscii/)
+
+## H - Hardcore Assembler Language
+
+Your program relies on an assembler subroutine?
+
+BA68 can emulate the code you `POKE'd` into the memory.
+When you hit a RTS $60, command gets returned to the
+BASIC code.
+
+The memory is initially all zeros. There's no kernal
+routines loaded. Might be fun to try what would
+happen.
+
+A few addresses, however, act special:
+- $ffd2 CHROUT - will print the character in A register
+- $ffe4 CHIN - will wait for a key to be pressed and
+               put it in the A register.
+- $080C - return to BASIC
+- $0100 to $01ff - call stack
+- $00A0 - $00A2 - jiffy clock
+- $D011 - $D012 - current raster line (just a counter)
+
 
 -------------------------------------------------------------
 # Disclaimer

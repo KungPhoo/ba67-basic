@@ -166,3 +166,13 @@ void StringHelper::strcpy(char* dest, const char* src) {
         ++src;
     }
 }
+
+std::string StringHelper::int2hex(int64_t n) {
+    static const char* digits = "0123456789ABCDEF";
+    size_t hex_len            = sizeof(n) << 1;
+    std::string rc(hex_len, '0');
+    for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4) {
+        rc[i] = digits[(n >> j) & 0x0f];
+    }
+    return rc;
+}

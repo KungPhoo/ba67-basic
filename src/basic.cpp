@@ -755,14 +755,73 @@ void cmdSOUND(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->os->soundSystem().SOUND(voice, cmd);
 }
 
-void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
-    if (!basic->valueIsString(values[0])) {
-        throw Basic::Error(Basic::ErrorId::TYPE_MISMATCH);
+void runAssemblerCode(Basic* basic) {
+    uint8_t counter   = 0;
+    basic->cpu.cpuJam = false;
+    uint16_t raster   = 0;
+    for (;;) {
+        auto PC = basic->cpu.PC;
+        switch (PC) {
+        case 0xffd2: // CHROUT
+            basic->os->screen.putC(basic->cpu.A);
+            break;
+        case 0xffe4: // CHIN
+            basic->cpu.A = basic->os->getFromKeyboardBuffer().code;
+            break;
+        }
+
+        if (!basic->cpu.executeNext()) {
+            break;
+        }
+
+
+        if (++counter == 0xff) {
+            basic->handleEscapeKey();
+            // overwrite the jiffy clock
+            int64_t TI          = (basic->os->tick() * 60LL) / 1000LL;
+            basic->memory[0xA2] = TI & 0xff;
+            basic->memory[0xA1] = (TI << 8) & 0xff;
+            basic->memory[0xA0] = (TI << 16) & 0xff;
+
+            ++raster;
+            if (raster > 312) {
+                raster = 0;
+            }
+            basic->memory[0xD012] = raster & 0xff;
+            basic->memory[0xD011] = (raster << 8) & 0xff;
+        }
     }
-    if (values.size() != 1) {
+    if (basic->cpu.cpuJam) {
+        std::string err = "CPU JAM AT " + StringHelper::int2hex(basic->cpu.PC) + ". OPCODE " + StringHelper::int2hex(basic->cpu.opcode);
+        basic->restoreColorsAndCursor(false);
+        basic->printUtf8String(err);
+        throw Basic::Error(Basic::ErrorId::INTERNAL);
+    }
+}
+
+void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() == 0) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
 
+    // address specified
+    if (!basic->valueIsString(values[0])) {
+        basic->cpu.memory = &basic->memory[0];
+        int64_t address   = basic->valueToInt(values[0]);
+        if (address < 0 || address >= int64_t(basic->memory.size())) {
+            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        }
+        if (!basic->cpu.sys(uint16_t(address & 0xffff))) {
+            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        }
+        runAssemblerCode(basic);
+        return;
+    }
+
+    // command specified
+    if (!basic->valueIsString(values[0])) {
+        throw Basic::Error(Basic::ErrorId::TYPE_MISMATCH);
+    }
     std::string cmd = basic->valueToString(values[0]);
 
     basic->os->systemCall(cmd);
@@ -869,12 +928,7 @@ Basic::Value fktHEX$(Basic* basic, const std::vector<Basic::Value>& args) {
     }
     int64_t n = basic->valueToInt(args[0]);
 
-    static const char* digits = "0123456789ABCDEF";
-    size_t hex_len            = sizeof(n) << 1;
-    std::string rc(hex_len, '0');
-    for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4)
-        rc[i] = digits[(n >> j) & 0x0f];
-    return rc;
+    return StringHelper::int2hex(n);
 }
 
 Basic::Value fktINSTR(Basic* basic, const std::vector<Basic::Value>& args) {

@@ -20,4 +20,6 @@ public:
     static char* strtok_r(char* str, const char* delim, char** saveptr);
     static void memcpy(void* dst, const void* src, size_t len);
     static void strcpy(char* dest, const char* src);
+
+    static std::string int2hex(int64_t n);
 };

@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
+#include "cpu-6502.h"
 
 #include "os.h"
 
@@ -173,6 +174,8 @@ public:
     std::unordered_map<std::string, cmdpointer> commands;
     std::unordered_map<std::string, fktpointer> functions;
     std::array<uint8_t, 0x20000> memory; // for PEEK&POKE - no other use
+
+    CPU6502 cpu;
 
     // Arrays
     struct ArrayIndex {
