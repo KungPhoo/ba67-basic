@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
+#include <list>
 #include "cpu-6502.h"
 
 #include "os.h"

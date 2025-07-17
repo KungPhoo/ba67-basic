@@ -257,7 +257,7 @@ bool CPU6502::executeNext() {
     case STY_ABS: memory[fetchWord()] = Y; break;
 
 
-    case RTS: PC = popWord() + 1; break;
+    case RTS: rts(); break;
     case RTI:
         P  = pop();
         PC = popWord();
@@ -427,6 +427,8 @@ bool CPU6502::executeNext() {
 
     return true;
 }
+
+void CPU6502::rts() { PC = popWord() + 1; }
 
 void CPU6502::setZN(uint8_t value) {
     if (value == 0)

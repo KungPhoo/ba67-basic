@@ -764,9 +764,11 @@ void runAssemblerCode(Basic* basic) {
         switch (PC) {
         case 0xffd2: // CHROUT
             basic->os->screen.putC(basic->cpu.A);
+            basic->cpu.rts();
             break;
         case 0xffe4: // CHIN
-            basic->cpu.A = basic->os->getFromKeyboardBuffer().code;
+            basic->cpu.A = uint8_t(basic->os->getFromKeyboardBuffer().code);
+            basic->cpu.rts();
             break;
         }
 

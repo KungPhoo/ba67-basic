@@ -24,6 +24,8 @@ public:
     // more details.
     bool executeNext();
 
+    void rts();
+
 private:
     void push(uint8_t value) { memory[0x0100 + SP--] = value; }
     void pushWord(uint16_t value) {
