@@ -1964,6 +1964,7 @@ routines loaded. Might be fun to try what would
 happen.
 
 A few addresses, however, act special:
+- $f508 PRIMM - print null terminated string
 - $ffd2 CHROUT - will print the character in A register
 - $ffe4 CHIN - will wait for a key to be pressed and
                put it in the A register.

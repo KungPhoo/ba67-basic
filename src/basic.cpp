@@ -762,6 +762,13 @@ void runAssemblerCode(Basic* basic) {
     for (;;) {
         auto PC = basic->cpu.PC;
         switch (PC) {
+        case 0xf508: // PRIMM
+            uint16_t addr   = basic->cpu.A | (basic->cpu.X << 8);
+            const char* str = reinterpret_cast<const char*>(&basic->memory[addr]);
+            basic->printUtf8String(str);
+            basic->cpu.rts();
+            break;
+
         case 0xffd2: // CHROUT
             basic->os->screen.putC(basic->cpu.A);
             basic->cpu.rts();
