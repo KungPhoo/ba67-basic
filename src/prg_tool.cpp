@@ -14,6 +14,7 @@ uint16_t PrgTool::getword(const uint8_t*& p) {
 
 
 const char* PrgTool::gettoken(const uint8_t*& prg) {
+    // https://www.c64-wiki.de/wiki/Token
     static std::map<int, const char*> tokens = {
         {   0x80,      "END" },
         {   0x81,      "FOR" },
@@ -146,9 +147,13 @@ const char* PrgTool::gettoken(const uint8_t*& prg) {
         // 0xfe PREFIX
 
         // with 0xfe PREFIX:
+        { 0xfe1e,     "QUIT" },
         { 0xfe1f,    "STASH" },
         { 0xfe21,    "FETCH" },
-        { 0xfe23,     "SWAP" }
+        { 0xfe23,     "SWAP" },
+        { 0xfe23,      "OFF" },
+        { 0xfe25,     "FAST" },
+        { 0xfe26,     "SLOW" }
     };
 
 
@@ -302,27 +307,46 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
 
             bool isToken = false;
             if (!quote && !rem) {
+                int bestToken             = -1;
+                size_t longestTokenLength = 0;
+                std::string thetoken      = "";
+
                 for (auto tk : tokens) {
-                    if (StringHelper::strncmp(src, tk.first.c_str(), tk.first.length()) == 0) {
-                        int itok = tk.second;
+                    if (tk.first.length() > longestTokenLength
+                        && StringHelper::strncmp(src, tk.first.c_str(), tk.first.length()) == 0) {
+                        longestTokenLength = tk.first.length();
+                        bestToken          = tk.second;
 
-                        if (itok == 0x8F) { // "REM"
-                            rem = true;
-                        }
 
-                        if (itok & 0xff00) {
-                            pushWord(itok);
-                        } else {
-                            prg.push_back(itok & 0xff);
-                        }
-                        src += tk.first.length();
-                        isToken = true;
-                        break;
+                        thetoken = tk.first;
                     }
+                }
+
+                if (bestToken >= 0) {
+                    int itok = bestToken;
+
+
+                    if (itok == 0x8F) { // "REM"
+                        rem = true;
+                    }
+
+                    if (itok & 0xff00) {
+                        prg.push_back((itok >> 8) & 0xff);
+                        prg.push_back(itok & 0xff);
+                    } else {
+                        prg.push_back(itok & 0xff);
+                    }
+                    src += longestTokenLength;
+                    isToken = true;
+                    // break;
+                } else {
+
+                    int yiokes = 0;
                 }
             }
             if (!isToken) { // any other character
                 if (*src == '\n' || *src == '\0') {
+                    rem = false;
                     prg.push_back(0);
 
                     // fix address
