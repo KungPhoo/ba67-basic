@@ -138,6 +138,7 @@ void ScreenBuffer::insertSpace() {
     SChar sc { ' ', color() }, nxt;
 
     Cursor cr = cursor;
+    lines[cr.y]->trim();
     while (cr.y < height) {
         nxt                     = lines[cr.y]->cols[cr.x];
         lines[cr.y]->cols[cr.x] = sc;
@@ -155,6 +156,7 @@ void ScreenBuffer::insertSpace() {
                 if (cr.y >= height) {
                     return;
                 }
+                lines[cr.y]->trim();
             } else {
                 break;
             }

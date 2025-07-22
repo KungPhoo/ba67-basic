@@ -349,10 +349,16 @@ as non-array variables and are treated as separate variables.
 There are built-in variables, that will be updated before
 each statement is evaluated. These are:
 
-| Variable  |  Value                             |
-| --------- | ---------------------------------- |
-| TI        | current system time in 1/60 sec.   |
+| Variable  |  Value                                                      |
+| --------- | ----------------------------------------------------------- |
+| TI        | current system time in 1/60 sec.                            |
+| TI$       | current time in format HHMMSS. (Can be set. Will affect TI) |
 | ST        | file I/O status (currently not set)|
+
+In CBM BASIC, the variable `TI, TIME` and `TIMER`, even 
+`TIMEGOESBYSOSLOWLY` are the same variable! When importing
+.prg files of old code, BA67 will not take care of this.
+You need to manually adjust the code.
 
 -------------------------------------------------------------
 ## Files

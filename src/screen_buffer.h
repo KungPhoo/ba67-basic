@@ -179,6 +179,15 @@ public:
             };
             wrapps = false;
         }
+        void trim() {
+            for (size_t n = cols.size(); n > 0;) {
+                --n;
+                if (cols[n].ch != '\0' && cols[n].ch != ' ') {
+                    break;
+                }
+                cols[n].ch = '\0';
+            }
+        }
         std::vector<SChar> cols;
         bool wrapps = false; // this line wraps with the next line as one string
     };

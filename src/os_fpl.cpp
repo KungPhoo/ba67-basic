@@ -775,7 +775,7 @@ void OsFPL::updateKeyboardBuffer() {
                     }
                 }
             } else if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Repeat) {
-                if (lastCharPress.code != 0) {
+                if (lastCharPress.code != 0 && event.keyboard.mappedKey != fplKey_Shift) {
                     putToKeyboardBuffer(lastCharPress);
                 }
             }

@@ -762,12 +762,13 @@ void runAssemblerCode(Basic* basic) {
     for (;;) {
         auto PC = basic->cpu.PC;
         switch (PC) {
-        case 0xf508: // PRIMM
+        case 0xf508: { // PRIMM
             uint16_t addr   = basic->cpu.A | (basic->cpu.X << 8);
             const char* str = reinterpret_cast<const char*>(&basic->memory[addr]);
             basic->printUtf8String(str);
             basic->cpu.rts();
             break;
+        }
 
         case 0xffd2: // CHROUT
             basic->os->screen.putC(basic->cpu.A);
@@ -1230,6 +1231,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     moduleListingStack.push_back(modules.begin());
 
     this->os             = os;
+    time0                = os->tick();
     std::string charLogo = Unicode::toUtf8String(U"🌈"); // 1f308
     cmdCHARDEF(this, {
                          Value(charLogo),
@@ -2381,6 +2383,20 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
     } else {
         throw Error(ErrorId::SYNTAX);
     }
+
+    if (tokens[ivarname].value == "TI$") {
+        std::string ti$ = valueToString(*pval);
+        if (ti$.length() != 6) {
+            throw Error(ErrorId::ILLEGAL_QUANTITY);
+        }
+        int64_t secs   = ((ti$[5] - '0') + (ti$[4] - '0') * 10) % 60;
+        int64_t mins   = ((ti$[3] - '0') + (ti$[2] - '0') * 10) % 60;
+        int64_t hours  = ((ti$[1] - '0') + (ti$[0] - '0') * 10) % 24;
+        int64_t tiTick = secs * 1000 + mins * 60000 + hours * 60 * 60000;
+        // #errormmins and hours not working
+        // TI = ((tick()-time0)*60) / 1000
+        time0 = os->tick() - tiTick;
+    }
 }
 
 void Basic::handleRUN(const std::vector<Token>& tokens) {
@@ -3225,26 +3241,58 @@ Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tok
     }
 
     if (tokens[i].type == TokenType::IDENTIFIER) {
+
+        if (endPtr) {
+            *endPtr = 1 + start;
+        }
+
+        const std::string& variableName = tokens[i].value;
+        const std::string_view svTI("TI");
+        if (variableName.starts_with(svTI)) { //  TI or TI$
+            int64_t ti_ms = os->tick() - time0;
+            int64_t ti    = int64_t((ti_ms) * 60LL) / 1000LL; // jiffies
+            TIvariable    = Basic::Value(ti);
+
+            if (variableName == "TI$") {
+                int64_t secs  = ti_ms / 1000;
+                int64_t mins  = secs / 60;
+                int64_t hours = mins / 60;
+
+                secs %= 60;
+                mins %= 60;
+                hours %= 24;
+
+                auto str2 = [](int64_t i) -> std::string {
+                    static const char* nums = "0123456789";
+                    char buf[3]             = { nums[(i / 10) % 10], nums[i % 10], '\0' };
+                    return { buf };
+                };
+                TI$variable = str2(hours) + str2(mins) + str2(secs);
+                return &TI$variable;
+            }
+            // #error not working ti$="000100":?ti$
+
+            return &TIvariable; // jiffies (1/60th seconds)
+        }
+
+
         auto& variables = module.variables;
-        auto varit      = variables.find(tokens[i].value);
+        auto varit      = variables.find(variableName);
         if (varit == variables.end()) {
             // create new variable
             switch (valuePostfix(tokens[i])) {
             case '%':
-                variables[tokens[i].value] = 0LL;
+                variables[variableName] = 0LL;
                 break;
             case '$':
-                variables[tokens[i].value] = "";
+                variables[variableName] = "";
                 break;
             default:
             case '#':
-                variables[tokens[i].value] = 0.0;
+                variables[variableName] = 0.0;
                 break;
             }
-            varit = variables.find(tokens[i].value);
-        }
-        if (endPtr) {
-            *endPtr = 1 + start;
+            varit = variables.find(variableName);
         }
 
         return &varit->second;
@@ -3677,10 +3725,7 @@ void Basic::handleRESTORE(std::vector<Token>& tokens) {
 
 // void Basic::handleDATA(std::vector<Token>& tokens) {}
 
-void Basic::updateConstantVariables() {
-    auto& vars = currentModule().variables;
-    vars["TI"] = Basic::Value(int64_t(os->tick() * 60LL) / 1000LL);
-}
+
 
 void Basic::executeTokens(std::vector<Token>& tokens) {
     if (!moduleVariableStack.back()->second.fastMode) {
@@ -4049,7 +4094,7 @@ std::string Basic::inputLine(bool allowVertical) {
                     key.code      = ctrlChar;
                     key.printable = true;
                 }
-            } else { // ctrl
+            } else { // not ctrl
 
                 if (key.holdAlt) {
                     char32_t ctrlChar = 0;
@@ -4316,8 +4361,6 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
                     printUtf8String("[" + valueToString(line) + "]");
                 }
             }
-
-            updateConstantVariables();
 
             // debug("MODULE VARS "); debug(moduleVariableStack.back()->first.c_str()); debug("\n");
             // debug("MODULE CODE "); debug(moduleListingStack.back()->first.c_str()); debug("\n");

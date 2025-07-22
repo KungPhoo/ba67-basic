@@ -178,6 +178,10 @@ public:
 
     CPU6502 cpu;
 
+    Value TIvariable;
+    Value TI$variable;
+    uint64_t time0; // time to subtract from tick() to get TI.
+
     // Arrays
     struct ArrayIndex {
         ArrayIndex()                             = default;
@@ -196,6 +200,7 @@ public:
             return int(index.size());
         }
     };
+
     struct Array {
         std::vector<Value> data;
         std::list<std::pair<Value, Value>> dict;
@@ -406,7 +411,6 @@ protected:
     void handleREAD(std::vector<Token>& tokens);
     void handleRESTORE(std::vector<Token>& tokens);
 
-    void updateConstantVariables();
     void executeTokens(std::vector<Token>& tokens);
 
     std::array<std::string, 12> keyShortcuts; // F1..F12 key shortcuts. Set with KEY command
