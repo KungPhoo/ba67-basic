@@ -90,7 +90,7 @@ const char* PrgTool::gettoken(const uint8_t*& prg) {
         {   0xC8,    "LEFT$" },
         {   0xC9,   "RIGHT$" },
         {   0xCA,     "MID$" },
-        {   0xCB,       "GO" },
+        //    {   0xCB,       "GO" },
 
         // Commodore 128, BASIC V7.0
         {   0xcc,      "RGR" },
