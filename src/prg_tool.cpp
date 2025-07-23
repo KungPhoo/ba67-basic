@@ -247,7 +247,11 @@ std::string PrgTool::PRGtoBASIC(const uint8_t* prgBytes) {
     return str.str();
 }
 
-std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
+std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8, std::vector<std::pair<int, std::string>>* errorDetails) {
+    if (errorDetails) {
+        errorDetails->clear();
+    }
+
     std::vector<uint8_t> prg;
     prg.reserve(StringHelper::strlen(basicUtf8));
 
@@ -316,15 +320,12 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
                         && StringHelper::strncmp(src, tk.first.c_str(), tk.first.length()) == 0) {
                         longestTokenLength = tk.first.length();
                         bestToken          = tk.second;
-
-
-                        thetoken = tk.first;
+                        thetoken           = tk.first;
                     }
                 }
 
                 if (bestToken >= 0) {
                     int itok = bestToken;
-
 
                     if (itok == 0x8F) { // "REM"
                         rem = true;
@@ -358,11 +359,25 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
                     break;
                 } else {
                     if (quote) {
-                        char32_t c32 = Unicode::parseNextUtf8(src);
-                        prg.push_back(PETSCII::fromUnicode(c32, uint8_t('?')));
+                        char32_t c32    = Unicode::parseNextUtf8(src);
+                        uint8_t petscii = PETSCII::fromUnicode(c32, uint8_t(0));
+                        if (petscii == 0) {
+                            if (errorDetails) {
+                                errorDetails->push_back({ lineno, "FAILED TO MAP UNICODE TO PETSCII" });
+                            }
+                            petscii = 230; // medium shade in upper and lowercase
+                        }
+                        prg.push_back(petscii);
                         --src; // because we're incrementing at the end of the loop
                     } else {
                         prg.push_back(*src);
+
+                        // remove duplicate space characters
+                        // if (*src == ' ') {
+                        //     while (*src == ' ') {
+                        //         ++src;
+                        //     }
+                        // }
                     }
                 }
                 ++src;

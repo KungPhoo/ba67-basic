@@ -9,5 +9,5 @@ private:
 
 public:
     static std::string PRGtoBASIC(const uint8_t* prgBytes);
-    static std::vector<uint8_t> BASICtoPRG(const char* basicUtf8);
+    static std::vector<uint8_t> BASICtoPRG(const char* basicUtf8, std::vector<std::pair<int, std::string>>* errorDetails);
 };

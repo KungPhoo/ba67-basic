@@ -4689,8 +4689,30 @@ bool Basic::saveProgram(std::string filenameUtf8) {
             }
             all += std::to_string(ln.first) + " " + ln.second + "\n";
         }
-        auto prg = PrgTool::BASICtoPRG(all.c_str());
+
+        std::vector<std::pair<int, std::string>> errorDetails;
+        auto prg = PrgTool::BASICtoPRG(all.c_str(), &errorDetails);
         file.write(&prg[0], prg.size());
+
+        if (!errorDetails.empty()) {
+            std::string sline;
+            for (auto& ln : errorDetails) {
+                sline = std::to_string(ln.first);
+                for (size_t s = sline.length(); s < 3; ++s) {
+                    sline += ' ';
+                }
+                sline += ' ';
+                sline += ln.second;
+                sline += '\n';
+                os->screen.cleanCurrentLine();
+                printUtf8String(sline);
+                os->screen.putC('\0');
+
+                handleEscapeKey(true);
+                os->delay(50);
+            }
+        }
+
     } else {
 
         for (auto& ln : currentModule().listing) {
