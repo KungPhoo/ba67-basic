@@ -87,6 +87,7 @@ public:
     CharMap();
     ~CharMap() { delete unicode; }
     void init(char32_t from = 0, char32_t to = char32_t(-1));
+
     std::array<CharBitmap, 160> ascii; // ASCII including control codes up to 159/0x9f
     std::unordered_map<char32_t, CharBitmap>* unicode; // starting from Latin-1 160/0xa0
 
