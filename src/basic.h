@@ -28,6 +28,7 @@ public:
     };
     static Options options;
 
+    static double constexpr eps = 2.32830644e-10; // found by 10 E=1 20 IF1+E=1 THEN END 30 E=E/2: GOTO 20
 
 
     // Variable types
@@ -208,8 +209,8 @@ public:
         ArrayIndex bounds = {}; // 5 = [0..4]
 
         // dim a(4) = (0..4)
-        void dim(size_t i0, size_t i1 = 0, size_t i2 = 0, size_t i3 = 0);
-        void dim(const ArrayIndex& ai);
+        void dim(Value init, size_t i0, size_t i1 = 0, size_t i2 = 0, size_t i3 = 0);
+        void dim(Value init, const ArrayIndex& ai);
         void setIsDictionary(bool isDict) {
             isDictionary = isDict;
             if (isDict) {
@@ -343,6 +344,8 @@ public:
     static int64_t valueToInt(const Value& v);
     static bool valueIsOperator(const Value& v);
     static bool valueIsString(const Value& v);
+    static bool valueIsInt(const Value& v);
+    static bool valueIsDouble(const Value& v);
 
     static bool isEndOfWord(char c);
     static const char* skipWhite(const char*& str);

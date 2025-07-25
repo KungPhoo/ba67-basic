@@ -1022,8 +1022,14 @@ Basic::Value fktMAX(Basic* basic, const std::vector<Basic::Value>& args) {
             ret    = a;
         }
 
-        if (basic->valueToDouble(a) > basic->valueToDouble(ret)) { // TODO check types
-            ret = a;
+        if (basic->valueIsInt(a) && basic->valueIsInt(ret)) {
+            if (basic->valueToInt(a) > basic->valueToInt(ret)) {
+                ret = a;
+            }
+        } else {
+            if (basic->valueToDouble(a) > basic->valueToDouble(ret)) {
+                ret = a;
+            }
         }
     }
 
@@ -1032,6 +1038,7 @@ Basic::Value fktMAX(Basic* basic, const std::vector<Basic::Value>& args) {
     }
     return ret;
 }
+
 Basic::Value fktMIN(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() == 0) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -1048,8 +1055,14 @@ Basic::Value fktMIN(Basic* basic, const std::vector<Basic::Value>& args) {
             ret    = a;
         }
 
-        if (basic->valueToDouble(a) < basic->valueToDouble(ret)) {
-            ret = a;
+        if (basic->valueIsInt(a) && basic->valueIsInt(ret)) {
+            if (basic->valueToInt(a) < basic->valueToInt(ret)) {
+                ret = a;
+            }
+        } else {
+            if (basic->valueToDouble(a) < basic->valueToDouble(ret)) {
+                ret = a;
+            }
         }
     }
 
@@ -1169,11 +1182,11 @@ Basic::Value fktPEN(Basic* basic, const std::vector<Basic::Value>& args) {
 }
 
 
-void Basic::Array::dim(size_t i0, size_t i1, size_t i2, size_t i3) {
-    dim({ i0, i1, i2, i3 });
+void Basic::Array::dim(Value init, size_t i0, size_t i1, size_t i2, size_t i3) {
+    dim(init, { i0, i1, i2, i3 });
 }
 
-void Basic::Array::dim(const ArrayIndex& ai) {
+void Basic::Array::dim(Value init, const ArrayIndex& ai) {
     setIsDictionary(false);
     this->bounds.index = ai.index;
     size_t elems       = 1 + ai.index[0]; // add the end element, too. dim a(5) = 0..5
@@ -1191,6 +1204,9 @@ void Basic::Array::dim(const ArrayIndex& ai) {
 
         data.clear();
         data.resize(elems);
+        for (auto& v : data) {
+            v = init;
+        }
     } catch (...) {
         throw Error(ErrorId::ILLEGAL_QUANTITY);
     }
@@ -1470,6 +1486,18 @@ bool Basic::valueIsOperator(const Value& v) {
 
 bool Basic::valueIsString(const Value& v) {
     if (auto s = std::get_if<std::string>(&v)) {
+        return true;
+    }
+    return false;
+}
+bool Basic::valueIsInt(const Value& v) {
+    if (auto s = std::get_if<int64_t>(&v)) {
+        return true;
+    }
+    return false;
+}
+bool Basic::valueIsDouble(const Value& v) {
+    if (auto s = std::get_if<double>(&v)) {
         return true;
     }
     return false;
@@ -1923,7 +1951,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         if (op == "/")
             return a / b;
         if (op == "=")
-            return a == b ? int64_t(-1) : int64_t(0);
+            return fabs(a - b) < Basic::eps ? int64_t(-1) : int64_t(0);
         if (op == ">")
             return a > b ? int64_t(-1) : int64_t(0);
         if (op == "<")
@@ -1985,7 +2013,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         if (op == "/")
             return a / double(b);
         if (op == "=")
-            return a == double(b) ? int64_t(-1) : int64_t(0);
+            return fabs(a - double(b)) < Basic::eps ? int64_t(-1) : int64_t(0);
         if (op == ">")
             return a > b ? int64_t(-1) : int64_t(0);
         if (op == "<")
@@ -2016,7 +2044,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         if (op == "/")
             return double(a) / b;
         if (op == "=")
-            return double(a) == b ? int64_t(-1) : int64_t(0);
+            return fabs(double(a) - b) < Basic::eps ? int64_t(-1) : int64_t(0);
         if (op == ">")
             return double(a) > b ? int64_t(-1) : int64_t(0);
         if (op == "<")
@@ -2869,13 +2897,15 @@ inline void Basic::handleDIM(const std::vector<Token>& tokens) {
     // }
 
     // DIM a(b,c), d(e,f)
-    auto& arrays = currentModule().arrays;
-    size_t end   = 0;
+    auto& arrays        = currentModule().arrays;
+    char varnamePostfix = '#';
+    size_t end          = 0;
     for (size_t i = 1; i < tokens.size(); ++i) {
         if (tokens[i].type != TokenType::IDENTIFIER) {
             throw Error(ErrorId::SYNTAX);
         }
         std::string varName = tokens[i].value;
+        varnamePostfix      = valuePostfix(tokens[i]);
         ++i;
         if (i >= tokens.size() || tokens[i].type != TokenType::PARENTHESIS || tokens[i].value != "(") {
             Value* value = findLeftValue(currentModule(), tokens, i - 1, &i);
@@ -2898,8 +2928,15 @@ inline void Basic::handleDIM(const std::vector<Token>& tokens) {
         if (vals.empty()) {
             arrays[varName].setIsDictionary(true);
         } else {
+            Value init;
+            switch (varnamePostfix) {
+            case '#': init = 0.0; break;
+            case '%': init = int64_t(0); break;
+            case '$': init = std::string(); break;
+            }
+
             auto bounds = indexFromValues(vals);
-            arrays[varName].dim(bounds);
+            arrays[varName].dim(init, bounds);
             if (end > i) {
                 i = end - 1;
             }
@@ -3474,7 +3511,6 @@ void Basic::handleFOR(const std::vector<Token>& tokens) {
 }
 
 // Handle NEXT statement
-// TODO pop inner loops if variable name is given
 /*
 C64 BASIC deals with information about FOR-NEXT loops on the return stack in one of four ways:
 
@@ -3516,7 +3552,6 @@ BACK FROM GOSUB
 ...
 */
 void Basic::handleNEXT(const std::vector<Token>& tokens) {
-    // TODO how to deal with modules here?
     auto& modl = currentModule();
 
     std::string varName;
@@ -4542,9 +4577,8 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
         StringHelper::memcpy(&buff[0], basic.c_str(), basic.length());
         buff[basic.length()] = '\0';
 
-        // TODO as long as we can't write PRG, rename QSAVE to .bas
-        inOutFilenameUtf8 = inOutFilenameUtf8.substr(0, inOutFilenameUtf8.length() - 4) + ".bas";
-
+        // no need. Will ask before overwriting .prg
+        // inOutFilenameUtf8 = inOutFilenameUtf8.substr(0, inOutFilenameUtf8.length() - 4) + ".bas";
     } else {
         // load BAS
         FilePtr file(os);

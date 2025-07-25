@@ -109,6 +109,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [MAX](#max)
     - [MID$](#mid-)
     - [MIN](#min)
+    - [MOD](#mod)
     - [PEEK](#peek)
     - [PEN](#pen)
     - [POS](#pos)
@@ -315,6 +316,12 @@ Number constants can be given in scientific notation
 (-1.3e-5) or as floating point input (1.23). The decimal
 separator is the period symbol, regardless of the computer's
 locale settings.
+
+Internally, BA67 uses 64 bit double values. But for comparing
+equality like `IF A=B`, if the difference between the numbers
+is smaller than 2.32830644e-10 they are considered equal.
+That's the smallest floating Commodore BASIC can
+distinguish.
 
 Integers can be given up to 64 bits. A prefixed `$` is
 interpreted as a hex number. `a = $7ffffff`.
@@ -1127,9 +1134,10 @@ values for each line of the character pixels.
 Reads a variable from the next DATA keyword.
 
 ### REM
-**Usage:** `REM comment`
+**Usage:** `REM --LABEL-- or comment`
 
-Adds a comment in the program.
+Adds a comment in the program. See the `BAKE` command
+for special comments that can be used as `GOTO` labels.
 
 Example:
 ```basic
@@ -1531,6 +1539,12 @@ first character in the string.
 **Usage:** `n=MIN(a,b [,c] [,d] ...)`
 
 Returns the smallest of the given argument values.
+
+### MOD
+**Usage:** `n=MOD(numerator, denominator)`
+
+Returns the rest of a division (modulo operation).
+Internally it's an integer operation, currently.
 
 ### PEEK
 **Usage:** `PEEK(address)`
@@ -1979,6 +1993,8 @@ A few addresses, however, act special:
 - $00A0 - $00A2 - jiffy clock
 - $D011 - $D012 - current raster line (just a counter)
 
+## Z Known bugs
+`PRINT "X"; IF ` - no colon! but no error, yet
 
 -------------------------------------------------------------
 # Disclaimer

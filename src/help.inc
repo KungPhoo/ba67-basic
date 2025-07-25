@@ -46,7 +46,7 @@
 ,{"QSAVE", R"RAW(QSAVE)RAW"}
 ,{"RCHARDEF", R"RAW(RCHARDEF char$, mono, bits1, bits2, ..., bits8)RAW"}
 ,{"READ", R"RAW(READ var[, var [, var2] ])RAW"}
-,{"REM", R"RAW(REM comment)RAW"}
+,{"REM", R"RAW(REM --LABEL-- or comment)RAW"}
 ,{"RENUMBER", R"RAW(RENUMBER [new__start, increment, old__start, milestone])RAW"}
 ,{"RESTORE", R"RAW(RESTORE [line])RAW"}
 ,{"RETURN", R"RAW(RETURN)RAW"}
@@ -82,6 +82,7 @@
 ,{"MAX", R"RAW(n=MAX(a,b [,c] [,d] ...))RAW"}
 ,{"MID$", R"RAW(MID$(string, start1, length))RAW"}
 ,{"MIN", R"RAW(n=MIN(a,b [,c] [,d] ...))RAW"}
+,{"MOD", R"RAW(n=MOD(numerator, denominator))RAW"}
 ,{"PEEK", R"RAW(PEEK(address))RAW"}
 ,{"PEN", R"RAW(PEN(X0_Y1_X2_Y3_BT4))RAW"}
 ,{"POS", R"RAW(POS(0))RAW"}
