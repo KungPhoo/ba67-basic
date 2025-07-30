@@ -147,6 +147,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
   - [F - The Newline Dilemma](#f---the-newline-dilemma)
   - [G - Going from PETSCII to Unicode](#g---going-from-petscii-to-unicode)
   - [H - Hardcore Assembler Language](#h---hardcore-assembler-language)
+  - [Z Known bugs](#z-known-bugs)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
@@ -1144,6 +1145,24 @@ Example:
 REM This is a comment
 ```
 
+### REMODEL
+**Usage:** `REMODEL option, value`
+
+This is treated as a `REM` in classic BASIC, but BA67
+uses it to set internal options. The following options
+are implemented:
+
++-----------+---------------------------------------------+
+|  Option   |  Description                                |
++-----------+---------------------------------------------+
+| SPACING   | Interpreter requires space separated tokens |
++-----------+---------------------------------------------+
+| ZERODOT   | The dot is interpreted as 0.0               |
++-----------+---------------------------------------------+
+| UPPERCASE | GET and INPUT return only upper-case strings|
++-----------+---------------------------------------------+
+
+
 ### RENUMBER
 **Usage:** `RENUMBER [new__start, increment, old__start, milestone]`
 
@@ -1433,6 +1452,7 @@ Returns the cosine of an angle in radians.
 **Usage:** `PRINT DEC("FF")`
 
 Converts a hex string to an integer number.
+See also `HEX$`.
 
 ### EXP
 **Usage:** `EXP(expr)`
@@ -1450,6 +1470,7 @@ BASIC program.
 **Usage:** `PRINT HEX$( $ff001234 )`
 
 Returns a string representation of an integer number.
+See `DEC` to reverse it.
 
 ### INSTR
 **Usage:** `position=INSTR(haystack$, needle$, [start__pos])`

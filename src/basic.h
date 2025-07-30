@@ -23,8 +23,9 @@ public:
     Basic(Os* os, SoundSystem* ss = nullptr);
 
     struct Options {
-        bool noSpaceSeparator = false; // 'true' allows FORI=1TO10 without spaces
-        bool dotAsZero        = true; // 'true' allows a=. instead of a=0
+        bool spacingRequired = true; // 'false' allows FORI=1TO10 without spaces
+        bool dotAsZero       = true; // 'true' allows a=. instead of a=0
+        bool uppercaseInput  = false; // 'true' returns only upper-case characters in GET/INPUT
     };
     static Options options;
 

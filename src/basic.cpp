@@ -708,6 +708,24 @@ void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->currentModule().setProgramCounterToEnd();
 }
 
+void cmdREMODEL(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() != 3) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+
+    std::string key = basic->valueToString(values[0]);
+    int64_t val     = basic->valueToInt(values[2]);
+    if (key == "SPACING") {
+        basic->options.spacingRequired = (val != 0);
+    } else if (key == "ZERODOT") {
+        basic->options.dotAsZero = (val != 0);
+    } else if (key == "UPPERCASE") {
+        basic->options.uppercaseInput = (val != 0);
+    } else {
+        throw Basic::Error(Basic::ErrorId::UNDEFD_STATEMENT);
+    }
+}
+
 void cmdPLAY(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -816,6 +834,8 @@ void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
 
     // address specified
     if (!basic->valueIsString(values[0])) {
+        // TODO POKE 214, (Zeile): POKE 211, (Spalte): SYS 58640 : PRINT "TEXT"
+
         basic->cpu.memory = &basic->memory[0];
         int64_t address   = basic->valueToInt(values[0]);
         if (address < 0 || address >= int64_t(basic->memory.size())) {
@@ -1275,8 +1295,12 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     keyShortcuts[9 - 1] = "\"CHDIR \"+CHR$(34)+\"CLOUD\"+CHR$(34)+CHR$(13)+\"CATALOG\"+CHR$(13)";
 
     // hard coded keywords
-    keywords = { "ON", "GOTO", "GOSUB", "RETURN", "IF", "THEN", "LET", "FOR", "TO", "NEXT", "STEP", "RCHARDEF", "READ", "DATA", "RESTORE",
-                 "END", "RUN", "DIM", "PRINT", "?", "GET", "NETGET", "HELP", "INPUT", "REM", "CLR", "SCNCLR", "NEW", "LIST", "MODULE", "KEY", "GETKEY", "DEF", "FN", "DELETE", "USING",
+    // common words first, slow keywords to the back
+    keywords = { "GOTO", "GOSUB", "RETURN", "IF", "THEN", "FOR", "TO", "NEXT", "STEP", "LET",
+                 "PRINT", "?", "GET", "FN",
+                 "REM", "RCHARDEF", "READ", "DATA", "RESTORE",
+                 "END", "RUN", "DIM", "NETGET", "HELP", "INPUT", "CLR", "ON", "SCNCLR",
+                 "NEW", "LIST", "MODULE", "KEY", "GETKEY", "DEF", "DELETE", "USING",
                  "DUMP" };
 
     // commands
@@ -1306,6 +1330,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "SYS", cmdSYS },
         { "PLAY", cmdPLAY },
         { "POKE", cmdPOKE },
+        { "REMODEL", cmdREMODEL },
         { "SOUND", cmdSOUND },
         { "STOP", [&](Basic* basic, const std::vector<Basic::Value>&) { throw Error(ErrorId::BREAK); } },
         { "SLOW", [&](Basic* basic, const std::vector<Basic::Value>&) { basic->moduleVariableStack.back()->second.fastMode = false; } },
@@ -1609,7 +1634,7 @@ inline bool Basic::parseKeyword(const char*& str, std::string* keyword) {
     skipWhite(str);
     for (auto& k : keywords) {
         if (StringHelper::strncmp(str, k.c_str(), k.length()) == 0
-            && (isEndOfWord(str[k.length()]) || options.noSpaceSeparator)) {
+            && (isEndOfWord(str[k.length()]) || !options.spacingRequired)) {
             if (keyword != nullptr) {
                 *keyword = std::string(str, str + k.length());
             }
@@ -1624,7 +1649,7 @@ inline bool Basic::parseCommand(const char*& str, std::string* command) {
     skipWhite(str);
     for (auto& k : commands) {
         if (StringHelper::strncmp(str, k.first.c_str(), k.first.length()) == 0
-            && (isEndOfWord(str[k.first.length()]) || options.noSpaceSeparator) /*this differs from MS BASIC*/
+            && (isEndOfWord(str[k.first.length()]) || !options.spacingRequired) /*this differs from MS BASIC*/
         ) {
             if (command != nullptr) {
                 *command = std::string(str, str + k.first.length());
@@ -1657,7 +1682,7 @@ inline bool Basic::parseOperator(const char*& str, std::string* op) {
     skipWhite(str);
     const char* start = str;
 
-    if (options.noSpaceSeparator) {
+    if (!options.spacingRequired) {
         if (StringHelper::strncmp(str, "AND", 3) == 0) {
             *op = std::string(str, str + 3);
             str += 3;
@@ -1702,7 +1727,7 @@ inline bool Basic::parseIdentifier(const char*& str, std::string* identifier) {
     if ((*str >= 'A' && *str <= 'Z') || (*str >= 'a' && *str <= 'z')) {
         const char* pend = str;
 
-        if (options.noSpaceSeparator) {
+        if (!options.spacingRequired) {
             while (!isEndOfWord(*pend)) {
                 const char* test = pend;
                 if (parseKeyword(test) || parseCommand(test)) {
@@ -1755,7 +1780,7 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
     int64_t i;
     std::string str, str2;
 
-    bool rememberNoSpace = options.noSpaceSeparator;
+    bool rememberNoSpace = options.spacingRequired;
 
     while (*pc != '\0') {
         skipWhite(pc);
@@ -1769,7 +1794,7 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
                 }
             }
             if (rememberNoSpace && str == "DATA") { // in DATA, don't split unquoted OTTO to OT TO
-                options.noSpaceSeparator = false;
+                options.spacingRequired = true;
             }
         } else if (parseCommand(pc, &str)) {
             tokens.push_back({ TokenType::COMMAND, str });
@@ -1803,11 +1828,11 @@ std::vector<Basic::Token> Basic::tokenize(ProgramCounter* pProgramCounter) {
             ++pc;
             break; // end of command
         } else if (*pc != '\0') {
-            options.noSpaceSeparator = rememberNoSpace;
+            options.spacingRequired = rememberNoSpace;
             throw Error(ErrorId::SYNTAX);
         }
     }
-    options.noSpaceSeparator = rememberNoSpace;
+    options.spacingRequired = rememberNoSpace;
 
     // fix negative unary operators
     // a + -5
@@ -2727,6 +2752,9 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
 
             std::string str;
             if (key.printable) {
+                if (options.uppercaseInput) {
+                    key.code = Unicode::toUpper(key.code);
+                }
                 Unicode::appendAsUtf8(str, key.code);
             } else {
                 // https://www.commodore.ca/manuals/128_system_guide/app-i.htm
@@ -2781,6 +2809,7 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
                     break; // pound Unicode 163
                 }
             }
+
             switch (valuePostfix(tk)) {
             case '%':
                 *pval = valueToInt(str);
@@ -2822,6 +2851,11 @@ void Basic::handleINPUT(const std::vector<Token>& tokens) {
                         printUtf8String("?? ");
                     }
                     std::string s = inputLine(false);
+
+                    if (options.uppercaseInput) {
+                        s = Unicode::toUpper(s.c_str());
+                    }
+
                     // printUtf8String("\n");
 
                     switch (valuePostfix(tk)) {
@@ -3032,7 +3066,6 @@ void Basic::handleDELETE(const std::vector<Token>& tokens) {
         }
     }
 }
-
 
 // List all variables and their values
 void Basic::handleDUMP(const std::vector<Token>& tokens) {
@@ -4619,6 +4652,7 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
     int iline         = 0;
     bool rv           = true;
     bool escapePetcat = false;
+    bool oldSpaceReq  = options.spacingRequired;
     while (line != NULL) {
         ++iline;
         str = line;
@@ -4636,8 +4670,8 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
             const char* programline = skipWhite(pc);
 
             if (iline == 1 && StringHelper::strncmp(programline, "REMBA67", 7) == 0) {
-                options.noSpaceSeparator = true;
-                options.dotAsZero        = true;
+                options.spacingRequired = false;
+                options.dotAsZero       = true;
 
                 if (StringHelper::strstr(programline, "PETCAT") != nullptr) {
                     escapePetcat = true;
@@ -4645,7 +4679,7 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
             }
             listmodule.listing[int(n)] = programline;
 
-            if (options.noSpaceSeparator) {
+            if (!options.spacingRequired) {
                 try {
                     std::string reformated;
                     auto commands = tokenize(programline);
@@ -4703,7 +4737,7 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
     listmodule.setProgramCounterToEnd();
 
     buff.clear();
-    options.noSpaceSeparator = false;
+    options.spacingRequired = oldSpaceReq;
 
     return rv;
 }
