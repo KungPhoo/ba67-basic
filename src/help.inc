@@ -47,6 +47,7 @@
 ,{"RCHARDEF", R"RAW(RCHARDEF char$, mono, bits1, bits2, ..., bits8)RAW"}
 ,{"READ", R"RAW(READ var[, var [, var2] ])RAW"}
 ,{"REM", R"RAW(REM --LABEL-- or comment)RAW"}
+,{"REMODEL", R"RAW(REMODEL option, value)RAW"}
 ,{"RENUMBER", R"RAW(RENUMBER [new__start, increment, old__start, milestone])RAW"}
 ,{"RESTORE", R"RAW(RESTORE [line])RAW"}
 ,{"RETURN", R"RAW(RETURN)RAW"}

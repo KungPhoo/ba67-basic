@@ -109,6 +109,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [MAX](#max)
     - [MID$](#mid-)
     - [MIN](#min)
+    - [MOD](#mod)
     - [PEEK](#peek)
     - [PEN](#pen)
     - [POS](#pos)
@@ -146,6 +147,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
   - [F - The Newline Dilemma](#f---the-newline-dilemma)
   - [G - Going from PETSCII to Unicode](#g---going-from-petscii-to-unicode)
   - [H - Hardcore Assembler Language](#h---hardcore-assembler-language)
+  - [Z Known bugs](#z-known-bugs)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
@@ -316,6 +318,12 @@ Number constants can be given in scientific notation
 separator is the period symbol, regardless of the computer's
 locale settings.
 
+Internally, BA67 uses 64 bit double values. But for comparing
+equality like `IF A=B`, if the difference between the numbers
+is smaller than 2.32830644e-10 they are considered equal.
+That's the smallest floating Commodore BASIC can
+distinguish.
+
 Integers can be given up to 64 bits. A prefixed `$` is
 interpreted as a hex number. `a = $7ffffff`.
 
@@ -349,10 +357,16 @@ as non-array variables and are treated as separate variables.
 There are built-in variables, that will be updated before
 each statement is evaluated. These are:
 
-| Variable  |  Value                             |
-| --------- | ---------------------------------- |
-| TI        | current system time in 1/60 sec.   |
+| Variable  |  Value                                                      |
+| --------- | ----------------------------------------------------------- |
+| TI        | current system time in 1/60 sec.                            |
+| TI$       | current time in format HHMMSS. (Can be set. Will affect TI) |
 | ST        | file I/O status (currently not set)|
+
+In CBM BASIC, the variable `TI, TIME` and `TIMER`, even 
+`TIMEGOESBYSOSLOWLY` are the same variable! When importing
+.prg files of old code, BA67 will not take care of this.
+You need to manually adjust the code.
 
 -------------------------------------------------------------
 ## Files
@@ -1121,14 +1135,33 @@ values for each line of the character pixels.
 Reads a variable from the next DATA keyword.
 
 ### REM
-**Usage:** `REM comment`
+**Usage:** `REM --LABEL-- or comment`
 
-Adds a comment in the program.
+Adds a comment in the program. See the `BAKE` command
+for special comments that can be used as `GOTO` labels.
 
 Example:
 ```basic
 REM This is a comment
 ```
+
+### REMODEL
+**Usage:** `REMODEL option, value`
+
+This is treated as a `REM` in classic BASIC, but BA67
+uses it to set internal options. The following options
+are implemented:
+
++-----------+---------------------------------------------+
+|  Option   |  Description                                |
++-----------+---------------------------------------------+
+| SPACING   | Interpreter requires space separated tokens |
++-----------+---------------------------------------------+
+| ZERODOT   | The dot is interpreted as 0.0               |
++-----------+---------------------------------------------+
+| UPPERCASE | GET and INPUT return only upper-case strings|
++-----------+---------------------------------------------+
+
 
 ### RENUMBER
 **Usage:** `RENUMBER [new__start, increment, old__start, milestone]`
@@ -1419,6 +1452,7 @@ Returns the cosine of an angle in radians.
 **Usage:** `PRINT DEC("FF")`
 
 Converts a hex string to an integer number.
+See also `HEX$`.
 
 ### EXP
 **Usage:** `EXP(expr)`
@@ -1436,6 +1470,7 @@ BASIC program.
 **Usage:** `PRINT HEX$( $ff001234 )`
 
 Returns a string representation of an integer number.
+See `DEC` to reverse it.
 
 ### INSTR
 **Usage:** `position=INSTR(haystack$, needle$, [start__pos])`
@@ -1525,6 +1560,12 @@ first character in the string.
 **Usage:** `n=MIN(a,b [,c] [,d] ...)`
 
 Returns the smallest of the given argument values.
+
+### MOD
+**Usage:** `n=MOD(numerator, denominator)`
+
+Returns the rest of a division (modulo operation).
+Internally it's an integer operation, currently.
 
 ### PEEK
 **Usage:** `PEEK(address)`
@@ -1973,6 +2014,8 @@ A few addresses, however, act special:
 - $00A0 - $00A2 - jiffy clock
 - $D011 - $D012 - current raster line (just a counter)
 
+## Z Known bugs
+`PRINT "X"; IF ` - no colon! but no error, yet
 
 -------------------------------------------------------------
 # Disclaimer

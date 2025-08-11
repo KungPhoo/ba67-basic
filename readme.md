@@ -73,6 +73,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [RCHARDEF](#rchardef)
     - [READ](#read)
     - [REM](#rem)
+    - [REMODEL](#remodel)
     - [RENUMBER](#renumber)
     - [RESTORE](#restore)
     - [RETURN](#return)

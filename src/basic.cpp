@@ -1622,12 +1622,12 @@ bool Basic::parseFileHandle(const char*& str, std::string* number) {
 }
 
 int64_t Basic::strToInt(const std::string& str) {
-    int base = 10;
-    if (str.starts_with("$")) {
+    if (str.starts_with("$") && str.length() > 1) {
         return static_cast<int64_t>(std::stoull(str.substr(1), nullptr, 16));
-    } else {
+    } else if (str.length() > 0) {
         return std::stoll(str);
     }
+    return 0;
 }
 
 inline bool Basic::parseKeyword(const char*& str, std::string* keyword) {
@@ -3504,7 +3504,10 @@ void Basic::handleFOR(const std::vector<Token>& tokens) {
         return;
     std::string varName = tokens[1].value;
     auto values         = evaluateExpression(tokens, 3);
-    int64_t start       = valueToInt(values.back());
+    if (values.size() != 1) {
+        throw Error(ErrorId::SYNTAX);
+    }
+    int64_t start = valueToInt(values.back());
 
     auto& modl = currentModule();
 
@@ -3515,11 +3518,17 @@ void Basic::handleFOR(const std::vector<Token>& tokens) {
     for (size_t i = 4; i < tokens.size(); ++i) {
         if (tokens[i].value == "TO") {
             auto values = evaluateExpression(tokens, i + 1);
-            toEnd       = valueToInt(values.back());
+            if (values.size() != 1) {
+                throw Error(ErrorId::SYNTAX);
+            }
+            toEnd = valueToInt(values.back());
         }
         if (tokens[i].value == "STEP") {
             auto values = evaluateExpression(tokens, i + 1);
-            step        = valueToInt(values.back());
+            if (values.size() != 1) {
+                throw Error(ErrorId::SYNTAX);
+            }
+            step = valueToInt(values.back());
         }
     }
     modl.variables[varName] = int64_t(start);

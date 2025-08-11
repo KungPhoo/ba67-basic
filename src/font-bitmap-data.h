@@ -7,5 +7,5 @@ public:
         char32_t c;
         uint8_t b[8];
     };
-    static DataStruct* getBits();
+    static DataStruct* getBits(); // c=0xffffffff for the last character
 };

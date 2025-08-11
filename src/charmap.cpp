@@ -58,6 +58,75 @@ void CharMap::createColorControlCodes() {
     }
 }
 
+#ifdef _DEBUG
+    #include <sstream>
+    #include <fstream>
+    #include <iostream>
+    #include <iomanip>
+class BDFExport {
+    // Write one byte as two hex digits
+    std::string toHex(uint8_t byte) {
+        std::ostringstream oss;
+        oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(byte);
+        return oss.str();
+    }
+
+public:
+    void writeBDF(const FontDataBits::DataStruct* bits, const std::string& filename) {
+        std::ofstream out(filename);
+        if (!out) {
+            std::cerr << "Cannot open file: " << filename << "\n";
+            return;
+        }
+
+        // BDF Header
+        // https://en.wikipedia.org/wiki/Glyph_Bitmap_Distribution_Format
+        out << "STARTFONT 2.1\n"
+            << "FONT -BA67-BA67-medium-upright-normal--16-160-75-75-monospaced-16-ISO10646-1\n"
+            << "SIZE 16 75 75\n"
+            << "FONTBOUNDINGBOX 8 16 0 -2\n"
+            << "STARTPROPERTIES 2\n"
+            << "FONT_ASCENT 14\n"
+            << "FONT_DESCENT 2\n"
+            << "ENDPROPERTIES\n";
+
+        // Count glyphs
+        int count = 0;
+        for (const auto* ptr = bits; ptr->c != 0xffffffff; ++ptr) {
+            ++count;
+        }
+
+        out << "CHARS " << count << "\n";
+
+        // Write glyphs
+        for (const auto* ptr = bits; ptr->c != 0xffffffff; ++ptr) {
+            char32_t codepoint = ptr->c;
+            const uint8_t* bmp = ptr->b;
+
+            out << "STARTCHAR U+" << std::hex << std::uppercase << int(codepoint) << "\n";
+            out << "ENCODING " << std::dec << int(codepoint) << "\n";
+            out << "SWIDTH 500 0\n"; // 500 / 1000 point = half width
+            out << "DWIDTH 8 0\n"; // 8 px width
+            out << "BBX 8 16 0 -2\n"; // width 8, height 16, y-offset -2
+            out << "BITMAP\n";
+
+            // Scale to 8x16 by repeating each 8-bit row
+            for (int i = 0; i < 8; ++i) {
+                std::string line = toHex(bmp[i]);
+                out << line << "\n"
+                    << line << "\n"; // repeat line
+            }
+
+            out << "ENDCHAR\n";
+        }
+
+        out << "ENDFONT\n";
+        out.close();
+        std::cout << "Wrote: " << filename << "\n";
+    }
+};
+#endif
+
 
 void CharMap::init(char32_t from, char32_t to) {
 
@@ -688,6 +757,11 @@ void CharMap::init(char32_t from, char32_t to) {
     };
 
     FontDataBits::DataStruct* pData = FontDataBits::getBits();
+
+#if defined(_DEBUG) && defined(_WIN32)
+    BDFExport bdf;
+    bdf.writeBDF(pData, "C:\\Temp\\ba67.bdf");
+#endif
 
     while (pData->c != 0xffffffff) {
         CharBitmap bmp(pData->b, 8);
