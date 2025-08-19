@@ -9,6 +9,6 @@
 struct ScreenInfo {
     static const size_t charsX = 80, charsY = 25;
     static const size_t charPixX = 8 /*don't change!*/, charPixY = 8 /*8 or 16*/;
-    static const size_t pixX = charsX * charPixX;
+    static const size_t pixX = charsX * charPixX; // back buffer size
     static const size_t pixY = charsY * charPixY;
 };

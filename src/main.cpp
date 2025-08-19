@@ -1,5 +1,24 @@
-﻿#include "os_fpl.h"
-#include "soundsystem_soloud.h"
+﻿
+#if defined(__EMSCRIPTEN__)
+    #include "os_sdl2.h"
+using OsBackend     = OsSDL2;
+using OsSoundsystem = NullSoundSystem;
+#else
+//     // OsWindowsConsole os;
+
+    #include "os_fpl.h"
+using OsBackend = OsFPL;
+
+    #if defined(BA67_SOUND_BACKEND_NONE)
+using OsSoundsystem = NullSoundSystem;
+    #else
+        #include "soundsystem_soloud.h"
+using OsSoundsystem = SoundSystemSoLoud;
+    #endif
+
+#endif
+
+
 #ifdef _WIN32
     #include <Windows.h>
 #endif
@@ -42,9 +61,16 @@ void printfHelp();
 // MAIN
 // ---------------------------------------
 int main(int argc, char** argv) {
+    if (argc == 1) {
+        std::cout << "BA67 BASIC Interpreter\n";
+    }
 #if _DEBUG
     MarkdownParser::ParseAndApplyManual();
 #endif
+
+    OsBackend os;
+    OsSoundsystem sound;
+    Basic basic(&os, &sound);
 
     // ARGV to UTF-8
     std::vector<std::string> args; // utf-8
@@ -110,11 +136,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    // OsWindowsConsole os;
-    OsFPL os;
-
-    SoundSystemSoLoud soloud;
-    Basic basic(&os, &soloud);
 
     // load boot.bas
     try {
@@ -125,6 +146,8 @@ int main(int argc, char** argv) {
     } catch (...) {
     }
 
+
+
     // run bas program from command line
     for (size_t i = 1; i < args.size(); ++i) {
         if (
@@ -134,6 +157,9 @@ int main(int argc, char** argv) {
             break;
         }
     }
+#if defined(__EMSCRIPTEN__)
+    basic.parseInput("CHDIR \"CLOUD\": CATALOG:");
+#endif
 
     basic.runInterpreter();
     return 0;

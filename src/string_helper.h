@@ -21,5 +21,5 @@ public:
     static void memcpy(void* dst, const void* src, size_t len);
     static void strcpy(char* dest, const char* src);
 
-    static std::string int2hex(int64_t n);
+    static std::string int2hex(int64_t n, bool uppercase = true);
 };

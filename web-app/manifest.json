@@ -1,0 +1,12 @@
+﻿{
+  "name": "BA67 BASIC",
+  "short_name": "BA67",
+  "start_url": "./BA67.html",
+  "display": "fullscreen",
+  "background_color": "#000000",
+  "theme_color": "#111827",
+  "icons": [
+    { "src": "icon192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

@@ -178,7 +178,8 @@ ScreenBuffer::Cursor ScreenBuffer::getCursorPos() const {
 }
 
 const ScreenBuffer::Cursor& ScreenBuffer::setCursorPos(Cursor crsr) {
-    cursor = crsr;
+    cursor.x = crsr.x;
+    cursor.y = crsr.y;
     if (cursor.x >= width) {
         cursor.x = 0;
         ++cursor.y;
@@ -302,8 +303,28 @@ void ScreenBuffer::getPrintBuffer(std::u32string& chars, std::string& colors) co
 }
 */
 
-void ScreenBuffer::updateScreenPixelsPalette() {
-#pragma omp for
+
+
+/*
+ * TODO: C64 can PRINT about 4-12 chars per screen update
+ *       with every putC, advance a counter. After 10, update
+ *       the pixelsPal
+ *       after 11 draw sprites
+ *       12 pixelBitmap
+ *       then set a flag "ready to present" on next presentScreen
+ *       there, present and possibly wait until 1/60th sec is over
+ * */
+
+void ScreenBuffer::updateScreenPixelsPalette(bool highlightCursor) {
+    // chars
+    auto crsr = getCursorPos();
+    if (!highlightCursor || !cursorActive) {
+        crsr.x = 0xffff;
+    }
+
+#if !defined(__EMSCRIPTEN__)
+    #pragma omp for
+#endif
     for (int y = 0; y < int(height); ++y) {
         uint8_t cl = 1, lastColor = 1;
         auto& ln  = lines[y];
@@ -317,7 +338,13 @@ void ScreenBuffer::updateScreenPixelsPalette() {
                 sc.col    = sc.col;
                 lastColor = sc.col;
             }
-            drawCharPal(x * ScreenInfo::charPixX, y * ScreenInfo::charPixY, sc.ch, sc.col & 0x0f, (sc.col >> 4) & 0x0f);
+
+            drawCharPal(x * ScreenInfo::charPixX,
+                        y * ScreenInfo::charPixY,
+                        sc.ch,
+                        sc.col & 0x0f,
+                        (sc.col >> 4) & 0x0f,
+                        x == crsr.x && y == crsr.y);
         }
         if (ln->wrapps) {
             drawLineContinuationPal(y);
@@ -452,6 +479,7 @@ void ScreenBuffer::copyWithLock(ScreenBuffer& dst, const ScreenBuffer& src) {
     dst.height       = src.height;
     dst.width        = src.width;
     dst.cursor       = src.cursor;
+    dst.cursorActive = src.cursorActive;
     dst.palette      = src.palette;
     dst.sprites      = src.sprites;
     dst.windowPixels = src.windowPixels;
@@ -514,7 +542,7 @@ void ScreenBuffer::manageOverflow() {
 }
 
 // draw character pixels at given pixel position
-void ScreenBuffer::drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colIxText, uint8_t colIxBack) {
+void ScreenBuffer::drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colIxText, uint8_t colIxBack, bool inverse) {
     const CharBitmap& img = charMap()[ch];
 
     // Calculate starting pixel index in the pixel array
@@ -523,6 +551,10 @@ void ScreenBuffer::drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colIxTex
     auto& pixels  = screenBitmap.pixelsPal;
 
     if (img.isMono) {
+        if (inverse) {
+            std::swap(colIxText, colIxBack);
+        }
+
         for (size_t row = 0; row < ScreenInfo::charPixY; ++row) {
             uint8_t pixelRow = img.bits[row]; // Each byte represents 8 pixels in a row
             static_assert(ScreenInfo::charPixX == 8, "the pixel bytes are wrong, otherwise");
@@ -538,8 +570,12 @@ void ScreenBuffer::drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colIxTex
             uint8_t pixelRow = img.bits[row]; // Each byte represents 8 pixels in a row
             static_assert(ScreenInfo::charPixX == 8, "the pixel bytes are wrong, otherwise");
             for (size_t col = 0; col < ScreenInfo::charPixX; ++col) {
-                size_t pixelIndex  = (pixelY + row) * (ScreenInfo::pixX) + (pixelX + col);
-                pixels[pixelIndex] = img.multi(nth++);
+                size_t pixelIndex = (pixelY + row) * (ScreenInfo::pixX) + (pixelX + col);
+                uint8_t colIx     = img.multi(nth++);
+                if (inverse) {
+                    colIx = buddyColor(colIx);
+                }
+                pixels[pixelIndex] = colIx;
             }
         }
     }
@@ -595,6 +631,19 @@ void ScreenBuffer::drawSprPal(int64_t x, int64_t y, char32_t chimg, int8_t color
 
 // indicate that the line wraps
 void ScreenBuffer::drawLineContinuationPal(size_t yline) {
+    auto& pixels  = screenBitmap.pixelsPal;
+    size_t pixelY = yline * ScreenInfo::charPixY;
+    for (size_t row = 0; row < ScreenInfo::charPixY; ++row) {
+        for (size_t col = 0; col < ScreenInfo::charPixX; ++col) {
+            size_t pixelX     = width * ScreenInfo::charPixX - ScreenInfo::charPixX + col;
+            size_t pixelIndex = (pixelY + row) * (ScreenInfo::pixX) + pixelX;
+            uint8_t& pcol     = pixels.at(pixelIndex);
+            pcol              = buddyColor(pcol);
+        }
+    }
+}
+
+uint8_t ScreenBuffer::buddyColor(uint8_t colorindex) {
     //  0 Black
     //  1 White
     //  2 Red
@@ -613,15 +662,5 @@ void ScreenBuffer::drawLineContinuationPal(size_t yline) {
     // 15 Light Gray
     //                               0    1  2   3   4   5   6  7  8  9 10  11  12 13 14 15
     const uint8_t buddyIndex[16] = { 11, 15, 8, 13, 10, 13, 14, 8, 7, 8, 1, 12, 15, 7, 1, 1 };
-
-    auto& pixels  = screenBitmap.pixelsPal;
-    size_t pixelY = yline * ScreenInfo::charPixY;
-    for (size_t row = 0; row < ScreenInfo::charPixY; ++row) {
-        for (size_t col = 0; col < ScreenInfo::charPixX; ++col) {
-            size_t pixelX     = width * ScreenInfo::charPixX - ScreenInfo::charPixX + col;
-            size_t pixelIndex = (pixelY + row) * (ScreenInfo::pixX) + pixelX;
-            uint8_t& pcol     = pixels.at(pixelIndex);
-            pcol              = buddyIndex[pcol];
-        }
-    }
+    return buddyIndex[colorindex & 0x0f];
 }

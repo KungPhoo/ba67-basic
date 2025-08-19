@@ -3,7 +3,8 @@
         { name: "HOME", url: "index.html" },
         { name: "FEATURES", url: "features.html" },
         { name: "DETAILS", url: "readme.html" },
-        { name: "PROJECT", url: "https://github.com/KungPhoo/ba67-basic" }
+        { name: "PROJECT", url: "https://github.com/KungPhoo/ba67-basic" },
+        { name: "RUN", url: "run.html" },
     ];
 
     const menuDiv = document.getElementById("mobile-menu");

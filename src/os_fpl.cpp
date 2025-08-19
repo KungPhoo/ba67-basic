@@ -1,30 +1,31 @@
-﻿#include "os_fpl.h"
+﻿#ifndef __EMSCRIPTEN__
+    #include "os_fpl.h"
 
-// https://libfpl.org/docs/page_categories.html
-#define FPL_IMPLEMENTATION
-#define FPL_LOGGING
-#define FPL_NO_AUDIO
+    // https://libfpl.org/docs/page_categories.html
+    #define FPL_IMPLEMENTATION
+    #define FPL_LOGGING
+    #define FPL_NO_AUDIO
 
-#include "basic.h"
-#include "final_platform_layer.h"
-#include "unicode.h"
-#include <array>
-#include <cmath>
-// #include <cstring>
-#include <filesystem>
-#include <thread>
-#include <chrono>
-#include "string_helper.h"
+    #include "basic.h"
+    #include "final_platform_layer.h"
+    #include "unicode.h"
+    #include <array>
+    #include <cmath>
+    // #include <cstring>
+    #include <filesystem>
+    #include <thread>
+    #include <chrono>
+    #include "string_helper.h"
 
-#if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
-    #include <GL/gl.h>
-#endif
+    #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
+        #include <GL/gl.h>
+    #endif
 
-#ifdef _WIN32
-    #include "../resources/resource.h"
-    #include <Windows.h>
-    #include <tchar.h>
-#endif
+    #ifdef _WIN32
+        #include "../resources/resource.h"
+        #include <Windows.h>
+        #include <tchar.h>
+    #endif
 
 void displayUpdateThread(OsFPL* fpl);
 
@@ -54,14 +55,14 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
 
     settings.input.controllerDetectionFrequency = 5000;
 
-#if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
+    #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
     if (this->settings.renderMode == BA68settings::RenderMode::OpenGL) {
         // Use Legacy OpenGL (1.1)
         settings.video.backend                          = fplVideoBackendType_OpenGL;
         settings.video.graphics.opengl.compabilityFlags = fplOpenGLCompabilityFlags_Legacy;
         settings.video.isVSync                          = true;
     } else
-#endif
+    #endif
     {
         settings.video.backend = fplVideoBackendType_Software;
     }
@@ -72,9 +73,9 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     // settings.window.icons[0].type = fplImageType_RGBA;
 
     if (!fplPlatformInit(
-#ifdef _DEBUG
-    // fplInitFlags_Console |
-#endif
+    #ifdef _DEBUG
+        // fplInitFlags_Console |
+    #endif
             // fplInitFlags_Audio |
             fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_GameController,
             &settings)) {
@@ -86,7 +87,7 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
         fplSetWindowFullscreenSize(true, 0, 0, 0);
     }
 
-#ifdef _WIN32
+    #ifdef _WIN32
     fpl__PlatformAppState* appState    = fpl__global__AppState;
     fpl__Win32AppState* win32AppState  = &appState->win32;
     fpl__Win32WindowState* windowState = &appState->window.win32;
@@ -108,7 +109,7 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
         ::CreateDirectoryW(home.c_str(), NULL);
         ::SetCurrentDirectoryW(home.c_str());
     }
-#else
+    #else
     char homepath[1024] = {};
     fplGetHomePath(homepath, 1024);
     std::string home = homepath;
@@ -126,7 +127,7 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
         }
         setCurrentDirectory(home);
     }
-#endif
+    #endif
 
     std::thread upd(displayUpdateThread, this);
     upd.detach();
@@ -155,8 +156,8 @@ void OsFPL::delay(int ms) {
     }
 }
 
-#if !defined(_WIN32)
-    #include <cstdio>
+    #if !defined(_WIN32)
+        #include <cstdio>
 // Return the amount of free memory in kilobytes.
 // Returns -1 if something went wrong.
 // https://stackoverflow.com/a/17518259/2721136
@@ -199,16 +200,16 @@ int getFreeMemoryProcMeminfo() {
     }
     return returnValue;
 }
-#endif
+    #endif
 
 size_t OsFPL::getFreeMemoryInBytes() {
     fplMemoryInfos mem = {};
     if (fplMemoryGetInfos(&mem)) {
         return mem.freePhysicalSize;
     }
-#if !defined(_WIN32)
+    #if !defined(_WIN32)
     return 1024 * size_t(getFreeMemoryProcMeminfo());
-#endif
+    #endif
     return 128 * 1024;
 }
 
@@ -258,10 +259,12 @@ void displayUpdateThread(OsFPL* fpl) {
     bool cursorVisible = true;
     for (;;) {
         // == UPDATE STATE ==
-
         std::chrono::milliseconds flashSpeed(400);
+
+
+        // wait for next flash
         auto nextCursorToggle = std::chrono::steady_clock::now() + flashSpeed;
-        {
+        if (state.screen.isCursorActive()) {
             std::unique_lock<std::mutex> lock(fpl->screenLock);
             fpl->cv.wait_until(lock, nextCursorToggle, [&] { return fpl->buffered.screen.dirtyFlag || fpl->buffered.stopThread; });
         }
@@ -272,8 +275,6 @@ void displayUpdateThread(OsFPL* fpl) {
             fpl->screenLock.unlock();
             return;
         }
-
-
 
         if (!dirty) {
             dirty = fpl->buffered.screen.dirtyFlag;
@@ -315,7 +316,7 @@ void displayUpdateThread(OsFPL* fpl) {
         }
 
         // render chars and sprites to palette based buffer
-        state.screen.updateScreenPixelsPalette();
+        state.screen.updateScreenPixelsPalette(cursorVisible);
         if (state.screen.screenBitmap.pixelsPal.empty()) {
             continue;
         }
@@ -323,51 +324,13 @@ void displayUpdateThread(OsFPL* fpl) {
             continue;
         }
 
-        // make a deep copy of the pixel buffer - we optionally overwrite the blinking cursor
-        // pixelsPal = state.screen.screenBitmap.pixelsPal;
-
-        if (state.isCursorActive) {
-            auto crsr = state.screen.getCursorPos();
-            if (cursorVisible && crsr.x < state.screen.width && crsr.y < state.screen.height) {
-                auto sc       = state.screen.getLineBuffer()[crsr.y]->cols[crsr.x];
-                uint8_t bkcol = sc.col;
-                uint8_t txcol = bkcol & 0x0f;
-                bkcol >>= 4;
-                if (sc.ch == U'\0') {
-                    txcol = state.screen.getTextColor();
-                    bkcol = state.screen.getBackgroundColor();
-                }
-                if (txcol == bkcol) {
-                    txcol = 1;
-                    bkcol = 0;
-                }
-
-                size_t crsrWidth = 8;
-                if (state.insertMode) {
-                    crsrWidth = 2;
-                }
-                for (size_t y = 0; y < ScreenInfo::charPixY; ++y) {
-                    size_t indx    = (y + crsr.y * ScreenInfo::charPixY) * ScreenInfo::pixX + crsr.x * ScreenInfo::charPixX;
-                    uint8_t* pdest = &state.screen.screenBitmap.pixelsPal[indx];
-                    for (size_t x = 0; x < crsrWidth; ++x) {
-                        if (*pdest == bkcol) {
-                            *pdest = txcol;
-                        } else {
-                            *pdest = bkcol;
-                        }
-                        ++pdest;
-                    }
-                }
-            }
-        }
-
         // == DRAW ==
 
         // simulate a CRT TV with a 3x3 pixel matrix
-#ifdef BA67_GRAPHICS_CRT_EMULATION_ON
+    #ifdef BA67_GRAPHICS_CRT_EMULATION_ON
         for (size_t p = 0; p < 6; ++p) {
             const double facDark     = 0.7; // factor for darker scanlines
-            const double facNeigbour = 0.6, facNeighbour2 = 0.6; // factor for neighbored r,g,b channels. On true CRT screen, that would be 0.0
+            const double facNeigbour = 0.6, facNeighbour2 = 0.6; // factor for neighboured r,g,b channels. On true CRT screen, that would be 0.0
             double r = 1.0, g = 1.0, b = 1.0, darken = 1.0; // factor for r,g,b channels
             if (p == 0 || p == 3) {
                 r = 1.0;
@@ -396,13 +359,13 @@ void displayUpdateThread(OsFPL* fpl) {
                 }
             }
         }
-#else
+    #else
         for (size_t p = 0; p < 6; ++p) {
             for (size_t i = 0; i < 16; ++i) {
                 palettes[p][i] = state.screen.palette[i];
             }
         }
-#endif
+    #endif
 
         // we don't access the RGB buffer - we use the color indices
         // screen.updateScreenBitmap();
@@ -446,7 +409,7 @@ void displayUpdateThread(OsFPL* fpl) {
 
         // Nearest-neighbor scaling loop
         fpl->videoLock.lock();
-#pragma omp parallel for
+    #pragma omp parallel for
         for (int y = 0; y < int(state.videoH); ++y) {
             uint32_t* pdest = &fpl->memBackBuffer[0] + y * state.videoW;
 
@@ -481,7 +444,7 @@ void displayUpdateThread(OsFPL* fpl) {
 }
 
 void OsFPL::presentScreen() {
-    updateKeyboardBuffer();
+    updateEvents();
     updateGamepadState();
     fplEvent ev;
     while (fplPollEvent(&ev)) { } // pump messages
@@ -508,10 +471,10 @@ void OsFPL::presentScreen() {
     buffered.crtEmulation = settings.emulateCRT;
     switch (settings.renderMode) {
     case BA68settings::RenderMode::OpenGL:
-#if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
+    #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
         renderOpenGL();
         break;
-#endif
+    #endif
     case BA68settings::RenderMode::Software:
         renderSoftware();
         break;
@@ -522,8 +485,7 @@ void OsFPL::presentScreen() {
         screen.dirtyFlag = false;
         mustNotify       = true;
     }
-    buffered.isCursorActive = basic->isCursorActive;
-    buffered.insertMode     = basic->insertMode;
+    buffered.insertMode = basic->insertMode;
 
     screen.windowPixels = buffered.screen.windowPixels; // read from thread
     screenLock.unlock();
@@ -562,7 +524,7 @@ void OsFPL::renderSoftware() {
 }
 
 void OsFPL::renderOpenGL() {
-#if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
+    #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
 
     // Get window size
     fplWindowSize winSize = {};
@@ -594,10 +556,10 @@ void OsFPL::renderOpenGL() {
 
         fplVideoFlip();
     }
-#endif
+    #endif
 }
 
-void OsFPL::updateKeyboardBuffer() {
+void OsFPL::updateEvents() {
     // static auto lastTick = tick();
     // auto tickNow         = tick();
     // auto deltaTick       = tickNow - lastTick;
@@ -899,10 +861,6 @@ const bool OsFPL::isKeyPressed(uint32_t index, bool withShift, bool withAlt, boo
     return (keyboardState.buttonStatesMapped[index] >= fplButtonState_Press);
 }
 
-void OsFPL::putToKeyboardBuffer(Os::KeyPress key, bool applyLimit) {
-    Os::putToKeyboardBuffer(key, applyLimit);
-}
-
 std::string OsFPL::getClipboardData() {
     const size_t maxlen = 1024 * 1024;
     char* buffer        = new char[maxlen];
@@ -921,7 +879,7 @@ void OsFPL::setClipboardData(const std::string utf8) {
 
 std::vector<char32_t> OsFPL::emojiPicker() {
     std::string emojiPanelPath = "emoji-panel";
-#ifdef _WIN32
+    #ifdef _WIN32
     WCHAR exepath[1024];
     if (GetModuleFileNameW(NULL, exepath, 1023) < 1023) {
         WCHAR* pEnd = wcsrchr(exepath, L'\\');
@@ -938,7 +896,7 @@ std::vector<char32_t> OsFPL::emojiPicker() {
             }
         }
     }
-#endif
+    #endif
     ScreenBuffer sb;
     ScreenBuffer::copyWithLock(sb, screen);
     std::string oldCb = this->getClipboardData();
@@ -963,10 +921,10 @@ std::vector<char32_t> OsFPL::emojiPicker() {
     return chars;
 }
 
-#if 0 // def FPL_PLATFORM_LINUX
-    #include <bluetooth/bluetooth.h>
-    #include <bluetooth/hci.h>
-    #include <bluetooth/hci_lib.h>
+    #if 0 // def FPL_PLATFORM_LINUX
+        #include <bluetooth/bluetooth.h>
+        #include <bluetooth/hci.h>
+        #include <bluetooth/hci_lib.h>
 // Function to scan and connect to new gamepads
 static void linuxScanAndConnectBTgamepad() {
     int device_id = hci_get_route(nullptr);
@@ -1015,7 +973,7 @@ static void linuxScanAndConnectBTgamepad() {
     delete[] devices;
     close(sock);
 }
-#endif
+    #endif
 
 static fplGamepadStates gamepadStates = {};
 void OsFPL::updateGamepadState() {
@@ -1027,7 +985,7 @@ void OsFPL::updateGamepadState() {
     lastTick = tickNow;
 
 
-#if 0 // def FPL_PLATFORM_LINUX // TODO: find a way to connect Bluetooth gamepads
+    #if 0 // def FPL_PLATFORM_LINUX // TODO: find a way to connect Bluetooth gamepads
     static auto lastTick = tick();
     auto tickNow = tick();
     auto deltaTick = tickNow - lastTick;
@@ -1037,7 +995,7 @@ void OsFPL::updateGamepadState() {
         lastTick = tickNow;
         linuxScanAndConnectBTgamepad();
     }
-#endif
+    #endif
     if (!fplPollGamepadStates(&gamepadStates)) {
         return;
     }
@@ -1095,3 +1053,4 @@ Os::MouseStatus OsFPL::getMouseStatus() {
     }
     return st;
 }
+#endif // !__EMSCRIPTEN__

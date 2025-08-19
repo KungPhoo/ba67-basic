@@ -412,12 +412,12 @@ Os::KeyPress OsWindowsConsole::getFromKeyboardBuffer() {
     DWORD dwWaitResult;
     while (!this->keyboardBufferHasData()) {
         dwWaitResult = WaitForSingleObject(hStdin, INFINITE);
-        updateKeyboardBuffer();
+        updateEvents();
     }
     return Os::getFromKeyboardBuffer();
 }
 
-inline void OsWindowsConsole::setCursorVisibility(bool visible) {
+void OsWindowsConsole::setCursorVisibility(bool visible) {
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_CURSOR_INFO cursorInfo;
     GetConsoleCursorInfo(hConsole, &cursorInfo);
@@ -425,7 +425,7 @@ inline void OsWindowsConsole::setCursorVisibility(bool visible) {
     SetConsoleCursorInfo(hConsole, &cursorInfo);
 }
 
-void OsWindowsConsole::updateKeyboardBuffer() {
+void OsWindowsConsole::updateEvents() {
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
     if (hStdin == INVALID_HANDLE_VALUE) {
         std::cerr << "Failed to get console handle.\n";

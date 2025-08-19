@@ -13,10 +13,10 @@ BA68settings Os::settings = {};
 Os::KeyPress Os::getFromKeyboardBuffer() {
     while (!keyboardBufferHasData()) {
         delay(150); // this cools the CPU when we wait for keyboard input
+        updateEvents();
     }
     auto k = keyboardBuffer.back();
     keyboardBuffer.pop_back();
-
     if (settings.demoMode) {
         delay(200);
     }
@@ -24,7 +24,17 @@ Os::KeyPress Os::getFromKeyboardBuffer() {
     return k;
 }
 
+
+Os::KeyPress Os::peekKeyboardBuffer() const {
+    if (keyboardBuffer.empty()) {
+        return {};
+    }
+    return keyboardBuffer.back();
+}
+
+
 void Os::putToKeyboardBuffer(Os::KeyPress key, bool applyBufferLimit) {
+    // key.debug();
     keyboardBuffer.insert(keyboardBuffer.begin(), key);
 
     // Keep buffer size limited
@@ -71,6 +81,7 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
         auto resp         = ft.fetch();
         if (resp.status != MiniFetch::Status::OK) {
             auto str = resp.toString();
+            std::cerr << "MiniFetch error: " << int(resp.status) << " " << str << "\n";
             return {};
         }
 
@@ -81,7 +92,10 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
         // }
 
         char* next_line = nullptr;
-        char* buffer    = StringHelper::strtok_r((char*)(&resp.bytes[0]), "\r\n", &next_line);
+        char* buffer    = nullptr;
+        if (!resp.bytes.empty()) {
+            buffer = StringHelper::strtok_r((char*)(&resp.bytes[0]), "\r\n", &next_line);
+        }
         while (buffer != nullptr) {
             for (size_t i = 0; i < 512; ++i) {
                 if (buffer[i] == '\n' || buffer[i] == '\r' || buffer[i] == '\0') {
@@ -214,14 +228,6 @@ bool Os::scratchFile(const std::string& fileName) {
 
 
 
-class NullSoundSystem : public SoundSystem {
-public:
-    // play a SFXR sound string in the background
-    bool SOUND(int voice, const std::string& parameters) override { return true; }
-    // play an ABC music notation string in the background
-    bool PLAY(const std::string& music) override { return true; }
-};
-
 std::string Os::cloudUserHash() const {
     uint64_t hash = 5381, hash2 = 7109; // Start with a large prime (DJB2 base)
     std::string username = (cloudUser + "asdfjka98324nkjn342i0nv8w08234x").substr(32);
@@ -230,16 +236,20 @@ std::string Os::cloudUserHash() const {
         hash2 = ((hash2 << 5) + hash2) + static_cast<unsigned char>(0xff - c); // hash * 33 + c
     }
 
+    std::string hex;
+    auto addHex = [&hex](uint64_t i) {
+        std::string s = StringHelper::int2hex(i & 0x00000000000000ff, false);
+        hex += s.substr(s.length() - 2, 2);
+    };
+
     // Convert to hex string
-    std::ostringstream oss;
-    oss << std::hex << std::setfill('0');
     for (int i = 56; i >= 0; i -= 8) {
-        oss << std::setw(2) << ((hash >> i) & 0xFF);
+        addHex(hash >> i);
     }
     for (int i = 56; i >= 0; i -= 8) {
-        oss << std::setw(2) << ((hash2 >> i) & 0xFF);
+        addHex(hash2 >> i);
     }
-    return oss.str(); // 2x8 bytes in hex (32 hex characters)
+    return hex;
 }
 
 
@@ -257,7 +267,7 @@ const Os::GamepadState& Os::getGamepadState(int index) {
 }
 
 char32_t Os::getc() {
-    this->updateKeyboardBuffer();
+    this->updateEvents();
     if (this->keyboardBufferHasData()) {
         return getFromKeyboardBuffer().code;
     }
@@ -289,13 +299,25 @@ bool Os::keyboardBufferHasData() {
         // uint64_t now = tick();
         // if (nextPoll < now) {
         //     nextPoll = now + 10;
-        updateKeyboardBuffer();
+        //     updateEvents();
         // }
     }
     return !keyboardBuffer.empty();
 }
 
-#if defined(_WIN32)
+
+#if defined __EMSCRIPTEN__
+
+int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
+    const char* msg = "systemCall not supported\n";
+    while (*msg != '\0') {
+        this->screen.putC(*msg);
+        ++msg;
+    }
+    return -1;
+}
+
+#elif defined(_WIN32)
     #include <Windows.h>
 int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
 
@@ -399,7 +421,7 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
             if (c32s[0] == 0) {
                 break; // No input available
             }
-            this->updateKeyboardBuffer();
+            this->updateEvents();
             this->screen.putC(c32s[0]);
 
             std::string inputUtf8 = Unicode::toUtf8String(&c32s[0]);
@@ -431,9 +453,7 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
 }
 
 
-#endif
-
-#if !defined(_WIN32)
+#else // Linux builds
     #include <errno.h>
     #include <fcntl.h>
     #include <iostream>
@@ -541,7 +561,7 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
                 if (c32 == '\r')
                     c32 = '\n';
                 if (c32 != 0) {
-                    this->updateKeyboardBuffer();
+                    this->updateEvents();
                     this->screen.putC(c32);
                     std::string inputUtf8 = Unicode::toUtf8String(&c32);
                     write(stdinPipe[1], inputUtf8.c_str(), inputUtf8.size());
@@ -613,4 +633,9 @@ std::string Os::findFirstFileNameWildcard(std::string filenameUtf8, bool isDirec
 
     setCurrentDirectory(cd);
     return outpath;
+}
+
+void Os::KeyPress::debug() const {
+    printf("KeyPress: code $%x, printable %c Shift %c Alt %c Ctrl %c\n",
+           int(code), printable ? 'X' : 'O', holdShift ? 'X' : 'O', holdAlt ? 'X' : 'O', holdCtrl ? 'X' : 'O');
 }

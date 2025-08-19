@@ -8,6 +8,8 @@ class OsFPL : public Os {
 public:
     virtual ~OsFPL();
     bool init(Basic* basic, SoundSystem* sound) override;
+    void updateEvents() override;
+
     uint64_t tick() const override;
     void delay(int ms) override;
     size_t getFreeMemoryInBytes() override;
@@ -19,11 +21,8 @@ private:
     void renderOpenGL();
 
 public:
-    void updateKeyboardBuffer() override;
-
     const bool isKeyPressed(uint32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false) const override;
 
-    void putToKeyboardBuffer(Os::KeyPress key, bool applyLimit = true) override;
 
     std::string getClipboardData() override;
     void setClipboardData(const std::string utf8) override;
@@ -46,20 +45,18 @@ public:
         bool stopThread = false;
         size_t videoW = 0, videoH = 0; // size of rendering window in pixels
 
-        bool isCursorActive;
         bool insertMode   = false;
         bool imageCreated = false;
         bool crtEmulation = true;
 
         Buffered& operator=(const Buffered& b) {
             ScreenBuffer::copyWithLock(screen, b.screen);
-            crtEmulation   = b.crtEmulation;
-            videoW         = b.videoW;
-            videoH         = b.videoH;
-            stopThread     = b.stopThread;
-            isCursorActive = b.isCursorActive;
-            insertMode     = b.insertMode;
-            imageCreated   = b.imageCreated;
+            crtEmulation = b.crtEmulation;
+            videoW       = b.videoW;
+            videoH       = b.videoH;
+            stopThread   = b.stopThread;
+            insertMode   = b.insertMode;
+            imageCreated = b.imageCreated;
             return *this;
         }
 

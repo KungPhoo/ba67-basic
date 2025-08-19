@@ -95,7 +95,7 @@ std::string Unicode::toUtf8String(const char16_t* str) {
                 return ""; // Invalid UTF-16 sequence
             }
         } else {
-            codepoint = *str++;
+            codepoint = char32_t(*str++);
         }
         // Encode codepoint to UTF-8
         if (codepoint <= 0x7F) {

@@ -193,6 +193,7 @@ Here are the key features:
 - Written in C++ (using some C libraries)
 - Very easy to use as a scripting language in your projects
 - Easy to port to other platforms
+- HTML5 port
 - Liberal license
 
 

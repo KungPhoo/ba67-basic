@@ -535,8 +535,6 @@ void cmdSCRATCH(Basic* basic, const std::vector<Basic::Value>& values) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
 
-
-
     std::string filename = basic->valueToString(values[0]);
 
     for (int ifile = 0; ifile < 999; ++ifile) {
@@ -2871,7 +2869,7 @@ void Basic::handleINPUT(const std::vector<Token>& tokens) {
                         break;
                     }
                     badinput = false;
-                } catch (Error e) {
+                } catch (const Error& e) {
                     if (e.ID == ErrorId::BREAK) {
                         throw e;
                     }
@@ -3740,6 +3738,7 @@ void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
                             *pval = int64_t(0);
                         }
                         break;
+                    default: break;
                     }
                     // skip following comma
                     if (skipComma && itok + 1 < tokens.size() && tokens[itok + 1].type == TokenType::COMMA) {
@@ -3991,7 +3990,7 @@ std::string Basic::inputLine(bool allowVertical) {
         os->delay(2000);
     }
 
-    isCursorActive     = true;
+
     bool movedVertical = false;
 
     auto typeString = [&](const std::string& s) {
@@ -4022,6 +4021,7 @@ std::string Basic::inputLine(bool allowVertical) {
     auto startSelection       = startCrsr;
     size_t oldScrollCount     = os->screen.scrollCount;
 
+    os->screen.setCursorActive(true);
     for (;;) {
         os->presentScreen();
         handleEscapeKey();
@@ -4298,6 +4298,7 @@ std::string Basic::inputLine(bool allowVertical) {
             os->screen.putC(ch);
         }
     }
+    os->screen.setCursorActive(false);
 
 
     if (oldScrollCount < os->screen.scrollCount) {
@@ -4340,7 +4341,6 @@ std::string Basic::inputLine(bool allowVertical) {
         os->delay(1000);
     }
 
-    isCursorActive = false;
     return str;
 }
 
@@ -4468,11 +4468,11 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
             } else {
                 executeTokens(tokens);
             }
-            os->updateKeyboardBuffer();
+            os->updateEvents();
             os->presentScreen();
             handleEscapeKey();
         }
-    } catch (Error e) {
+    } catch (const Error& e) {
         currentFileNo = 0;
         // dumpVariables();
         auto& pc          = programCounter();
@@ -4480,7 +4480,7 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
         int iline         = pc.line->first;
         if (iline >= 0) {
             restoreColorsAndCursor(true);
-            std::string msg = "?" + errorMessages[e.ID] + " IN " + valueToString(iline) + "\n";
+            std::string msg = "?" + std::string(e.what()) + " IN " + valueToString(iline) + "\n";
             // msg += std::string(os->screen.width - msg.length() - 1, ' ') ;
             os->screen.cleanCurrentLine();
             printUtf8String(msg);
@@ -4490,7 +4490,7 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
             }
         } else {
             os->screen.cleanCurrentLine();
-            printUtf8String("?" + errorMessages[e.ID] + " \n");
+            printUtf8String("?" + std::string(e.what()) + " \n");
         }
         return ParseStatus::PS_ERROR;
     }
@@ -4551,7 +4551,7 @@ void Basic::runInterpreter() {
 
             // wait for ESC release
             while (os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
-                os->updateKeyboardBuffer();
+                os->updateEvents();
                 os->delay(100);
                 // clear keyboard buffer
                 while (os->keyboardBufferHasData()) {
@@ -4564,7 +4564,8 @@ void Basic::runInterpreter() {
 
         try {
             line = inputLine(true);
-        } catch (Error) {
+        } catch (const Error& e) {
+            (void)e;
             currentFileNo = 0;
             status        = ParseStatus::PS_ERROR;
             continue;
@@ -4582,7 +4583,7 @@ void Basic::waitForKeypress() {
             break;
         }
         os->delay(100);
-        os->updateKeyboardBuffer();
+        os->updateEvents();
     }
 }
 

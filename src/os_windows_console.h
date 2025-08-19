@@ -5,6 +5,8 @@ class OsWindowsConsole : public Os {
     uint64_t tick() const override;
 
     bool init(Basic* basic, SoundSystem* ss) override;
+    void updateEvents();
+
     size_t getFreeMemoryInBytes() override;
 
     // --- SCREEN ---
@@ -20,7 +22,6 @@ class OsWindowsConsole : public Os {
 private:
     void setTextColor(int index);
     void setBackgroundColor(int index);
-    void updateKeyboardBuffer();
     std::u32string chars;
     std::string colors;
 };

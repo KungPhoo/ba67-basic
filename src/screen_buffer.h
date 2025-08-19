@@ -28,7 +28,8 @@ public:
         pixelsPal.resize(ScreenInfo::pixX * ScreenInfo::pixY);
     }
     // pixels in AABBGGRR little endian format.
-    // 80x25 chars, each 8x16 pixels = 640x400 pixels
+    // Allocates 80x25 chars, each 8x16 pixels = 640x400 pixels
+    // but currently used are ScreenInfo::pixX x screen.height*charPixX
     std::vector<uint32_t> pixelsRGB;
     std::vector<uint8_t> pixelsPal; // pixel index in color palette
     void clear() {
@@ -81,7 +82,7 @@ public:
 
     // zero based cursor position
     struct Cursor {
-        size_t x, y;
+        size_t x = 0, y = 0;
         bool operator==(const Cursor& c) const { return x == c.x && y == c.y; }
         bool operator!=(const Cursor& c) const { return x != c.x || y != c.y; }
         bool operator<(const Cursor& c) const {
@@ -129,6 +130,8 @@ public:
 
     // Cursor <-> Position
     Cursor getCursorPos() const;
+    void setCursorActive(bool active) { cursorActive = active; }
+    bool isCursorActive() const { return cursorActive; }
 
     // these return position in buffer
     const Cursor& setCursorPos(Cursor crsr);
@@ -140,7 +143,7 @@ public:
     // void getPrintBuffer(std::u32string& chars, std::string& colors) const;
 
     // puffer color indices per pixel
-    void updateScreenPixelsPalette();
+    void updateScreenPixelsPalette(bool highlightCursor);
     // buffer to draw on a bitmap
     void updateScreenBitmap();
 
@@ -205,14 +208,17 @@ protected:
     inline uint8_t color() const { return reverse ? (((textColor & 0xf) << 4) | ((textColor >> 4) & 0x0f)) : textColor; }
     uint8_t textColor; // color&0x0f = foreground, color>>4 = background
     uint8_t borderColor;
-    bool reverse = false; // reverse the color?
+    bool reverse      = false; // reverse the color?
+    bool cursorActive = false;
+
 
     void dropFirstLine();
     void manageOverflow();
 
     // draw character at given character position
     // colText and colBack are the AABBGGRR values of the pixels.
-    void drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colText, uint8_t colBack);
+    void drawCharPal(size_t x, size_t y, char32_t ch, uint8_t colText, uint8_t colBack, bool inverse);
     void drawSprPal(int64_t x, int64_t y, char32_t chimg, int8_t color);
     void drawLineContinuationPal(size_t yline);
+    uint8_t buddyColor(uint8_t colorindex);
 };

@@ -86,7 +86,7 @@ public:
     using Value = std::variant<int64_t, double, std::string, Operator>;
 #endif
 
-    enum class ErrorId {
+    enum ErrorId {
         INTERNAL = 1,
         SYNTAX,
         FILE_NOT_FOUND,
@@ -110,27 +110,8 @@ public:
         VARIABLE_UNDEFINED
     };
 
-    std::map<ErrorId, std::string> errorMessages = {
-        {              ErrorId::INTERNAL,              "INTERNAL ERROR" },
-        {                ErrorId::SYNTAX,                "SYNTAX ERROR" },
-        {        ErrorId::FILE_NOT_FOUND,        "FILE NOT FOUND ERROR" },
-        {        ErrorId::ILLEGAL_DEVICE,        "ILLEGAL DEVICE ERROR" },
-        {      ErrorId::UNDEFD_STATEMENT,     "UNDEF'D STATEMENT ERROR" },
-        {         ErrorId::TYPE_MISMATCH,        "TYPE MISTMATCH ERROR" },
-        {      ErrorId::ILLEGAL_QUANTITY,      "ILLEGAL QUANTITY ERROR" },
-        {         ErrorId::BAD_SUBSCRIPT,         "BAD SUBSCRIPT ERROR" },
-        { ErrorId::UNIMPLEMENTED_COMMAND, "UNIMPLEMENTED COMMAND ERROR" },
-        {           ErrorId::OUT_OF_DATA,           "OUT OF DATA ERROR" },
-        {  ErrorId::RETURN_WITHOUT_GOSUB,        "RETURN WITHOUT GOSUB" },
-        {      ErrorId::NEXT_WITHOUT_FOR,            "NEXT WITHOUT FOR" },
-        {   ErrorId::FORMULA_TOO_COMPLEX,         "FORMULA TOO COMPLEX" },
-        {                 ErrorId::BREAK,                       "BREAK" },
-        {         ErrorId::UNDEFD_MODULE,         "UNDEFD MODULE ERROR" },
-        {        ErrorId::ARGUMENT_COUNT,        "ARGUMENT COUNT ERROR" },
-        {    ErrorId::VARIABLE_UNDEFINED,    "VARIABLE UNDEFINED ERROR" }
-    };
 
-    class Error {
+    class Error : std::exception {
     public:
         Error(ErrorId id) {
             if (id != ErrorId::BREAK) {
@@ -141,6 +122,30 @@ public:
         Error(const Error&)            = default;
         Error& operator=(const Error&) = default;
         ErrorId ID;
+
+        const char* what() const noexcept override {
+            static std::map<ErrorId, std::string> errorMessages = {
+                {              ErrorId::INTERNAL,              "INTERNAL ERROR" },
+                {                ErrorId::SYNTAX,                "SYNTAX ERROR" },
+                {        ErrorId::FILE_NOT_FOUND,        "FILE NOT FOUND ERROR" },
+                {        ErrorId::ILLEGAL_DEVICE,        "ILLEGAL DEVICE ERROR" },
+                {      ErrorId::UNDEFD_STATEMENT,     "UNDEF'D STATEMENT ERROR" },
+                {         ErrorId::TYPE_MISMATCH,        "TYPE MISTMATCH ERROR" },
+                {      ErrorId::ILLEGAL_QUANTITY,      "ILLEGAL QUANTITY ERROR" },
+                {         ErrorId::BAD_SUBSCRIPT,         "BAD SUBSCRIPT ERROR" },
+                { ErrorId::UNIMPLEMENTED_COMMAND, "UNIMPLEMENTED COMMAND ERROR" },
+                {           ErrorId::OUT_OF_DATA,           "OUT OF DATA ERROR" },
+                {  ErrorId::RETURN_WITHOUT_GOSUB,        "RETURN WITHOUT GOSUB" },
+                {      ErrorId::NEXT_WITHOUT_FOR,            "NEXT WITHOUT FOR" },
+                {   ErrorId::FORMULA_TOO_COMPLEX,         "FORMULA TOO COMPLEX" },
+                {                 ErrorId::BREAK,                       "BREAK" },
+                {         ErrorId::UNDEFD_MODULE,         "UNDEFD MODULE ERROR" },
+                {        ErrorId::ARGUMENT_COUNT,        "ARGUMENT COUNT ERROR" },
+                {    ErrorId::VARIABLE_UNDEFINED,    "VARIABLE UNDEFINED ERROR" }
+            };
+
+            return errorMessages[ID].c_str();
+        }
     };
 
 protected:
@@ -420,8 +425,8 @@ protected:
     std::array<std::string, 12> keyShortcuts; // F1..F12 key shortcuts. Set with KEY command
 
 public:
-    bool isCursorActive = true;
-    bool insertMode     = false; // insert/overwrite Alt+INS
+    // bool isCursorActive = true; // screen.cursor.active
+    bool insertMode = false; // insert/overwrite Alt+INS
 
     void uppercaseProgram(std::string& line);
 
