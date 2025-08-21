@@ -73,6 +73,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [RCHARDEF](#rchardef)
     - [READ](#read)
     - [REM](#rem)
+    - [REMODEL](#remodel)
     - [RENUMBER](#renumber)
     - [RESTORE](#restore)
     - [RETURN](#return)
@@ -192,6 +193,7 @@ Here are the key features:
 - Written in C++ (using some C libraries)
 - Very easy to use as a scripting language in your projects
 - Easy to port to other platforms
+- HTML5 port
 - Liberal license
 
 
@@ -1009,10 +1011,20 @@ ON X GOTO 100, 200, 300
 ```
 
 ### OPEN
-**Usage:** `OPEN fileno, "filename , MODE_RW"`
+**Usage:** `OPEN fileno, device=1, secondary=0, "filename , MODE_RW"`
 
-Opens a file for reading or writing. When reading, wild-card
-characters are supported. The mode "R" for reading or "W"
+Opens a file for reading or writing.
+
+The device has the following meanings:
+- 1,8..15: hard disk access
+- 4: printer (print to stdout)
+- 5: printer (print to stderr)
+
+The secondary parameter is currently only for backwards
+compatibility.
+
+When reading, wild-card characters are supported for the
+filename. The mode "R" for reading or "W"
 for writing must be part of the filename argument and
 separated from the file name with an comma character.
 

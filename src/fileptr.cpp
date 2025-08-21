@@ -7,8 +7,11 @@
 
 void FilePtr::close() {
     if (file != nullptr) {
-        fclose(file);
-        file = nullptr;
+        if (!fileIsStdIo) {
+            fclose(file);
+        }
+        fileIsStdIo = false;
+        file        = nullptr;
     }
 
     if (!cloudFileName.empty() && !localTempPath.empty()) {
@@ -63,6 +66,7 @@ std::string FilePtr::tempFileName() {
 
 
 bool FilePtr::open(std::string filenameUtf8, const char* mode) {
+    close();
     if (os->currentDirIsCloud) {
         localTempPath = FilePtr::tempFileName();
         cloudFileName = filenameUtf8;
@@ -93,6 +97,20 @@ bool FilePtr::open(std::string filenameUtf8, const char* mode) {
     return file != nullptr;
 }
 
+bool FilePtr::openStdOut() {
+    close();
+    file        = stdout;
+    fileIsStdIo = true;
+    return file != nullptr;
+}
+
+bool FilePtr::openStdErr() {
+    close();
+    file        = stdout;
+    fileIsStdIo = true;
+    return file != nullptr;
+}
+
 // Cross-platform fprintf-like method
 int FilePtr::printf(const char* fmt, ...) {
     if (!file) {
@@ -113,14 +131,14 @@ void FilePtr::flush() {
 }
 
 int FilePtr::seek(int offset, int origin) {
-    if (!file) {
+    if (!file || fileIsStdIo) {
         return -1;
     }
     return std::fseek(file, long(offset), origin);
 }
 
 size_t FilePtr::tell() {
-    if (!file) {
+    if (!file || fileIsStdIo) {
         return -1;
     }
     return std::ftell(file);
@@ -141,6 +159,9 @@ size_t FilePtr::write(void* buffer, size_t bytes) {
 }
 
 std::vector<uint8_t> FilePtr::readAll() {
+    if (fileIsStdIo) {
+        return {};
+    }
     seek(0, SEEK_END);
     size_t len = tell();
     seek(0, SEEK_SET);
@@ -150,7 +171,9 @@ std::vector<uint8_t> FilePtr::readAll() {
 }
 
 void FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {
-    dirty = false;
+    file        = nullptr;
+    fileIsStdIo = false;
+    dirty       = false;
     if (mode[0] == 'w') {
         isWriting = true;
 

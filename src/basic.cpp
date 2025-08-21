@@ -11,6 +11,7 @@
 #include <variant>
 #include "prg_tool.h"
 #include "minifetch.h"
+#include "petscii.h"
 
 #if defined(__cplusplus) && __cplusplus > 202002L
     #include <format>
@@ -563,13 +564,32 @@ void cmdSCRATCH(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-// TODO: OPEN no,drive, !!15!!: direct mode "S:file" = scratch
+// TODO: OPEN no, drive(8,9,...), !!15!!: direct mode "S:file" = scratch
 void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
-    if (values.size() != 3) {
+    if (values.size() < 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
 
-    int64_t ifile = basic->valueToInt(values[0]);
+    std::vector<int64_t> intparams = { 0, 1, 0 };
+    std::string path;
+
+    size_t iint = 0;
+    for (auto& v : values) {
+        if (basic->valueIsString(v)) {
+            path = basic->valueToString(v);
+            break;
+        } else if (basic->valueIsInt(v) || basic->valueIsDouble(v)) {
+            if (iint == 3) {
+                throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+            }
+            intparams[iint++] = basic->valueToInt(v);
+        }
+    }
+
+    int64_t ifile     = intparams[0];
+    int64_t device    = intparams[1];
+    int64_t secondary = intparams[2];
+
     if (ifile < 1 || size_t(ifile) >= basic->openFiles.size()) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
@@ -580,28 +600,37 @@ void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
         }
     }
 
-    const char* iomode = "r";
-    std::string path   = basic->valueToString(values[2]); // "name*, R", "name, W"
-    size_t comma       = path.rfind(',');
-    if (comma != std::string::npos) {
-        std::string strmode = path.substr(comma + 1);
-        path                = path.substr(0, comma);
-        StringHelper::trimRight(path, " ");
-        StringHelper::trimLeft(strmode, " ");
-        if (strmode.empty()) {
-            throw Basic::Error(Basic::ErrorId::SYNTAX);
+    // printer -> stdout and stderr
+    if (device == 4 || device == 5) {
+        basic->openFiles[ifile].openStdOut();
+    } else {
+        // assume disk device
+        const char* iomode = "r";
+        std::string path   = basic->valueToString(values[2]); // "name*, R", "name, W"
+        size_t comma       = path.rfind(',');
+        if (comma != std::string::npos) {
+            std::string strmode = path.substr(comma + 1);
+            path                = path.substr(0, comma);
+            StringHelper::trimRight(path, " ");
+            StringHelper::trimLeft(strmode, " ");
+            if (strmode.empty()) {
+                throw Basic::Error(Basic::ErrorId::SYNTAX);
+            }
+            if (strmode[0] == 'r' || strmode[0] == 'R') {
+                iomode = "r";
+                path   = basic->os->findFirstFileNameWildcard(path);
+            } else if (strmode[0] == 'w' || strmode[0] == 'W') {
+                iomode = "w";
+            } else {
+                throw Basic::Error(Basic::ErrorId::INTERNAL);
+            }
         }
-        if (strmode[0] == 'r' || strmode[0] == 'R') {
-            iomode = "r";
-            path   = basic->os->findFirstFileNameWildcard(path);
-        } else if (strmode[0] == 'w' || strmode[0] == 'W') {
-            iomode = "w";
-        } else {
-            throw Basic::Error(Basic::ErrorId::INTERNAL);
-        }
+
+        basic->openFiles[ifile].open(path, iomode);
     }
 
-    basic->openFiles[ifile].open(path, iomode);
+
+
     if (!basic->openFiles[ifile]) {
         throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
     }
@@ -4174,28 +4203,30 @@ std::string Basic::inputLine(bool allowVertical) {
             } else { // not ctrl
 
                 if (key.holdAlt) {
-                    char32_t ctrlChar = 0;
                     switch (key.code) {
                     case uint32_t(Os::KeyConstant::INSERT):
                         // ctrlChar = 0x94;
                         insertMode           = !insertMode;
                         os->screen.dirtyFlag = true;
+                        key.code             = 0;
                         break;
 
-                    case uint32_t(Os::KeyConstant::BACKSPACE):  ctrlChar = 0x14; break;
-                    case uint32_t(Os::KeyConstant::DEL):        ctrlChar = 0x14; break;
-                    case uint32_t(Os::KeyConstant::CRSR_LEFT):  ctrlChar = 0x9d; break;
-                    case uint32_t(Os::KeyConstant::CRSR_RIGHT): ctrlChar = 0x1d; break;
-                    case uint32_t(Os::KeyConstant::CRSR_UP):    ctrlChar = 0x91; break;
-                    case uint32_t(Os::KeyConstant::CRSR_DOWN):  ctrlChar = 0x11; break;
-                    case uint32_t(Os::KeyConstant::HOME):       ctrlChar = 0x13; break;
-                    case uint32_t(Os::KeyConstant::END):        ctrlChar = 0x93; break; // clear
+                    case uint32_t(Os::KeyConstant::BACKSPACE):  key.code = 0x14; break;
+                    case uint32_t(Os::KeyConstant::DEL):        key.code = 0x14; break;
+                    case uint32_t(Os::KeyConstant::CRSR_LEFT):  key.code = 0x9d; break;
+                    case uint32_t(Os::KeyConstant::CRSR_RIGHT): key.code = 0x1d; break;
+                    case uint32_t(Os::KeyConstant::CRSR_UP):    key.code = 0x91; break;
+                    case uint32_t(Os::KeyConstant::CRSR_DOWN):  key.code = 0x11; break;
+                    case uint32_t(Os::KeyConstant::HOME):       key.code = 0x13; break;
+                    case uint32_t(Os::KeyConstant::END):        key.code = 0x93; break; // clear
+                    default:
+                        // Alt and Shift+Alt produce the PETSCII characters as on the C128
+                        key.code = PETSCII::unicodeFromAltKeyPress(char(key.code), key.holdShift);
                     }
 
-                    if (ctrlChar == 0) {
+                    if (key.code == 0) {
                         continue;
                     } else {
-                        key.code      = ctrlChar;
                         key.printable = true;
                     }
                 } else { // not alt

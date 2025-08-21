@@ -759,8 +759,8 @@ void CharMap::init(char32_t from, char32_t to) {
     FontDataBits::DataStruct* pData = FontDataBits::getBits();
 
 #if defined(_DEBUG) && defined(_WIN32)
-    BDFExport bdf;
-    bdf.writeBDF(pData, "C:\\Temp\\ba67.bdf");
+    // export font
+    // BDFExport bdf; bdf.writeBDF(pData, "C:\\Temp\\ba67.bdf");
 #endif
 
     while (pData->c != 0xffffffff) {

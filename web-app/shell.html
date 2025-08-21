@@ -6,12 +6,7 @@
     <title>BA67</title>
     <style>
 
-
-
-        @font-face {
-            font-family: "C64 Pro Mono";
-            src: url("./c64_pro/C64_Pro_Mono-STYLE.woff2");
-        }
+        @font-face {font-family: "C64 Pro Mono"; src: url("./c64_pro/C64_Pro_Mono-STYLE.woff2");}
 
         * {
             box-sizing: border-box;
@@ -109,37 +104,6 @@
         }
 
 
-
-        @-webkit-keyframes rotation {
-            from {
-                -webkit-transform: rotate(0deg);
-            }
-
-            to {
-                -webkit-transform: rotate(360deg);
-            }
-        }
-
-        @-moz-keyframes rotation {
-            from {
-                -moz-transform: rotate(0deg);
-            }
-
-            to {
-                -moz-transform: rotate(360deg);
-            }
-        }
-
-        @-o-keyframes rotation {
-            from {
-                -o-transform: rotate(0deg);
-            }
-
-            to {
-                -o-transform: rotate(360deg);
-            }
-        }
-
         @keyframes rotation {
             from {
                 transform: rotate(0deg);
@@ -176,7 +140,7 @@
     </div>
 
     <div id="screen">
-        <canvas width="100000" height="100000" class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+        <canvas width="100000 px" height="100000 px" class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     </div>
     <br />
 

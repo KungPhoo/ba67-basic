@@ -3,8 +3,10 @@
 
     // https://libfpl.org/docs/page_categories.html
     #define FPL_IMPLEMENTATION
-    #define FPL_LOGGING
     #define FPL_NO_AUDIO
+    #if defined(_DEBUG)
+        #define FPL_LOGGING
+    #endif
 
     #include "basic.h"
     #include "final_platform_layer.h"
@@ -74,10 +76,10 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
 
     if (!fplPlatformInit(
     #ifdef _DEBUG
-        // fplInitFlags_Console |
+            fplInitFlags_Console |
     #endif
-            // fplInitFlags_Audio |
-            fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_GameController,
+                // fplInitFlags_Audio |
+                fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_GameController,
             &settings)) {
         return false;
     }
@@ -576,6 +578,7 @@ void OsFPL::updateEvents() {
     }
 
     static KeyPress lastCharPress = {};
+    static char32_t lastAltKey    = 0; // HACK I get a button event for Alt+A, and then an input event A.
 
     bool forceWindowUpdate = false;
     fplEvent event;
@@ -601,6 +604,7 @@ void OsFPL::updateEvents() {
             keyPress.holdAlt   = event.keyboard.modifiers & fplKeyboardModifierFlags_LAlt;
             keyPress.code      = uint32_t(event.keyboard.keyCode); // has umlaut characters
 
+            //
             if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Release) {
                 lastCharPress.code = 0;
             }
@@ -612,8 +616,13 @@ void OsFPL::updateEvents() {
                 }
 
                 keyPress.printable = true;
-                putToKeyboardBuffer(keyPress);
+                if (keyPress.code != lastAltKey && keyPress.code - 'a' + 'A' != lastAltKey) {
+                    putToKeyboardBuffer(keyPress);
+                }
+                lastAltKey    = 0;
                 lastCharPress = keyPress;
+
+
             } else if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Press) {
                 // keyPress.code = 0;
                 keyPress.printable = false;
@@ -730,6 +739,11 @@ void OsFPL::updateEvents() {
                 if (keyPress.code != 0) {
                     // printf("press mapped key $%x key code: $%x shift %c alt %c ctrl %c \n", int(event.keyboard.mappedKey), int(event.keyboard.keyCode), keyPress.holdShift ? 'X' : 'O', keyPress.holdAlt ? 'X' : 'O', keyPress.holdCtrl ? 'X' : 'O');
                     putToKeyboardBuffer(keyPress);
+
+                    if (keyPress.holdAlt) {
+                        lastAltKey = keyPress.code;
+                    }
+
                     if (repeatable) {
                         lastCharPress = keyPress;
                     } else {
@@ -737,7 +751,9 @@ void OsFPL::updateEvents() {
                     }
                 }
             } else if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Repeat) {
-                if (lastCharPress.code != 0 && event.keyboard.mappedKey != fplKey_Shift) {
+                if (lastCharPress.code != 0
+                    && event.keyboard.mappedKey != fplKey_Shift
+                    && event.keyboard.mappedKey != fplKey_Alt) {
                     putToKeyboardBuffer(lastCharPress);
                 }
             }

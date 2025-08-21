@@ -1,5 +1,86 @@
-#include "petscii.h"
+﻿#include "petscii.h"
 #include <unordered_map>
+
+
+// if you hold the ALT key and press a character, you get a petscii.
+// if you hold both: Shift+Alt you get another one.
+// the Alt one is the shifted on the CBM,
+// Shift+Alt simulated the CBM key.
+// Returns 0 on error
+char32_t PETSCII::unicodeFromAltKeyPress(char keyChar, bool withShift) {
+    const char puoundChar = '/'; // char('\xdf'); // German sz
+    char c                = keyChar;
+    if (c >= 'A' && c <= 'Z') {
+        c = c + 'a' - 'A';
+    }
+
+    if (c >= 'a' && c <= 'z') {
+        if (withShift) {
+            return toUnicode(c - 'a' + 0xc1);
+        }
+    }
+    if (withShift) {
+        if (c == '+') {
+            return toUnicode(0x7b);
+        }
+        if (c == '-') {
+            return toUnicode(0x7d);
+        }
+        if (c == '@') {
+            return toUnicode(0xba);
+        }
+        if (c == '*') {
+            return toUnicode(0x60);
+        }
+        if (c == puoundChar) {
+            return toUnicode(0xa9);
+        }
+    } else {
+        static uint8_t cbmmap[] = {
+            uint8_t('a'), 0xB0,
+            uint8_t('b'), 0xBF,
+            uint8_t('c'), 0xBC,
+            uint8_t('d'), 0xAC,
+            uint8_t('e'), 0xB1,
+            uint8_t('f'), 0xBB,
+            uint8_t('g'), 0xA5,
+            uint8_t('h'), 0xB4,
+            uint8_t('i'), 0xA2,
+            uint8_t('j'), 0xB5,
+            uint8_t('k'), 0xA1,
+            uint8_t('l'), 0xB6,
+            uint8_t('m'), 0xA7,
+            uint8_t('n'), 0xAA,
+            uint8_t('o'), 0xB9,
+            uint8_t('p'), 0xAF,
+            uint8_t('q'), 0xAB,
+            uint8_t('r'), 0xB2,
+            uint8_t('s'), 0xAE,
+            uint8_t('t'), 0xA3,
+            uint8_t('u'), 0xB8,
+            uint8_t('v'), 0xBE,
+            uint8_t('w'), 0xB3,
+            uint8_t('x'), 0xBD,
+            uint8_t('y'), 0xB7,
+            uint8_t('z'), 0xAD,
+            uint8_t('+'), 0x7f,
+            uint8_t('-'), 0xA6,
+            uint8_t('@'), 0x7c,
+            uint8_t('*'), 0x5F,
+            puoundChar, 0xA8,
+            0, 0
+        };
+
+        // GPT says +-@ is a6,dc,a4
+
+        for (const uint8_t* p = cbmmap; *p != 0; p += 2) {
+            if (*p == c) {
+                return toUnicode(p[1]);
+            }
+        }
+    }
+    return U'\0';
+}
 
 char32_t PETSCII::toUnicode(uint8_t petscii) {
     // Mapping of PETSCII.BA67 to Unicode

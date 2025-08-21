@@ -37,7 +37,7 @@
 ,{"NETGET", R"RAW(NETGET url$, c$)RAW"}
 ,{"NEXT", R"RAW(NEXT [var])RAW"}
 ,{"ON", R"RAW(ON expr GOTO/GOSUB line1, line2, ...)RAW"}
-,{"OPEN", R"RAW(OPEN fileno, "filename , MODE_RW")RAW"}
+,{"OPEN", R"RAW(OPEN fileno, device=1, secondary=0, "filename , MODE_RW")RAW"}
 ,{"PLAY", R"RAW(PLAY abc_notation$)RAW"}
 ,{"POKE", R"RAW(POKE address, byte)RAW"}
 ,{"PRINT", R"RAW(PRINT expr [[,|;| ] expr ...])RAW"}

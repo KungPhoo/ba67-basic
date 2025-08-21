@@ -14,6 +14,7 @@ Os::KeyPress Os::getFromKeyboardBuffer() {
     while (!keyboardBufferHasData()) {
         delay(150); // this cools the CPU when we wait for keyboard input
         updateEvents();
+        presentScreen();
     }
     auto k = keyboardBuffer.back();
     keyboardBuffer.pop_back();

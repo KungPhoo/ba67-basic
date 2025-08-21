@@ -148,7 +148,7 @@ void OsSDL2::presentScreen() {
     }
     #endif
 
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // or "linear"
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear"); // or "nearest", "linear", "best"
     SDL_RenderSetLogicalSize(renderer, txW, txH);
 
     SDL_RenderClear(renderer);

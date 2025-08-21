@@ -25,13 +25,19 @@ rem assume you installed emscripten to "%USERPROFILE%\emsdk
 call "%EMSDK%\emsdk_env.bat"
 pushd "%~dp0"
 
+
+mkdir "%BA67%\bin\"             2> nul
+mkdir "%BA67%\bin\html\"        2> nul
+del "%BA67%\bin\html\BA67.html" 2> nul
+
+
 call emcmake cmake "%BA67%"
 rem optionally force a rebuild
 rem call cmake --build . --target clean
 call cmake --build . --
 
-if exist "%BA67%\bin\BA67.html" (
-call emrun "%BA67%\bin\BA67.html"
+if exist "%BA67%\bin\html\BA67.html" (
+call emrun "%BA67%\bin\html\BA67.html"
 )
 popd
 pause

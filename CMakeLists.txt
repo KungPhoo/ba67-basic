@@ -88,6 +88,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/lib")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/bin")
 
+if (EMSCRIPTEN)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/bin/html")
+endif()
 
 # Unicode build (for Windows runtime)
 if (MSVC)
@@ -173,6 +176,13 @@ if (WIN32)
     target_link_libraries(${APP_NAME} PUBLIC windows_resource_lib)
 endif()
 
+# Website
+add_custom_command(
+    TARGET ${APP_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_LIST_DIR}/readme.md" "${CMAKE_CURRENT_LIST_DIR}/www.ba67.org/"
+)
+
+
 # Emscripten specific
 if (EMSCRIPTEN)
     # Emscripten-specific flags
@@ -209,7 +219,7 @@ if (EMSCRIPTEN)
     -sEXPORTED_RUNTIME_METHODS=ccall,cwrap \
     -sSTACK_SIZE=1048576 \
     -sMINIFY_HTML=0 \
-    --shell-file \"${CMAKE_CURRENT_LIST_DIR}/web-app/index.html\"  \
+    --shell-file \"${CMAKE_CURRENT_LIST_DIR}/web-app/shell.html\"  \
     "
     )
 # These should be added

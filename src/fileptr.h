@@ -49,6 +49,8 @@ public:
     static std::string tempFileName();
 
     bool open(std::string filenameUtf8, const char* mode);
+    bool openStdOut();
+    bool openStdErr();
 
     int printf(const char* fmt, ...);
     void flush();
@@ -65,7 +67,8 @@ private:
     bool isWriting = false;
     std::string cloudFileName; // filename for cloud
     std::string localTempPath; // in case this is a cloud file
-    FILE* file = nullptr;
+    bool fileIsStdIo = false;
+    FILE* file       = nullptr;
 
     void fopenLocal(std::string filenameUtf8, const char* mode);
 };
