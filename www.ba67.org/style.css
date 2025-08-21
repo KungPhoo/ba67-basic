@@ -1,13 +1,11 @@
 ﻿/* C64 BASIC Screen Style */
 
-@font-face {
-    font-family: "C64 Pro Mono";
-    src: url("c64_pro/C64_Pro_Mono-STYLE.woff2");
-}
+/* @font-face {font-family: "C64 Pro Mono";src: url("c64_pro/C64_Pro_Mono-STYLE.woff2");} */
+@font-face {font-family: BA67; src: url("BA67-square.woff2");}
 
 
 body {
-    font-family: "C64 Pro Mono", monospace;
+    font-family: BA67, monospace;
     font-size: 16px;
     background-color: #91ff84;
     background-image: url("bg_ltgreen.png");
@@ -53,7 +51,7 @@ img {
 }
 #content ul,
 #content li {
-    list-style-type: none;
+    list-style-type: square;
 }
 
 /* Inline code */
@@ -62,7 +60,7 @@ pre{
 
 }
 code{
-    font-family: "C64 Pro Mono", monospace;
+    font-family: BA67, monospace;
     color: #ffffff; /* White */
     overflow-x: auto; /* scrollbar if required */
 }

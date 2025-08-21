@@ -420,7 +420,8 @@ function unicodeFromAltKeyPressInt(keyChar, withShift) {
     // no font supports LOWER HALF MEDIUM SHADE (U+1FB8F),
     // so we go for U + 2584 — LOWER HALF BLOCK on the keyboard.
     // BA67 does, however, support it.
-    if (cp == 0x0001fb8f) { cp = 0x00002584; }
+    // if (cp == 0x0001fb8f) { cp = 0x00002584; }
+    // stop! one font does: BA68.
 
     return cp;
 }

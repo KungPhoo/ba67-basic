@@ -72,7 +72,7 @@ class BDFExport {
     }
 
 public:
-    void writeBDF(const FontDataBits::DataStruct* bits, const std::string& filename) {
+    void writeBDFunscaled(const FontDataBits::DataStruct* bits, const std::string& filename) {
         std::ofstream out(filename);
         if (!out) {
             std::cerr << "Cannot open file: " << filename << "\n";
@@ -123,6 +123,81 @@ public:
         out << "ENDFONT\n";
         out.close();
         std::cout << "Wrote: " << filename << "\n";
+    }
+
+
+
+    void writeBDF(const FontDataBits::DataStruct* bits,
+                  const std::string& filename,
+                  int scalex = 1, int scaley = 1) {
+        std::ofstream out(filename);
+        if (!out) {
+            std::cerr << "Cannot open file: " << filename << "\n";
+            return;
+        }
+
+        const int glyphW = 8 * scalex;
+        const int glyphH = 8 * scaley;
+
+        // BDF Header
+        out << "STARTFONT 2.1\n"
+            << "FONT -BA67-BA67-medium-upright-normal--" << glyphH
+            << "-" << glyphH * 10 << "-75-75-monospaced-" << glyphW
+            << "-ISO10646-1\n"
+            << "SIZE " << glyphH << " 75 75\n"
+            << "FONTBOUNDINGBOX " << glyphW << " " << glyphH << " 0 0\n"
+            << "STARTPROPERTIES 2\n"
+            << "FONT_ASCENT " << glyphH - 2 << "\n"
+            << "FONT_DESCENT 2\n"
+            << "ENDPROPERTIES\n";
+
+        // Count glyphs
+        int count = 0;
+        for (const auto* ptr = bits; ptr->c != 0xffffffff; ++ptr)
+            ++count;
+        out << "CHARS " << count << "\n";
+
+        // Glyphs
+        for (const auto* ptr = bits; ptr->c != 0xffffffff; ++ptr) {
+            char32_t codepoint = ptr->c;
+            const uint8_t* bmp = ptr->b;
+
+            out << "STARTCHAR U+" << std::hex << std::uppercase << int(codepoint) << "\n";
+            out << "ENCODING " << std::dec << int(codepoint) << "\n";
+            out << "SWIDTH " << (glyphW * 1000 / glyphH) << " 0\n"; // rough scaling
+            out << "DWIDTH " << glyphW << " 0\n";
+            out << "BBX " << glyphW << " " << glyphH << " 0 0\n";
+            out << "BITMAP\n";
+
+            // Scale rows and columns
+            for (int y = 0; y < 8; ++y) {
+                // expand one row horizontally
+                std::vector<uint8_t> expanded(glyphW / 8, 0);
+                for (int x = 0; x < 8; ++x) {
+                    bool on = (bmp[y] >> (7 - x)) & 1;
+                    if (on) {
+                        int start = x * scalex;
+                        for (int sx = 0; sx < scalex; ++sx) {
+                            int px = start + sx;
+                            expanded[px / 8] |= (0x80 >> (px % 8));
+                        }
+                    }
+                }
+
+                // write this row "scale" times (vertical scaling)
+                for (int sy = 0; sy < scaley; ++sy) {
+                    for (uint8_t b : expanded)
+                        out << toHex(b);
+                    out << "\n";
+                }
+            }
+
+            out << "ENDCHAR\n";
+        }
+
+        out << "ENDFONT\n";
+        out.close();
+        std::cout << "Wrote: " << filename << " with scale " << scalex << "x" << scaley << "x\n";
     }
 };
 #endif
@@ -760,7 +835,9 @@ void CharMap::init(char32_t from, char32_t to) {
 
 #if defined(_DEBUG) && defined(_WIN32)
     // export font
-    // BDFExport bdf; bdf.writeBDF(pData, "C:\\Temp\\ba67.bdf");
+    BDFExport bdf;
+    bdf.writeBDF(pData, "C:\\Temp\\ba67.bdf", 8, 16);
+    bdf.writeBDF(pData, "C:\\Temp\\ba67-square.bdf", 8, 8);
 #endif
 
     while (pData->c != 0xffffffff) {

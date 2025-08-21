@@ -1,3 +1,5 @@
+@font-face {font-family: BA67; src: url("BA67-square.woff2");}
+
 .keyboard {
     position: fixed;
     bottom: 0px;
@@ -41,7 +43,7 @@ gaps
 
 
 .keyboard button {
-    font-family: 'Segoe UI Symbol','Noto Emoji Regular','Noto Emoji Regular','Arial Unicode MS',Arial; font-size: 4vw; width: 10vw;
+    font-family: BA67,'Segoe UI Symbol','Noto Emoji Regular','Noto Emoji Regular','Arial Unicode MS',Arial; font-size: 4vw; width: 10vw;
     height: 10vw;
     padding: 0;
     border: 1px solid #1d130e;
