@@ -835,9 +835,12 @@ void CharMap::init(char32_t from, char32_t to) {
 
 #if defined(_DEBUG) && defined(_WIN32)
     // export font
+    #if 0
     BDFExport bdf;
+    
     bdf.writeBDF(pData, "C:\\Temp\\ba67.bdf", 8, 16);
     bdf.writeBDF(pData, "C:\\Temp\\ba67-square.bdf", 8, 8);
+    #endif
 #endif
 
     while (pData->c != 0xffffffff) {
@@ -849,7 +852,6 @@ void CharMap::init(char32_t from, char32_t to) {
                 this->at(pData->c) = bmp;
             }
         }
-
         ++pData;
     }
 
