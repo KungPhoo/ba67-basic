@@ -578,7 +578,7 @@ void OsFPL::updateEvents() {
     }
 
     static KeyPress lastCharPress = {};
-    static char32_t lastAltKey    = 0; // HACK I get a button event for Alt+A, and then an input event A.
+    static char32_t lastAltKey    = -1; // HACK I get a button event for Alt+A, and then an input event A.
 
     bool forceWindowUpdate = false;
     fplEvent event;
@@ -619,7 +619,7 @@ void OsFPL::updateEvents() {
                 if (keyPress.code != lastAltKey && keyPress.code - 'a' + 'A' != lastAltKey) {
                     putToKeyboardBuffer(keyPress);
                 }
-                lastAltKey    = 0;
+                lastAltKey    = -1;
                 lastCharPress = keyPress;
 
 

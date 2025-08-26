@@ -113,6 +113,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [MOD](#mod)
     - [PEEK](#peek)
     - [PEN](#pen)
+    - [PETSCII$](#petscii-)
     - [POS](#pos)
     - [POSY](#posy)
     - [RIGHT$](#right-)
@@ -676,8 +677,8 @@ The spacial command `CHDIR "CLOUD"` is described in the
 
 Specifies the cloud storage parameters.
 BA67 can load and write files to a cloud storage. See the
-file `cloud.php` in the `www.ba67.org` folder of the source
-code to host our own cloud service.
+file `cloud.php` in the `www.ba67.org/cloud` folder of the
+source code to host our own cloud service.
 
 When you `CHDIR "CLOUD"`, all read and write access will
 be done on the cloud you provided. You can go back to
@@ -1244,7 +1245,18 @@ Optionally, a line number can be specified.
 
 Saves the BASIC program of the current module to a file on
 the disk drive. The file extension ".BA67" is recommended.
-If no file extension is given, it will be appended.
+If no file extension is given, ".BAS" will be appended.
+
+If you're saving to the cloud, you can wirte-protect your
+file with the ",P" parameter in the file name. Once set,
+the file can not be overwritten or deleted without this
+password.
+
+Example:
+`SAVE "EXAMPLE.BAS,Pput-your-password-here"`
+
+This parameter has no effect on the C128 and is, thus,
+backwards compatible.
 
 See also `QSAVE`.
 
@@ -1599,6 +1611,14 @@ The return value depends on the argument value that is passed:
 - `3` Y position
 - `4` Mouse button bits: 1, 2 and 4.
 
+### PETSCII$
+**Usage:** `PRINT PETSCII$($cc)`
+
+Returns the Unicode code point as a string, that
+represents the original PETSCII character.
+If the input value is negative, the shifted
+characters are returned.
+
 ### POS
 **Usage:** `POS(0)`
 
@@ -1826,29 +1846,42 @@ using the `CLOUD` command.
 
 This can be used to share code or high-score data. All
 file commands should work on the could, too.
+(Slow, but working).
 
 There are no directories in the cloud.
 
 All filenames are and will be made upper-case.
 
 You can use the provided demo server:
-`CLOUD "examples@ba67.org", "https://www.ba67.org/cloud.php"`.
+`CLOUD "examples@ba67.org", "https://www.ba67.org/cloud/"`.
+(Don't forget the trailing slash!)
 This is even the default value when you start BA67.
 Please do not change, add or delete files of this cloud user.
 You are even allowed to use your own email address with this
 server. You email will not be send in clear text, but the
 encryption is not strong, either.
-Data is sent over HTTP in clear text.
 
-You're not allowed to upload any material that might be illegal
-anywhere on this planet. Your data is not safe from being hacked.
+When saving a file, the ",P" part of the filename
+can provide a password. Once set, the file can not be
+overwritten or deleted without this password.
+
+Example:
+`SAVE "EXAMPLE.BAS,Pput-your-password-here"`
+
+
+**Rules for www.ba67.org/cloud/ are:**
+- You're not allowed to upload any material that might be illegal
+  anywhere on this planet.
+- File size limit is 128k per file.
+- Disk size limit is 100x128k per email.
+- Your data is not safe from being hacked.
+- Your data is not safe from being deleted.
+- You're not allowed to cause harm to anyone anywhere.
+- Be good.
 
 Do not "hack" this server. Everyone and his dog can do it.
 You're not doing anything special. Instead, learn to code something
 cool and show the world what you can do.
-
-If you host `cloud.php` on an https server, things might be
-a little more secure.
 
 -------------------------------------------------------------
 ## D - Developers

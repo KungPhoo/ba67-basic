@@ -1,4 +1,4 @@
-// UTF-8 äöüß
+// UTF-8 äöüß 
 
 // Modifier states
 let shiftActive = false;
@@ -305,7 +305,7 @@ function unicodeFromAltKeyPressInt(keyChar, withShift) {
         0xDA: 0x00002666, // (!) black diamond suit
         0xDB: 0x0000253C, // (!) box drawings light vertical and horizontal
         0xDC: 0x0001FB8C, // (!) LEFT HALF MEDIUM SHADE
-        0xDD: 0x00002502, // (!) box drawings light vertical
+        0xDD: 0x00002503, // (!) box drawings heavy vertical
         0xDE: 0x000003C0, // (!) greek small letter pi
         0xDF: 0X0001FB98, // (!) UPPER LEFT TO LOWER RIGHT FILL '\\'  --- from lowercase
         0xE0: 0x000000A0, // (!) no-break space

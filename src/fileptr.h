@@ -45,9 +45,10 @@ public:
     ~FilePtr() { close(); }
     // operator FILE*() { return file; }
     operator bool() const { return file != nullptr; }
-    void close();
+    bool close();
     static std::string tempFileName();
 
+    void setPassword(std::string pw);
     bool open(std::string filenameUtf8, const char* mode);
     bool openStdOut();
     bool openStdErr();
@@ -59,16 +60,19 @@ public:
     size_t read(void* buffer, size_t bytes);
     size_t write(void* buffer, size_t bytes);
     std::vector<uint8_t> readAll();
+    std::string status() const { return lastStatus; }
 
 
 private:
     Os* os         = nullptr;
     bool dirty     = false;
     bool isWriting = false;
+    std::string password; // SAVE "xx,P" -> locking files in the cloud to read-only
     std::string cloudFileName; // filename for cloud
     std::string localTempPath; // in case this is a cloud file
     bool fileIsStdIo = false;
     FILE* file       = nullptr;
+    std::string lastStatus;
 
     void fopenLocal(std::string filenameUtf8, const char* mode);
 };

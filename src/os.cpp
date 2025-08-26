@@ -1,4 +1,4 @@
-#include "os.h"
+﻿#include "os.h"
 #include "unicode.h"
 #include <algorithm>
 #include <filesystem>
@@ -42,6 +42,13 @@ void Os::putToKeyboardBuffer(Os::KeyPress key, bool applyBufferLimit) {
     if (applyBufferLimit && keyboardBuffer.size() > 128 * 1024) {
         keyboardBuffer.pop_back();
     }
+}
+
+// Lock symbol, that's appended to indicate, this file is a password protected file.
+// also see the cloud.php implementation of this.
+// You can override this to change what CATALOG etc. shows.
+std::string Os::lockSymbol() const {
+    return std::string((const char*)u8"🔒"); // \u1f512"; Bytes: f0, 9f, 94, 92
 }
 
 std::string Os::getCurrentDirectory() {
@@ -92,8 +99,9 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
         //     return {};
         // }
 
-        char* next_line = nullptr;
-        char* buffer    = nullptr;
+        std::string lockSymbol = Os::lockSymbol(); // not any derived class!
+        char* next_line        = nullptr;
+        char* buffer           = nullptr;
         if (!resp.bytes.empty()) {
             buffer = StringHelper::strtok_r((char*)(&resp.bytes[0]), "\r\n", &next_line);
         }
@@ -114,8 +122,14 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
                 ++c;
             }
             fi.name = c;
+
+            if (fi.name.ends_with(lockSymbol)) {
+                fi.name     = fi.name.substr(0, fi.name.length() - lockSymbol.length());
+                fi.isLocked = true;
+            }
+
             if (!fi.name.empty()) {
-                files.emplace_back(fi);
+                files.push_back(fi);
             }
 
             buffer = StringHelper::strtok_r(nullptr, "\r\n", &next_line);
@@ -595,6 +609,9 @@ std::string Os::findFirstFileNameWildcard(std::string filenameUtf8, bool isDirec
     //     return filenameUtf8;
     // }
     std::string cd = getCurrentDirectory();
+
+
+    StringHelper::trimRight(filenameUtf8, this->lockSymbol().c_str()); // here, call the overloaded function
 
     std::string fixedDirs;
     if (!currentDirIsCloud) {

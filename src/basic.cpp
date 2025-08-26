@@ -480,9 +480,9 @@ void cmdLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
     std::string path = basic->valueToString(values[0]);
-    if (!basic->fileExists(path, true)) {
-        throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
-    }
+    // if (!basic->fileExists(path, true)) {
+    //     throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
+    // }
 
     basic->os->screen.cleanCurrentLine();
     basic->printUtf8String("LOADING\n");
@@ -929,7 +929,8 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
         dirname    = dirname.substr(dirname.length() - len);
     }
     if (basic->os->dirIsInCloud()) {
-        dirname += std::string((const char*)(u8" \u2601"));
+        dirname = std::string((const char*)(u8"\u2601 "));
+        dirname += basic->os->cloudUrl;
     }
     basic->os->screen.cleanCurrentLine();
     basic->printUtf8String((const char*)(u8"╔══"));
@@ -940,8 +941,9 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
     std::u32string filter32;
     Unicode::toU32String(filter.c_str(), filter32);
 
+    std::string lockSymbol = basic->os->lockSymbol();
     for (size_t i = 0; i < files.size(); ++i) {
-        auto& f = files[i].name;
+        auto f = files[i].name;
 
         if (!filter.empty()) {
             std::u32string f32;
@@ -949,6 +951,10 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
             if (!Unicode::wildcardMatchNoCase(f32.c_str(), filter32.c_str())) {
                 continue;
             }
+        }
+
+        if (files[i].isLocked) {
+            f += lockSymbol;
         }
 
         // 5 chars+space for file size - space for CHDIR command
@@ -1228,6 +1234,23 @@ Basic::Value fktPEN(Basic* basic, const std::vector<Basic::Value>& args) {
     throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
 }
 
+Basic::Value fktPETSCII$(Basic* basic, const std::vector<Basic::Value>& args) {
+    if (args.size() != 1) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    std::string str;
+    int64_t index = basic->valueToInt(args[0]);
+    if (index >= 0 && index <= 0xff) {
+        Unicode::appendAsUtf8(str, PETSCII::realPETSCIItoUnicode(index & 0xff, false));
+    } else if (index < 0 && index >= -0xff) {
+        Unicode::appendAsUtf8(str, PETSCII::realPETSCIItoUnicode(-index & 0xff, false));
+    } else {
+        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+    }
+    return Basic::Value(str);
+}
+
+
 
 void Basic::Array::dim(Value init, size_t i0, size_t i1, size_t i2, size_t i3) {
     dim(init, { i0, i1, i2, i3 });
@@ -1400,6 +1423,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "MID$", fktMID$ },
         { "PEEK", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(memory[basic->valueToInt(args[0])]); } },
         { "PEN", fktPEN },
+        { "PETSCII$", fktPETSCII$ },
         { "POS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().x); } },
         { "POSY", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().y); } },
         { "RIGHT$", fktRIGHT$ },
@@ -4506,9 +4530,12 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
     } catch (const Error& e) {
         currentFileNo = 0;
         // dumpVariables();
-        auto& pc          = programCounter();
-        std::string& line = pc.line->second;
-        int iline         = pc.line->first;
+        auto& pc  = programCounter();
+        int iline = 0;
+        if (pc.line != currentListing().end() && pc.line->first != -1) {
+            // std::string& line = pc.line->second;
+            iline = pc.line->first;
+        }
         if (iline >= 0) {
             restoreColorsAndCursor(true);
             std::string msg = "?" + std::string(e.what()) + " IN " + valueToString(iline) + "\n";
@@ -4784,7 +4811,16 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
 }
 
 bool Basic::saveProgram(std::string filenameUtf8) {
+
+    std::string password;
+    size_t posLock = filenameUtf8.find(",P");
+    if (posLock != std::string::npos) {
+        password     = filenameUtf8.substr(posLock + 2);
+        filenameUtf8 = filenameUtf8.substr(0, posLock);
+    }
+
     FilePtr file(os);
+    file.setPassword(password);
     file.open(filenameUtf8, "wb");
     if (!file) {
         return false;
@@ -4832,7 +4868,11 @@ bool Basic::saveProgram(std::string filenameUtf8) {
         }
     }
 
-    file.close();
+    if (!file.close()) {
+        os->screen.cleanCurrentLine();
+        printUtf8String(file.status());
+        os->screen.putC('\0');
+    }
 
 
     return true;

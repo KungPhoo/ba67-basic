@@ -86,6 +86,7 @@
 ,{"MOD", R"RAW(n=MOD(numerator, denominator))RAW"}
 ,{"PEEK", R"RAW(PEEK(address))RAW"}
 ,{"PEN", R"RAW(PEN(X0_Y1_X2_Y3_BT4))RAW"}
+,{"PETSCII$", R"RAW(PRINT PETSCII$($cc))RAW"}
 ,{"POS", R"RAW(POS(0))RAW"}
 ,{"POSY", R"RAW(POSY(0))RAW"}
 ,{"RIGHT$", R"RAW(RIGHT$(string, n))RAW"}

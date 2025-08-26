@@ -192,6 +192,7 @@ public:
         std::string name;
         uint64_t filesize = 0;
         bool isDirectory  = false;
+        bool isLocked     = false; // password protected cloud file
         bool operator<(const FileInfo& i) const {
             if (isDirectory != i.isDirectory) {
                 return isDirectory;
@@ -199,6 +200,7 @@ public:
             return name < i.name;
         }
     };
+    virtual std::string lockSymbol() const;
     virtual std::string getCurrentDirectory();
     virtual bool setCurrentDirectory(const std::string& dir);
     virtual std::vector<FileInfo> listCurrentDirectory();
@@ -210,7 +212,7 @@ public:
 
     std::string findFirstFileNameWildcard(std::string filenameUtf8, bool isDirectory = false);
 
-    std::string cloudUrl  = "https://www.ba67.org/cloud.php";
+    std::string cloudUrl  = "https://www.ba67.org/cloud/";
     std::string cloudUser = "examples@ba67.org";
     bool dirIsInCloud() const { return currentDirIsCloud; }
 

@@ -94,7 +94,7 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
     // (-) Unicode equals PETSCII
     // (!) Unicode code point differs from PETSCII code
     // (*) Character is neither upper nor lowercase PETSCII
-    // (?) No Unicode pendant was found. The PETSCII code is used
+    // (?) No Unicode pendant was found. See remark
 
     static char32_t petsciiMapping[256]
         = {
@@ -305,9 +305,9 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
               /* 0xC0, */ 0x00002501, // (!) box drawings light horizontal
               /* 0xC1, */ 0x00002660, // (!) black spade suit
               /* 0xC2, */ 0x00002758, // (!) LIGHT VERTICAL BAR
-              /* 0xC3, */ 0x00002501, // (!) BOX DRAWINGS HEAVY HORIZONTAL           1FB78, // (!) box drawings light horizontal
+              /* 0xC3, */ 0x00002501, // (!) BOX DRAWINGS HEAVY HORIZONTAL
               /* 0xC4, */ 0x0001FB77, // (!) box drawings light horizontal one quarter up
-              /* 0xC5, */ 0x0001FB76, // (!) box drawings light horizontal two quarters up (bad)
+              /* 0xC5, */ 0x0001FB76, // (?) box drawings light horizontal two quarters up (bad)
               /* 0xC6, */ 0x0001FB7A, // (!) box drawings light horizontal one quarter down
               /* 0xC7, */ 0x0001FB71, // (!) box drawings light vertical one quarter left
               /* 0xC8, */ 0x0001FB74, // (!) box drawings light vertical one quarter right
@@ -332,7 +332,7 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
               /* 0xDA, */ 0x00002666, // (!) black diamond suit
               /* 0xDB, */ 0x0000253C, // (!) box drawings light vertical and horizontal
               /* 0xDC, */ 0x0001FB8C, // (!) LEFT HALF MEDIUM SHADE
-              /* 0xDD, */ 0x00002502, // (!) box drawings light vertical
+              /* 0xDD, */ 0x00002503, // (!) box drawings heavy vertical
               /* 0xDE, */ 0x000003C0, // (!) greek small letter pi
               /* 0xDF, */ 0X0001FB98, // (!) UPPER LEFT TO LOWER RIGHT FILL '\\'  --- from lowercase
 
@@ -526,7 +526,7 @@ char32_t PETSCII::realPETSCIItoUnicode(uint8_t petscii, bool shiftedFont) {
               /* 0x7A, */ 0x00002666, // (!) black diamond suit
               /* 0x7B, */ 0x0000253C, // (!) box drawings light vertical and horizontal
               /* 0x7C, */ 0x0001FB8C, // (!) LEFT HALF MEDIUM SHADE
-              /* 0x7D, */ 0x00002502, // (!) box drawings light vertical
+              /* 0x7D, */ 0x00002503, // (!) box drawings heavy vertical
               /* 0x7E, */ 0x000003C0, // (!) greek small letter pi
               /* 0x7F, */ 0x000025E5, // (!) black upper right triangle
 
@@ -628,7 +628,7 @@ char32_t PETSCII::realPETSCIItoUnicode(uint8_t petscii, bool shiftedFont) {
               /* 0xDA, */ 0x00002666, // (!) black diamond suit
               /* 0xDB, */ 0x0000253C, // (!) box drawings light vertical and horizontal
               /* 0xDC, */ 0x0001FB8C, // (!) LEFT HALF MEDIUM SHADE
-              /* 0xDD, */ 0x00002502, // (!) box drawings light vertical
+              /* 0xDD, */ 0x00002503, // (!) box drawings heavy vertical
               /* 0xDE, */ 0x000003C0, // (!) greek small letter pi
               /* 0xDF, */ 0x000025E5, // (!) black upper right triangle
 

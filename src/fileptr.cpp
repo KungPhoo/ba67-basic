@@ -4,8 +4,11 @@
 #include <cstdarg>
 #include "os.h"
 #include "unicode.h"
+#include "string_helper.h"
 
-void FilePtr::close() {
+bool FilePtr::close() {
+    lastStatus.clear();
+
     if (file != nullptr) {
         if (!fileIsStdIo) {
             fclose(file);
@@ -14,6 +17,7 @@ void FilePtr::close() {
         file        = nullptr;
     }
 
+    bool rv = true;
     if (!cloudFileName.empty() && !localTempPath.empty()) {
         if (dirty) {
             // Upload a file
@@ -28,23 +32,28 @@ void FilePtr::close() {
                 { "filedata1", localTempPath }
             };
             ft.request.getVariables = {
-                { "file", cloudFileName }
+                {     "file", cloudFileName },
+                { "password",      password }
             };
-            auto resp = ft.fetch();
+            auto resp  = ft.fetch();
+            lastStatus = resp.toString();
 
             if (resp.status != MiniFetch::Status::OK) {
+                if ((resp.status / 100) == 4) {
+                    rv = false;
+                }
             }
-            auto str = resp.toString();
         }
-        cloudFileName.clear();
     }
     if (!localTempPath.empty()) {
         std::error_code ec;
         std::filesystem::remove(localTempPath, ec);
-        localTempPath.clear();
     }
-    // TODO throw, maybe
     dirty = false;
+    localTempPath.clear();
+    cloudFileName.clear();
+    // TODO throw, maybe
+    return rv;
 }
 
 std::string FilePtr::tempFileName() {
@@ -65,7 +74,13 @@ std::string FilePtr::tempFileName() {
 }
 
 
+void FilePtr::setPassword(std::string pw) {
+    password = pw; // we can use any character and emoji here.
+}
+
 bool FilePtr::open(std::string filenameUtf8, const char* mode) {
+    lastStatus.clear();
+
     close();
     if (os->currentDirIsCloud) {
         localTempPath = FilePtr::tempFileName();
@@ -83,12 +98,15 @@ bool FilePtr::open(std::string filenameUtf8, const char* mode) {
             ft.request.getVariables = {
                 { "file", cloudFileName }
             };
-            auto resp = ft.fetch();
+            auto resp  = ft.fetch();
+            lastStatus = resp.toString();
             if (resp.status == MiniFetch::Status::OK) {
                 FilePtr ftmp(os);
                 ftmp.fopenLocal(filenameUtf8, "wb");
                 ftmp.printf("%s", resp.toString().c_str());
                 ftmp.close();
+            } else {
+                return false;
             }
         }
     }
@@ -99,6 +117,7 @@ bool FilePtr::open(std::string filenameUtf8, const char* mode) {
 
 bool FilePtr::openStdOut() {
     close();
+    lastStatus.clear();
     file        = stdout;
     fileIsStdIo = true;
     return file != nullptr;
@@ -106,6 +125,7 @@ bool FilePtr::openStdOut() {
 
 bool FilePtr::openStdErr() {
     close();
+    lastStatus.clear();
     file        = stdout;
     fileIsStdIo = true;
     return file != nullptr;
@@ -114,6 +134,7 @@ bool FilePtr::openStdErr() {
 // Cross-platform fprintf-like method
 int FilePtr::printf(const char* fmt, ...) {
     if (!file) {
+        lastStatus = "BAD FILE";
         return -1;
     }
     dirty = true;
@@ -132,6 +153,7 @@ void FilePtr::flush() {
 
 int FilePtr::seek(int offset, int origin) {
     if (!file || fileIsStdIo) {
+        lastStatus = "BAD FILE";
         return -1;
     }
     return std::fseek(file, long(offset), origin);
@@ -139,6 +161,7 @@ int FilePtr::seek(int offset, int origin) {
 
 size_t FilePtr::tell() {
     if (!file || fileIsStdIo) {
+        lastStatus = "BAD FILE";
         return -1;
     }
     return std::ftell(file);
@@ -146,6 +169,7 @@ size_t FilePtr::tell() {
 
 size_t FilePtr::read(void* buffer, size_t bytes) {
     if (!file) {
+        lastStatus = "BAD FILE";
         return 0;
     }
     return fread(buffer, bytes, 1, file);
@@ -153,6 +177,7 @@ size_t FilePtr::read(void* buffer, size_t bytes) {
 
 size_t FilePtr::write(void* buffer, size_t bytes) {
     if (!file) {
+        lastStatus = "BAD FILE";
         return 0;
     }
     return fwrite(buffer, bytes, 1, file);
@@ -171,6 +196,7 @@ std::vector<uint8_t> FilePtr::readAll() {
 }
 
 void FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {
+    lastStatus.clear();
     file        = nullptr;
     fileIsStdIo = false;
     dirty       = false;
@@ -184,6 +210,9 @@ void FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {
 #else
         file = std::fopen(filenameUtf8.c_str(), "wb");
 #endif
+        if (!file) {
+            lastStatus = "CAN'T OPEN FOR WRITING";
+        }
     } else if (mode[0] == 'r') {
         isWriting = false;
 #ifdef _WIN32
@@ -193,7 +222,13 @@ void FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {
 #else
         file = std::fopen(filenameUtf8.c_str(), "rb");
 #endif
+        if (!file) {
+            lastStatus = "CAN'T OPEN FOR READING";
+        }
     } else {
+        if (!file) {
+            lastStatus = "UNSUPPORTED MODE";
+        }
         throw std::runtime_error("FilePtr::open - only r and w supported");
     }
 }

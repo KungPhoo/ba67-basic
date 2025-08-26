@@ -837,7 +837,7 @@ void CharMap::init(char32_t from, char32_t to) {
     // export font
     #if 0
     BDFExport bdf;
-    
+
     bdf.writeBDF(pData, "C:\\Temp\\ba67.bdf", 8, 16);
     bdf.writeBDF(pData, "C:\\Temp\\ba67-square.bdf", 8, 8);
     #endif
