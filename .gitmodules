@@ -7,3 +7,6 @@
 [submodule "minifetch"]
 	path = minifetch
 	url = https://github.com/KungPhoo/minifetch.git
+[submodule "ba67-font"]
+	path = ba67-font
+	url = https://github.com/KungPhoo/ba67-font.git
