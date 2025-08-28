@@ -218,7 +218,9 @@ if (EMSCRIPTEN)
     -sEXPORTED_FUNCTIONS=[_ba67_push_sdl_textinput,_main,_malloc] \
     -sEXPORTED_RUNTIME_METHODS=ccall,cwrap \
     -sSTACK_SIZE=1048576 \
+    -sFORCE_FILESYSTEM=1 \
     -sMINIFY_HTML=0 \
+    -lidbfs.js \
     --shell-file \"${CMAKE_CURRENT_LIST_DIR}/web-app/shell.html\"  \
     "
     )

@@ -6,6 +6,16 @@
 #include "unicode.h"
 #include "string_helper.h"
 
+#if defined(__EMSCRIPTEN__)
+    #include <emscripten.h>
+
+
+
+
+#endif
+
+// TODO persistentStorage https://stackoverflow.com/questions/54617194/how-to-save-files-from-c-to-browser-storage-with-emscripten
+
 bool FilePtr::close() {
     lastStatus.clear();
 
@@ -52,6 +62,29 @@ bool FilePtr::close() {
     dirty = false;
     localTempPath.clear();
     cloudFileName.clear();
+
+
+#ifdef __EMSCRIPTEN__
+    EM_ASM(
+
+        FS.syncfs(function(err) {
+            // Error
+        });
+
+        // // make a promise to await the sync
+        // function syncfs(populate) {
+        //     return new Promise((resolve, reject) = > {
+        //         FS.syncfs(populate, (err) = > {
+        // if (err) reject(err);
+        // else resolve(); });
+        //     });
+        // }
+        //
+        // await syncfs(false);
+        // end
+    );
+#endif
+
     // TODO throw, maybe
     return rv;
 }

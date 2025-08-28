@@ -65,10 +65,19 @@ void CharMap::createColorControlCodes() {
     #include <iomanip>
 class BDFExport {
     // Write one byte as two hex digits
-    std::string toHex(uint8_t byte) {
-        std::ostringstream oss;
-        oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(byte);
-        return oss.str();
+    // std::string toHex(uint8_t byte) {
+    //     std::ostringstream oss;
+    //     oss << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << int(byte);
+    //     return oss.str();
+    // }
+
+    const char* toHex(uint8_t byte) {
+        static const char* digitsU = "0123456789ABCDEF";
+
+        static char str[3] = { 0, 0, 0 };
+        str[0]             = digitsU[byte >> 0x04];
+        str[1]             = digitsU[byte & 0x0f];
+        return str;
     }
 
 public:
@@ -127,7 +136,8 @@ public:
 
 
 
-    void writeBDF(const FontDataBits::DataStruct* bits,
+    void writeBDF(const std::string& fontName,
+                  const FontDataBits::DataStruct* bits,
                   const std::string& filename,
                   int scalex = 1, int scaley = 1) {
         std::ofstream out(filename);
@@ -141,14 +151,14 @@ public:
 
         // BDF Header
         out << "STARTFONT 2.1\n"
-            << "FONT -BA67-BA67-medium-upright-normal--" << glyphH
-            << "-" << glyphH * 10 << "-75-75-monospaced-" << glyphW
+            << "FONT -BA67-" << fontName << "-medium-upright-normal--" << glyphH
+            << "-" << glyphH * 10 << "-95-95-C-" << glyphW
             << "-ISO10646-1\n"
-            << "SIZE " << glyphH << " 75 75\n"
+            << "SIZE " << glyphH << " 95 95\n"
             << "FONTBOUNDINGBOX " << glyphW << " " << glyphH << " 0 0\n"
             << "STARTPROPERTIES 2\n"
-            << "FONT_ASCENT " << glyphH - 2 << "\n"
-            << "FONT_DESCENT 2\n"
+            << "FONT_ASCENT " << (glyphH) << "\n"
+            << "FONT_DESCENT " << (0) << "\n"
             << "ENDPROPERTIES\n";
 
         // Count glyphs
@@ -835,11 +845,11 @@ void CharMap::init(char32_t from, char32_t to) {
 
 #if defined(_DEBUG) && defined(_WIN32)
     // export font
-    #if 0
+    #if 1
     BDFExport bdf;
 
-    bdf.writeBDF(pData, "C:\\Temp\\ba67.bdf", 8, 16);
-    bdf.writeBDF(pData, "C:\\Temp\\ba67-square.bdf", 8, 8);
+    bdf.writeBDF("BA67", pData, "C:\\Temp\\ba67.bdf", 8, 16);
+    bdf.writeBDF("BA67 square", pData, "C:\\Temp\\ba67-square.bdf", 8, 8);
     #endif
 #endif
 

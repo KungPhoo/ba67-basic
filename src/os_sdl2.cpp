@@ -12,6 +12,7 @@
     #include <emscripten.h>
     #include "unicode.h"
     #include <filesystem>
+    #include <emscripten.h>
     #include <emscripten/html5.h>
 
 static void dummy_main_loop() {
@@ -37,15 +38,25 @@ void start_os_sdl2() {
 }
 
 
-
-
-
 bool OsSDL2::init(Basic* basic, SoundSystem* sound) {
     start_os_sdl2();
     Os::init(basic, sound);
 
 
     #ifdef __EMSCRIPTEN__
+
+
+    // Create a mount point
+    EM_ASM(
+
+        FS.mkdir('/home/web_user/BASIC');
+        FS.mount(IDBFS, {}, '/home/web_user/BASIC');
+
+        // Load previously saved files (async)
+        FS.syncfs(true, function(err) { console.error("Error loading persistent data:", err); });
+
+    );
+
     std::string home = "/home/web_user";
     if (doesFileExist(home) && isDirectory(home)) {
         setCurrentDirectory(home);
