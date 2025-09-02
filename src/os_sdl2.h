@@ -43,5 +43,10 @@ private:
     int txW, txH; // current texture size
 
     static void codepointFromSDLKey(const SDL_Keysym& keysym, Os::KeyPress& k);
+
+
+    std::vector<uint32_t> memBackBuffer; // the thread draws to this back buffer. It's then copied to the real one
+    std::vector<uint8_t> pixelsPal; // final screen, pixel index in color palette
+    std::vector<uint32_t> palette; // AABBGGRR little endian format
 };
 #endif // __EMSCRIPTEN__

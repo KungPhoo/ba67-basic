@@ -29,12 +29,18 @@
         #include <tchar.h>
     #endif
 
-void displayUpdateThread(OsFPL* fpl);
+// void displayUpdateThread(OsFPL* fpl);
 
 OsFPL::~OsFPL() {
-    screenLock.lock();
-    buffered.stopThread = true;
-    screenLock.unlock();
+    stopThread = true;
+
+    // wait until the thread released the buffers
+    // frontBuffer->lock();
+    // backBuffer->lock();
+    // frontBuffer->unlock();
+    // backBuffer->unlock();
+
+
     fplWindowShutdown();
 }
 
@@ -131,8 +137,8 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     }
     #endif
 
-    std::thread upd(displayUpdateThread, this);
-    upd.detach();
+    // std::thread upd(displayUpdateThread, this);
+    // upd.detach();
     return true;
 }
 
@@ -244,320 +250,294 @@ static uint32_t emphasizeRGB(uint32_t color, double facR, double facG, double fa
     return (a << 24) | (b << 16) | (g << 8) | r;
 }
 
-void displayUpdateThread(OsFPL* fpl) {
-    bool dirty = true;
+
+// == DRAW ==
+static void renderToFrontBuffer(OsFPL* fpl, OsFPL::Buffered* buffer) {
+    buffer->imageCreated = false;
+
     std::array<std::array<uint32_t, 16>, 6> palettes; // [r,g,b, dark r,g,b]
-    OsFPL::Buffered state;
+    // OsFPL::Buffered state;
     // std::vector<uint8_t> pixelsPal; // what's actually drawn
 
-    bool oldCursorVisible                                = false;
-    std::chrono::steady_clock::time_point nextShowCursor = std::chrono::steady_clock::now(); // blink time
-    size_t srcWidth                                      = ScreenInfo::pixX; // ScreenBitmap width (80x8)
-    size_t srcHeight                                     = ScreenInfo::pixY; // ScreenBitmap height (25x16)
 
-    // uint64_t sleepAfter = 0;
+    size_t videoW   = fpl->videoW;
+    size_t videoH   = fpl->videoH;
+    size_t videoWxH = videoH * videoW;
+    if (videoWxH != buffer->memBackBuffer.size()) {
+        buffer->memBackBuffer.resize(videoWxH);
+    }
+    if (buffer->memBackBuffer.empty()) {
+        fpl->delay(1000);
+        return;
+    }
 
-    static int passes  = 0;
-    bool cursorVisible = true;
-    for (;;) {
-        // == UPDATE STATE ==
-        std::chrono::milliseconds flashSpeed(400);
 
-
-        // wait for next flash
-        auto nextCursorToggle = std::chrono::steady_clock::now() + flashSpeed;
-        if (state.screen.isCursorActive()) {
-            std::unique_lock<std::mutex> lock(fpl->screenLock);
-            fpl->cv.wait_until(lock, nextCursorToggle, [&] { return fpl->buffered.screen.dirtyFlag || fpl->buffered.stopThread; });
-        }
-
-        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        fpl->screenLock.lock();
-        if (fpl->buffered.stopThread) {
-            fpl->screenLock.unlock();
-            return;
-        }
-
-        if (!dirty) {
-            dirty = fpl->buffered.screen.dirtyFlag;
-        }
-        if (dirty) {
-            state                          = fpl->buffered; // copy to thread data - this way we don't need to lock the main thread for drawing
-            fpl->buffered.screen.dirtyFlag = false;
-            nextShowCursor                 = now + flashSpeed;
-            cursorVisible                  = true;
-
-            if (state.screen.width == 40) {
-                srcWidth = ScreenInfo::pixX / 2;
-            } else {
-                srcWidth = ScreenInfo::pixX;
-            }
-
-            // sleepAfter                     = now + 500;
-        }
-        if (state.videoH * state.videoW != fpl->memBackBuffer.size()) {
-            fpl->memBackBuffer.resize(state.videoH * state.videoW);
-            dirty = true;
-        }
-        fpl->screenLock.unlock();
-
-        // overwrite cursor box
-        // const uint64_t flashSpeed = 560;
-
-        if (now > nextShowCursor) {
-            nextShowCursor = now + flashSpeed;
-            cursorVisible  = !cursorVisible;
-            dirty          = true;
-        }
-
-        if (!dirty) {
-            //     if (sleepAfter < now) {
-            //         fplThreadSleep(50);
-            //     }
-            continue;
-        }
-
-        // render chars and sprites to palette based buffer
-        state.screen.updateScreenPixelsPalette(cursorVisible);
-        if (state.screen.screenBitmap.pixelsPal.empty()) {
-            continue;
-        }
-        if (state.videoH + state.videoW == 0) {
-            continue;
-        }
-
-        // == DRAW ==
-
-        // simulate a CRT TV with a 3x3 pixel matrix
+    // simulate a CRT TV with a 3x3 pixel matrix
     #ifdef BA67_GRAPHICS_CRT_EMULATION_ON
-        for (size_t p = 0; p < 6; ++p) {
-            const double facDark     = 0.7; // factor for darker scanlines
-            const double facNeigbour = 0.6, facNeighbour2 = 0.6; // factor for neighboured r,g,b channels. On true CRT screen, that would be 0.0
-            double r = 1.0, g = 1.0, b = 1.0, darken = 1.0; // factor for r,g,b channels
-            if (p == 0 || p == 3) {
-                r = 1.0;
-                g = facNeigbour;
-                b = facNeighbour2;
-            }
-            if (p == 1 || p == 4) {
-                r = facNeighbour2;
-                g = 1.0;
-                b = facNeigbour;
-            }
-            if (p == 2 || p == 5) {
-                r = facNeigbour;
-                g = facNeighbour2;
-                b = 1.0;
-            }
-            //        if (p == 3 || p == 7) { r = g = b = 0.95; }
-            if (p > 2) {
-                darken = facDark;
-            }
-            for (size_t i = 0; i < 16; ++i) {
-                if (state.crtEmulation) {
-                    palettes[p][i] = emphasizeRGB(state.screen.palette[i], r, g, b, darken);
-                } else {
-                    palettes[p][i] = state.screen.palette[i];
-                }
+    for (size_t p = 0; p < 6; ++p) {
+        const double facDark     = 0.7; // factor for darker scanlines
+        const double facNeigbour = 0.6, facNeighbour2 = 0.6; // factor for neighboured r,g,b channels. On true CRT screen, that would be 0.0
+        double r = 1.0, g = 1.0, b = 1.0, darken = 1.0; // factor for r,g,b channels
+        if (p == 0 || p == 3) {
+            r = 1.0;
+            g = facNeigbour;
+            b = facNeighbour2;
+        }
+        if (p == 1 || p == 4) {
+            r = facNeighbour2;
+            g = 1.0;
+            b = facNeigbour;
+        }
+        if (p == 2 || p == 5) {
+            r = facNeigbour;
+            g = facNeighbour2;
+            b = 1.0;
+        }
+        //        if (p == 3 || p == 7) { r = g = b = 0.95; }
+        if (p > 2) {
+            darken = facDark;
+        }
+        for (size_t i = 0; i < 16; ++i) {
+            if (buffer->crtEmulation) {
+                palettes[p][i] = emphasizeRGB(buffer->palette[i], r, g, b, darken);
+            } else {
+                palettes[p][i] = buffer->palette[i];
             }
         }
+    }
     #else
-        for (size_t p = 0; p < 6; ++p) {
-            for (size_t i = 0; i < 16; ++i) {
-                palettes[p][i] = state.screen.palette[i];
-            }
+    for (size_t p = 0; p < 6; ++p) {
+        for (size_t i = 0; i < 16; ++i) {
+            palettes[p][i] = buffer->palette[i];
         }
+    }
     #endif
 
-        // we don't access the RGB buffer - we use the color indices
-        // screen.updateScreenBitmap();
+    // we don't access the RGB buffer - we use the color indices
+    // screen.updateScreenBitmap();
 
-        // Compute scaling factors
-        double scaleX = static_cast<double>(state.videoW) / srcWidth;
-        double scaleY = static_cast<double>(state.videoH) / srcHeight;
-
-        if (state.screen.width == 40) {
-            double scale = std::max(0.25, std::min(scaleX, scaleY)); // Keep aspect ratio
-            scaleX = scaleY = scale;
-        } else {
-            double scale = std::max(0.25, std::min(scaleX, scaleY / 2.0)); // Keep aspect ratio
-            scaleX       = scale;
-            scaleY       = scale * 2;
-        }
-
-        // scale to full pixels
-        if (scaleX > 1.0) {
-            scaleX = floor(scaleX);
-        }
-        if (scaleY > 1.0) {
-            scaleY = floor(scaleY);
-        }
-
-        // Compute offset for centered output
-        size_t scaledWidth  = static_cast<size_t>(srcWidth * scaleX);
-        size_t scaledHeight = static_cast<size_t>(srcHeight * scaleY);
-        size_t offsetX      = (state.videoW - scaledWidth) / 2;
-        size_t offsetY      = (state.videoH - scaledHeight) / 2;
+    // Compute scaling factors
 
 
-        fpl->screenLock.lock();
-        auto& wipx       = fpl->buffered.screen.windowPixels;
-        wipx.borderx     = int(offsetX);
-        wipx.bordery     = int(offsetY);
-        wipx.pixelscalex = int(scaleX);
-        wipx.pixelscaley = int(scaleY);
-        fpl->screenLock.unlock();
+    double scaleX = static_cast<double>(videoW) / buffer->pixelsW;
+    double scaleY = static_cast<double>(videoH) / buffer->pixelsH;
 
-
-        // Nearest-neighbor scaling loop
-        fpl->videoLock.lock();
-    #pragma omp parallel for
-        for (int y = 0; y < int(state.videoH); ++y) {
-            uint32_t* pdest = &fpl->memBackBuffer[0] + y * state.videoW;
-
-            size_t srcY = std::min(static_cast<size_t>((y - offsetY) / scaleY), srcHeight - 1);
-            for (size_t x = 0; x < state.videoW; ++x) {
-                // Map screen coordinates to original ScreenBitmap using nearest-neighbor
-                size_t srcX = std::min(static_cast<size_t>((x - offsetX) / scaleX), srcWidth - 1);
-
-                // Default background if outside scaled region
-                uint8_t color = state.screen.getBorderColor(); // Transparent or black
-
-                // Only sample from ScreenBitmap if inside scaled bounds
-                if (x >= offsetX && x < offsetX + scaledWidth && y >= offsetY && y < offsetY + scaledHeight) {
-                    color = state.screen.screenBitmap.pixelsPal[srcY * ScreenInfo::pixX + srcX];
-                }
-
-                // buffer->pixels[y * buffer->width + x] = color;
-                size_t pal = (x % 3);
-                if ((y % 3) == 2) {
-                    pal += 3;
-                } // darker row
-                *pdest++ = palettes[pal][color];
-            }
-        }
-        fpl->videoLock.unlock();
-
-        fpl->screenLock.lock();
-        dirty                      = false;
-        fpl->buffered.imageCreated = true;
-        fpl->screenLock.unlock();
+    if (buffer->pixelsW / buffer->pixelsH == 1 /*320x200*/) {
+        double scale = std::max(0.25, std::min(scaleX, scaleY)); // Keep aspect ratio
+        scaleX = scaleY = scale;
+    } else { // 640x200
+        double scale = std::max(0.25, std::min(scaleX, scaleY / 2.0)); // Keep aspect ratio
+        scaleX       = scale;
+        scaleY       = scale * 2;
     }
+
+    // scale to full pixels
+    if (scaleX > 1.0) {
+        scaleX = floor(scaleX);
+    }
+    if (scaleY > 1.0) {
+        scaleY = floor(scaleY);
+    }
+
+    // Compute offset for centered output
+    size_t scaledWidth  = static_cast<size_t>(buffer->pixelsW * scaleX);
+    size_t scaledHeight = static_cast<size_t>(buffer->pixelsH * scaleY);
+    size_t offsetX      = (videoW - scaledWidth) / 2;
+    size_t offsetY      = (videoH - scaledHeight) / 2;
+
+
+    auto& wipx       = buffer->windowPixels;
+    wipx.borderx     = int(offsetX);
+    wipx.bordery     = int(offsetY);
+    wipx.pixelscalex = int(scaleX);
+    wipx.pixelscaley = int(scaleY);
+
+
+    // Nearest-neighbor scaling loop
+    #pragma omp parallel for
+    for (int y = 0; y < int(videoH); ++y) {
+        uint32_t* pdest = &buffer->memBackBuffer[0] + y * videoW;
+
+        size_t srcY = std::min(static_cast<size_t>((y - offsetY) / scaleY), buffer->pixelsH - 1);
+        for (size_t x = 0; x < videoW; ++x) {
+            // Map screen coordinates to original ScreenBitmap using nearest-neighbor
+            size_t srcX = std::min(static_cast<size_t>((x - offsetX) / scaleX), buffer->pixelsW - 1);
+
+            // Default background if outside scaled region
+            uint8_t color = buffer->borderColorIndex; // Transparent or black
+
+            // Only sample from ScreenBitmap if inside scaled bounds
+            if (x >= offsetX && x < offsetX + scaledWidth && y >= offsetY && y < offsetY + scaledHeight) {
+                color = buffer->pixelsPal[srcY * buffer->pixelsW + srcX];
+            }
+
+            // buffer->pixels[y * buffer->width + x] = color;
+            size_t pal = (x % 3);
+            if ((y % 3) == 2) {
+                pal += 3;
+            } // darker row
+            *pdest++ = palettes[pal][color];
+        }
+    }
+    buffer->imageCreated = true;
 }
 
+// void displayUpdateThread(OsFPL* fpl) {
+//
+//     bool oldCursorVisible                                = false;
+//     std::chrono::steady_clock::time_point nextShowCursor = std::chrono::steady_clock::now(); // blink time
+//     // size_t srcWidth                                      = ScreenInfo::pixX; // ScreenBitmap width (80x8)
+//     // size_t srcHeight                                     = ScreenInfo::pixY; // ScreenBitmap height (25x16)
+//
+//     // uint64_t sleepAfter = 0;
+//
+//     static int passes  = 0;
+//     bool cursorVisible = true;
+//     for (;;) {
+//         // == UPDATE STATE ==
+//         std::chrono::milliseconds flipDelay(400);
+//
+//
+//         // wait for next presentScreen (draw to back buffer) or a delay
+//         // protected by the mutex, it waits for some time or the dirtyFlag to be set.
+//         // While waiting, the mutex is unlocked for the main tread.
+//         auto nextCursorToggle = std::chrono::steady_clock::now() + flipDelay;
+//         std::unique_lock<std::mutex> lock(fpl->backBuffer->mutex);
+//         fpl->cv.wait_until(lock, nextCursorToggle, [&] { return fpl->backBuffer->dirtyFlag || fpl->stopThread; });
+//
+//         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+//         if (fpl->stopThread) {
+//             return;
+//         }
+//
+//         // flip back/front buffer
+//         std::swap(fpl->frontBuffer, fpl->backBuffer);
+//
+//         renderToFrontBuffer(fpl, fpl->frontBuffer);
+//     }
+// }
+
 void OsFPL::presentScreen() {
-    updateEvents();
-    updateGamepadState();
-    fplEvent ev;
-    while (fplPollEvent(&ev)) { } // pump messages
-    if (!fplWindowUpdate()) { // window might be minimized
-        if (!fplIsWindowRunning()) { // window was closed
-            exit(0);
-        }
 
-        // TODO minimizing the window exits
+    uint64_t now             = tick();
+    static uint64_t nextShow = 0;
+    if (nextShow > now) {
         return;
     }
+    nextShow = now + 12;
 
-    static uint64_t nextPresend = 0;
-    uint64_t now                = tick();
-    if (nextPresend > now && !buffered.imageCreated) {
-        return;
+
+    static bool lastCursorBlink = false;
+    bool cursorVisible          = true;
+    if ((tick() % 800) < 400) {
+        cursorVisible = false;
     }
-    nextPresend = now + 50;
-
-    bool mustNotify = false;
-
-    screenLock.lock();
-
-    buffered.crtEmulation = settings.emulateCRT;
-    switch (settings.renderMode) {
-    case BA68settings::RenderMode::OpenGL:
-    #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
-        renderOpenGL();
-        break;
-    #endif
-    case BA68settings::RenderMode::Software:
-        renderSoftware();
-        break;
+    if (lastCursorBlink != cursorVisible) {
+        screen.dirtyFlag = true;
+        lastCursorBlink  = cursorVisible;
     }
 
     if (screen.dirtyFlag) {
-        ScreenBuffer::copyWithLock(buffered.screen, screen);
+        fplWindowSize sz { 0, 0 };
+        fplGetWindowSize(&sz);
+        // it seems fplWindowEventType_Closed is never fired
+        if (sz.width == 0) {
+            return; // window minimized
+        }
+
         screen.dirtyFlag = false;
-        mustNotify       = true;
+
+        // Get window size
+        fplWindowSize winSize = {};
+        if (!fplGetWindowSize(&winSize)) {
+            printf("can't get window size\n");
+            return;
+        }
+        videoW = winSize.width;
+        videoH = winSize.height;
+
+        backBuffer->palette.resize(16);
+        for (size_t i = 0; i < 16; ++i) {
+            backBuffer->palette[i] = screen.palette[i];
+        }
+        screen.updateScreenPixelsPalette(cursorVisible, backBuffer->pixelsPal);
+        backBuffer->pixelsH          = screen.height * ScreenInfo::charPixX;
+        backBuffer->pixelsW          = screen.width * ScreenInfo::charPixY;
+        backBuffer->borderColorIndex = screen.getBorderColor();
+        backBuffer->dirtyFlag        = true;
+        backBuffer->crtEmulation     = settings.emulateCRT;
+        // backBuffer->unlock();
+
+        std::swap(frontBuffer, backBuffer);
+        renderToFrontBuffer(this, frontBuffer);
+
+        switch (settings.renderMode) {
+        case BA68settings::RenderMode::OpenGL:
+    #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
+            renderOpenGL();
+            break;
+    #endif
+        case BA68settings::RenderMode::Software:
+            renderSoftware();
+            break;
+        }
     }
-    buffered.insertMode = basic->insertMode;
 
-    screen.windowPixels = buffered.screen.windowPixels; // read from thread
-    screenLock.unlock();
-
-
-    if (mustNotify) {
-        cv.notify_one();
-    }
+    // if (mustNotify) {
+    //     cv.notify_one();
+    // }
 }
 
+
+
+
 void OsFPL::renderSoftware() {
-    // window resized?
-    fplWindowSize windowsz { 0, 0 };
-    fplGetWindowSize(&windowsz);
     fplVideoBackBuffer* vidBackBuffer = fplGetVideoBackBuffer();
     if (vidBackBuffer != nullptr) {
-        buffered.videoH = vidBackBuffer->height;
-        buffered.videoW = vidBackBuffer->width;
-        if (vidBackBuffer->width != windowsz.width || vidBackBuffer->height != windowsz.height) {
-            screen.dirtyFlag      = true;
-            buffered.imageCreated = false;
-            fplResizeVideoBackBuffer(windowsz.width, windowsz.height);
+        if (vidBackBuffer->width != videoW || vidBackBuffer->height != videoH) {
+            screen.dirtyFlag = true;
+            frontBuffer->lock();
+            frontBuffer->imageCreated = false;
+            frontBuffer->unlock();
+            fplResizeVideoBackBuffer(uint32_t(videoW), uint32_t(videoH));
             vidBackBuffer = fplGetVideoBackBuffer();
         }
     }
 
-    if (buffered.imageCreated) {
-        buffered.imageCreated = false;
-        videoLock.lock();
-        if (vidBackBuffer != nullptr && vidBackBuffer->pixels != nullptr && vidBackBuffer->width * vidBackBuffer->height == memBackBuffer.size()) {
-            StringHelper::memcpy(vidBackBuffer->pixels, &memBackBuffer[0], sizeof(uint32_t) * memBackBuffer.size());
-        }
-        videoLock.unlock();
-        fplVideoFlip();
+    frontBuffer->lock();
+    if (vidBackBuffer != nullptr && vidBackBuffer->pixels != nullptr && vidBackBuffer->width * vidBackBuffer->height == frontBuffer->memBackBuffer.size()) {
+        StringHelper::memcpy(vidBackBuffer->pixels, &frontBuffer->memBackBuffer[0], sizeof(uint32_t) * frontBuffer->memBackBuffer.size());
     }
+    frontBuffer->imageCreated = false;
+    frontBuffer->unlock();
+    fplVideoFlip();
 }
 
 void OsFPL::renderOpenGL() {
     #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
 
-    // Get window size
-    fplWindowSize winSize = {};
-    if (!fplGetWindowSize(&winSize)) {
-        printf("can't get window size\n");
+    size_t winW = videoW, winH = videoH;
+    if (winW * winH != frontBuffer->memBackBuffer.size()) {
+        screen.dirtyFlag = true;
         return;
     }
-    if (buffered.videoW != winSize.width || buffered.videoH != winSize.height) {
-        buffered.videoW       = winSize.width;
-        buffered.videoH       = winSize.height;
-        screen.dirtyFlag      = true;
-        buffered.imageCreated = false;
-        return;
-    }
+    glClear(GL_COLOR_BUFFER_BIT);
 
-    if (winSize.width * winSize.height == memBackBuffer.size()) {
-        glClear(GL_COLOR_BUFFER_BIT);
+    // Flip the image vertically
+    glViewport(0, 0, GLsizei(winW), GLsizei(winH));
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, GLdouble(winW), 0, GLdouble(winH), 0.1, 1);
+    glPixelZoom(1, -1);
+    glRasterPos3f(0, GLfloat(winH - 1), -0.3f);
 
-        // Flip the image vertically
-        glViewport(0, 0, winSize.width, winSize.height);
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(0, winSize.width, 0, winSize.height, 0.1, 1);
-        glPixelZoom(1, -1);
-        glRasterPos3f(0, GLfloat(winSize.height - 1), -0.3f);
+    // Draw pixels
+    frontBuffer->lock();
+    glDrawPixels(GLsizei(winW), GLsizei(winH), GL_BGRA_EXT, GL_UNSIGNED_BYTE, frontBuffer->memBackBuffer.data());
+    frontBuffer->imageCreated = false;
+    frontBuffer->unlock();
 
-        // Draw pixels
-        glDrawPixels(winSize.width, winSize.height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, memBackBuffer.data());
-
-        fplVideoFlip();
-    }
+    fplVideoFlip();
     #endif
 }
 
@@ -570,12 +550,11 @@ void OsFPL::updateEvents() {
     //     lastTick = tickNow;
     // }
 
-    fplWindowSize sz { 0, 0 };
-    fplGetWindowSize(&sz);
-    // it seems fplWindowEventType_Closed is never fired
-    if (sz.width == 0) {
-        return; // window minimized
+    // we don't get a close event (bug)
+    if (!fplIsWindowRunning()) {
+        exit(0);
     }
+
 
     static KeyPress lastCharPress = {};
     static char32_t lastAltKey    = -1; // HACK I get a button event for Alt+A, and then an input event A.
@@ -584,6 +563,8 @@ void OsFPL::updateEvents() {
     fplEvent event;
     while (fplPollEvent(&event)) {
         if (event.type == fplEventType_Window) {
+
+            fplWindowSize sz { 0, 0 };
             if (event.window.type == fplWindowEventType_Closed) {
                 exit(0);
             } else if (event.window.type == fplWindowEventType_GotFocus) {
@@ -592,12 +573,14 @@ void OsFPL::updateEvents() {
             } else if (event.window.type == fplWindowEventType_LostFocus) {
                 hasFocus = false;
             } else if (event.window.type == fplWindowEventType_Restored || event.window.type == fplWindowEventType_Maximized) {
-                fplResizeVideoBackBuffer(sz.width, sz.height);
-                forceWindowUpdate = true;
+                if (sz.width > 0) {
+                    fplResizeVideoBackBuffer(sz.width, sz.height);
+                    forceWindowUpdate = true;
+                }
+            } else {
+                int pause = 0;
             }
-        }
-
-        if (event.type == fplEventType_Keyboard) {
+        } else if (event.type == fplEventType_Keyboard) {
             KeyPress keyPress;
             keyPress.holdShift = event.keyboard.modifiers & fplKeyboardModifierFlags_LShift;
             keyPress.holdCtrl  = event.keyboard.modifiers & fplKeyboardModifierFlags_LCtrl;
@@ -757,6 +740,8 @@ void OsFPL::updateEvents() {
                     putToKeyboardBuffer(lastCharPress);
                 }
             }
+        } else {
+            // no event when the window was closed in Windows. (FPL bug)
         }
     }
 
@@ -764,6 +749,8 @@ void OsFPL::updateEvents() {
         screen.dirtyFlag = true;
         presentScreen();
     }
+
+    updateGamepadState();
 }
 
 const bool OsFPL::isKeyPressed(uint32_t index, bool withShift, bool withAlt, bool withCtrl) const {
@@ -913,8 +900,8 @@ std::vector<char32_t> OsFPL::emojiPicker() {
         }
     }
     #endif
-    ScreenBuffer sb;
-    ScreenBuffer::copyWithLock(sb, screen);
+
+    auto oldState     = screen.saveState();
     std::string oldCb = this->getClipboardData();
     setClipboardData("");
     std::string cmd = std::string("\"") + emojiPanelPath + "\" --nomove --nocls --ascii";
@@ -933,7 +920,7 @@ std::vector<char32_t> OsFPL::emojiPicker() {
         }
     }
     setClipboardData(oldCb);
-    ScreenBuffer::copyWithLock(screen, sb);
+    screen.restoreState(oldState);
     return chars;
 }
 
@@ -1055,14 +1042,17 @@ Os::MouseStatus OsFPL::getMouseStatus() {
 
     fplMouseState fst;
     if (fplPollMouseState(&fst)) {
-        if (screen.windowPixels.pixelscalex == 0) {
-            screen.windowPixels.pixelscalex = 1;
+        frontBuffer->lock();
+        auto wpx = frontBuffer->windowPixels;
+        frontBuffer->unlock();
+        if (wpx.pixelscalex == 0) {
+            wpx.pixelscalex = 1;
         }
-        if (screen.windowPixels.pixelscaley == 0) {
-            screen.windowPixels.pixelscaley = 1;
+        if (wpx.pixelscaley == 0) {
+            wpx.pixelscaley = 1;
         }
-        st.x          = (fst.x - screen.windowPixels.borderx) / screen.windowPixels.pixelscalex + 25;
-        st.y          = (fst.y - screen.windowPixels.bordery) / screen.windowPixels.pixelscaley + 50;
+        st.x          = (fst.x - wpx.borderx) / wpx.pixelscalex + 25;
+        st.y          = (fst.y - wpx.bordery) / wpx.pixelscaley + 50;
         st.buttonBits = (fst.buttonStates[0] == fplButtonState_Release ? 0 : 1)
                       + (fst.buttonStates[1] == fplButtonState_Release ? 0 : 2)
                       + (fst.buttonStates[2] == fplButtonState_Release ? 0 : 4);

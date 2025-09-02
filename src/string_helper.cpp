@@ -1,4 +1,5 @@
 ﻿#include "string_helper.h"
+#include <cstring>
 
 std::vector<std::string> StringHelper::split(const std::string& in, const std::string& delim) {
     std::string::size_type firstPos  = in.find_first_not_of(delim);
@@ -53,10 +54,12 @@ int StringHelper::strncmp(const char* text, const char* find, size_t count) {
         unsigned char c1 = (unsigned char)text[i];
         unsigned char c2 = (unsigned char)find[i];
 
-        if (c1 != c2)
+        if (c1 != c2) {
             return c1 - c2;
-        if (c1 == '\0')
+        }
+        if (c1 == '\0') {
             return 0; // both must be '\0' since c1 == c2
+        }
     }
     return 0;
 }
@@ -91,8 +94,9 @@ const char* StringHelper::strchr(const char* text, char find) {
 }
 
 const char* StringHelper::strstr(const char* haystack, const char* needle) {
-    if (!*needle)
+    if (!*needle) {
         return haystack;
+    }
 
     for (; *haystack; haystack++) {
         const char *h = haystack, *n = needle;
@@ -100,68 +104,101 @@ const char* StringHelper::strstr(const char* haystack, const char* needle) {
             h++;
             n++;
         }
-        if (!*n)
+        if (!*n) {
             return haystack;
+        }
     }
     return nullptr;
 }
 
 char* StringHelper::strtok_r(char* str, const char* delim, char** saveptr) {
     auto is_delim = [&](char c) {
-        for (const char* d = delim; *d; ++d)
-            if (c == *d)
+        for (const char* d = delim; *d; ++d) {
+            if (c == *d) {
                 return true;
+            }
+        }
         return false;
     };
 
-    if (!str)
+    if (!str) {
         str = *saveptr;
+    }
 
-    while (*str && is_delim(*str))
+    while (*str && is_delim(*str)) {
         ++str;
-    if (!*str)
-        return *saveptr = str, nullptr;
+    }
+    if (!*str) {
+        if (saveptr) {
+            *saveptr = str;
+        }
+        return nullptr;
+    }
 
     char* token_start = str;
-    while (*str && !is_delim(*str))
+    while (*str && !is_delim(*str)) {
         ++str;
+    }
 
-    if (*str)
+    if (*str) {
         *str++ = '\0';
-    *saveptr = str;
+    }
+    if (saveptr) {
+        *saveptr = str;
+    }
     return token_start;
 }
 
 void StringHelper::memcpy(void* dst, const void* src, size_t len) {
-    uintptr_t dst_addr = reinterpret_cast<uintptr_t>(dst);
-    uintptr_t src_addr = reinterpret_cast<uintptr_t>(src);
+#if 1 // def __EMSCRIPTEN__
+    std::memcpy(dst, src, len);
+#else // most definitely slower than built in
+    auto* d = static_cast<unsigned char*>(dst);
+    auto* s = static_cast<const unsigned char*>(src);
 
-    // Fast path: 8-byte alignment and size
-    if (((dst_addr | src_addr | len) & 0x7) == 0) {
-        int64_t* idst       = reinterpret_cast<int64_t*>(dst);
-        const int64_t* isrc = reinterpret_cast<const int64_t*>(src);
-        int64_t* end        = idst + (len >> 3);
-
-        while (idst != end) {
-            *idst++ = *isrc++;
+    // Small copy optimization
+    if (len < 16) {
+        while (len--) {
+            *d++ = *s++;
         }
-    } else {
-        // Fallback: byte-by-byte copy
-        char* cdst       = reinterpret_cast<char*>(dst);
-        const char* csrc = reinterpret_cast<const char*>(src);
-        char* end        = cdst + len;
-
-        while (cdst != end) {
-            *cdst++ = *csrc++;
-        }
+        return dst;
     }
+
+    // Align destination to 8 bytes
+    while ((reinterpret_cast<uintptr_t>(d) & 7) && len > 0) {
+        *d++ = *s++;
+        --len;
+    }
+
+    // Bulk copy 64 bits at a time
+    auto* dw = reinterpret_cast<uint64_t*>(d);
+    auto* sw = reinterpret_cast<const uint64_t*>(s);
+
+    size_t n = len / 8;
+    for (size_t i = 0; i < n; ++i) {
+        dw[i] = sw[i];
+    }
+
+    // Advance pointers
+    d += n * 8;
+    s += n * 8;
+    len -= n * 8;
+
+    // Tail
+    while (len--) {
+        *d++ = *s++;
+    }
+
+    return dst;
+#endif
 }
 
 void StringHelper::strcpy(char* dest, const char* src) {
     for (;;) {
         *dest = *src;
-        if (*src == '\0')
+        if (*src == '\0') {
             break;
+        }
         ++dest;
         ++src;
     }

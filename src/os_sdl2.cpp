@@ -140,13 +140,18 @@ void OsSDL2::presentScreen() {
             txH);
     }
 
-    bool cursorVisible = screen.isCursorActive();
+    bool cursorVisible = true; // screen.isCursorActive(); // considered in updateScreenPixelsPalette
     if (cursorVisible && (tick() % 800) < 400) {
         cursorVisible = false;
     }
-    screen.updateScreenPixelsPalette(cursorVisible);
-    screen.updateScreenBitmap();
-    SDL_UpdateTexture(texture, nullptr, screen.screenBitmap.pixelsRGB.data(), ScreenInfo::pixX * 4 /*bytes per row*/);
+
+    palette.resize(16);
+    pixelsPal.resize(screen.width * ScreenInfo::charPixX * screen.height * ScreenInfo::charPixY);
+    memBackBuffer.resize(pixelsPal.size());
+
+    screen.updateScreenPixelsPalette(cursorVisible, pixelsPal);
+    screen.updateScreenBitmap(pixelsPal, memBackBuffer);
+    SDL_UpdateTexture(texture, nullptr, memBackBuffer.data(), screen.width * ScreenInfo::charPixX * 4 /*bytes per row*/);
 
     #ifdef __EMSCRIPTEN__
     static int oldW = 0, oldH = 0;
@@ -203,12 +208,15 @@ const bool OsSDL2::isKeyPressed(uint32_t index, bool withShift, bool withAlt, bo
 
     if (pressed && (withShift || withAlt || withCtrl)) {
         SDL_Keymod mods = SDL_GetModState();
-        if (withShift && !(mods & KMOD_SHIFT))
+        if (withShift && !(mods & KMOD_SHIFT)) {
             return false;
-        if (withAlt && !(mods & KMOD_ALT))
+        }
+        if (withAlt && !(mods & KMOD_ALT)) {
             return false;
-        if (withCtrl && !(mods & KMOD_CTRL))
+        }
+        if (withCtrl && !(mods & KMOD_CTRL)) {
             return false;
+        }
     }
     return pressed;
 }

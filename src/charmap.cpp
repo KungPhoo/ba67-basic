@@ -163,8 +163,9 @@ public:
 
         // Count glyphs
         int count = 0;
-        for (const auto* ptr = bits; ptr->c != 0xffffffff; ++ptr)
+        for (const auto* ptr = bits; ptr->c != 0xffffffff; ++ptr) {
             ++count;
+        }
         out << "CHARS " << count << "\n";
 
         // Glyphs
@@ -196,8 +197,9 @@ public:
 
                 // write this row "scale" times (vertical scaling)
                 for (int sy = 0; sy < scaley; ++sy) {
-                    for (uint8_t b : expanded)
+                    for (uint8_t b : expanded) {
                         out << toHex(b);
+                    }
                     out << "\n";
                 }
             }
@@ -845,7 +847,7 @@ void CharMap::init(char32_t from, char32_t to) {
 
 #if defined(_DEBUG) && defined(_WIN32)
     // export font
-    #if 1
+    #if 0
     BDFExport bdf;
 
     bdf.writeBDF("BA67", pData, "C:\\Temp\\ba67.bdf", 8, 16);

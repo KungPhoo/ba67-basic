@@ -82,6 +82,9 @@ char32_t PETSCII::unicodeFromAltKeyPress(char keyChar, bool withShift) {
     return U'\0';
 }
 
+
+// TODO compare to this: https://github.com/mist64/c64ref/blob/main/src/charset/C64IPRI.TXT
+
 char32_t PETSCII::toUnicode(uint8_t petscii) {
     // Mapping of PETSCII.BA67 to Unicode
     // See petscii-mapping.png for what each 'petscii' maps to
@@ -302,73 +305,73 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
               /* 0xBE, */ 0x00002598, // (!) black small square upper left
               /* 0xBF, */ 0x0000259A, // (!) two small black squares diagonal left to right
 
-              /* 0xC0, */ 0x00002501, // (!) box drawings light horizontal
-              /* 0xC1, */ 0x00002660, // (!) black spade suit
+              /* 0xC0, */ 0x00002501, // (!) BOX DRAWINGS LIGHT HORIZONTAL
+              /* 0xC1, */ 0x00002660, // (!) BLACK SPADE SUIT
               /* 0xC2, */ 0x00002758, // (!) LIGHT VERTICAL BAR
               /* 0xC3, */ 0x00002501, // (!) BOX DRAWINGS HEAVY HORIZONTAL
-              /* 0xC4, */ 0x0001FB77, // (!) box drawings light horizontal one quarter up
-              /* 0xC5, */ 0x0001FB76, // (?) box drawings light horizontal two quarters up (bad)
-              /* 0xC6, */ 0x0001FB7A, // (!) box drawings light horizontal one quarter down
-              /* 0xC7, */ 0x0001FB71, // (!) box drawings light vertical one quarter left
-              /* 0xC8, */ 0x0001FB74, // (!) box drawings light vertical one quarter right
-              /* 0xC9, */ 0x0000256E, // (!) box drawings light arc down and left
-              /* 0xCA, */ 0x00002570, // (!) box drawings light arc up and right
-              /* 0xCB, */ 0x0000256F, // (!) box drawings light arc up and left
-              /* 0xCC, */ 0x0001FB7C, // (!) bottom left corner
-              /* 0xCD, */ 0x00002572, // (!) box drawings light diagonal upper left to lower right
-              /* 0xCE, */ 0x00002571, // (!) box drawings light diagonal upper right to lower left
-              /* 0xCF, */ 0x0001FB7D, // (!) top left corner
+              /* 0xC4, */ 0x0001FB77, // (!) BOX DRAWINGS LIGHT HORIZONTAL ONE QUARTER UP
+              /* 0xC5, */ 0x0001FB76, // (?) BOX DRAWINGS LIGHT HORIZONTAL TWO QUARTERS UP (BAD)
+              /* 0xC6, */ 0x0001FB7A, // (!) BOX DRAWINGS LIGHT HORIZONTAL ONE QUARTER DOWN
+              /* 0xC7, */ 0x0001FB71, // (!) BOX DRAWINGS LIGHT VERTICAL ONE QUARTER LEFT
+              /* 0xC8, */ 0x0001FB74, // (!) BOX DRAWINGS LIGHT VERTICAL ONE QUARTER RIGHT
+              /* 0xC9, */ 0x0000256E, // (!) BOX DRAWINGS LIGHT ARC DOWN AND LEFT
+              /* 0xCA, */ 0x00002570, // (!) BOX DRAWINGS LIGHT ARC UP AND RIGHT
+              /* 0xCB, */ 0x0000256F, // (!) BOX DRAWINGS LIGHT ARC UP AND LEFT
+              /* 0xCC, */ 0x0001FB7C, // (!) BOTTOM LEFT CORNER
+              /* 0xCD, */ 0x00002572, // (!) BOX DRAWINGS LIGHT DIAGONAL UPPER LEFT TO LOWER RIGHT
+              /* 0xCE, */ 0x00002571, // (!) BOX DRAWINGS LIGHT DIAGONAL UPPER RIGHT TO LOWER LEFT
+              /* 0xCF, */ 0x0001FB7D, // (!) TOP LEFT CORNER
 
-              /* 0xD0, */ 0x0001FB7E, // (!) top right corner
-              /* 0xD1, */ 0x000025CF, // (!) black circle
-              /* 0xD2, */ 0x0001FB7B, // (!) box drawings light horizontal two quarters down
-              /* 0xD3, */ 0x00002665, // (!) black heart suit
-              /* 0xD4, */ 0x0001FB70, // (!) box drawings light vertical two quarters left
-              /* 0xD5, */ 0x0000256D, // (!) box drawings light arc down and right
-              /* 0xD6, */ 0x00002573, // (!) box drawings light diagonal cross
-              /* 0xD7, */ 0x000025CB, // (!) donut
-              /* 0xD8, */ 0x00002663, // (!) black club suit
-              /* 0xD9, */ 0x0001FB75, // (!) box drawings light vertical two quarters right
-              /* 0xDA, */ 0x00002666, // (!) black diamond suit
-              /* 0xDB, */ 0x0000253C, // (!) box drawings light vertical and horizontal
+              /* 0xD0, */ 0x0001FB7E, // (!) TOP RIGHT CORNER
+              /* 0xD1, */ 0x000025CF, // (!) BLACK CIRCLE
+              /* 0xD2, */ 0x0001FB7B, // (!) BOX DRAWINGS LIGHT HORIZONTAL TWO QUARTERS DOWN
+              /* 0xD3, */ 0x00002665, // (!) BLACK HEART SUIT
+              /* 0xD4, */ 0x0001FB70, // (!) BOX DRAWINGS LIGHT VERTICAL TWO QUARTERS LEFT
+              /* 0xD5, */ 0x0000256D, // (!) BOX DRAWINGS LIGHT ARC DOWN AND RIGHT
+              /* 0xD6, */ 0x00002573, // (!) BOX DRAWINGS LIGHT DIAGONAL CROSS
+              /* 0xD7, */ 0x000025CB, // (!) DONUT
+              /* 0xD8, */ 0x00002663, // (!) BLACK CLUB SUIT
+              /* 0xD9, */ 0x0001FB75, // (!) BOX DRAWINGS LIGHT VERTICAL TWO QUARTERS RIGHT
+              /* 0xDA, */ 0x00002666, // (!) BLACK DIAMOND SUIT
+              /* 0xDB, */ 0x0000253C, // (!) BOX DRAWINGS LIGHT VERTICAL AND HORIZONTAL
               /* 0xDC, */ 0x0001FB8C, // (!) LEFT HALF MEDIUM SHADE
-              /* 0xDD, */ 0x00002503, // (!) box drawings heavy vertical
-              /* 0xDE, */ 0x000003C0, // (!) greek small letter pi
-              /* 0xDF, */ 0X0001FB98, // (!) UPPER LEFT TO LOWER RIGHT FILL '\\'  --- from lowercase
+              /* 0xDD, */ 0x00002503, // (!) BOX DRAWINGS HEAVY VERTICAL
+              /* 0xDE, */ 0x000003C0, // (!) GREEK SMALL LETTER PI
+              /* 0xDF, */ 0X0001FB98, // (!) UPPER LEFT TO LOWER RIGHT FILL '\\'  --- FROM LOWERCASE
 
-              /* 0xE0, */ 0x000000A0, // (!) no-break space
-              /* 0xE1, */ 0x0000258C, // (!) left half block
-              /* 0xE2, */ 0x00002584, // (!) lower half block
-              /* 0xE3, */ 0x00002594, // (!) upper one eighth block
-              /* 0xE4, */ 0x00002581, // (!) lower one eighth block
-              /* 0xE5, */ 0x0000258E, // (!) left one quarter block   /* 0xE5, */ 0x0000258F, // (!) left one eighth block
+              /* 0xE0, */ 0x000000A0, // (!) NO-BREAK SPACE
+              /* 0xE1, */ 0x0000258C, // (!) LEFT HALF BLOCK
+              /* 0xE2, */ 0x00002584, // (!) LOWER HALF BLOCK
+              /* 0xE3, */ 0x00002594, // (!) UPPER ONE EIGHTH BLOCK
+              /* 0xE4, */ 0x00002581, // (!) LOWER ONE EIGHTH BLOCK
+              /* 0xE5, */ 0x0000258E, // (!) LEFT ONE QUARTER BLOCK
               /* 0xE6, */ 0x0001FB90, // (!) INVERSE MEDIUM SHADE
-              /* 0xE5, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK           /* 0xE7, */ 0x00002595, // (!) right one eighth block
+              /* 0xE7, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
               /* 0xE8, */ 0x0001FB8F, // (!) LOWER HALF MEDIUM SHADE
               /* 0xE9, */ 0x0001fb99, // (!) UPPER RIGHT TO LOWER LEFT FILL '//'
-              /* 0xEA, */ 0x0001FB87, // (!) right one quarter block
-              /* 0xEB, */ 0x00002523, // (!) box drawings heavy vertical and right
-              /* 0xEC, */ 0x00002597, // (!) black small square lower right
-              /* 0xED, */ 0x00002517, // (!) box drawings heavy up and right
-              /* 0xEE, */ 0x00002513, // (!) box drawings heavy down and left
-              /* 0xEF, */ 0x00002582, // (!) lower one quarter block
+              /* 0xEA, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
+              /* 0xEB, */ 0x00002523, // (!) BOX DRAWINGS HEAVY VERTICAL AND RIGHT
+              /* 0xEC, */ 0x00002597, // (!) BLACK SMALL SQUARE LOWER RIGHT
+              /* 0xED, */ 0x00002517, // (!) BOX DRAWINGS HEAVY UP AND RIGHT
+              /* 0xEE, */ 0x00002513, // (!) BOX DRAWINGS HEAVY DOWN AND LEFT
+              /* 0xEF, */ 0x00002582, // (!) LOWER ONE QUARTER BLOCK
 
-              /* 0xF0, */ 0x0000250F, // (!) box drawings heavy down and right
-              /* 0xF1, */ 0x0000253B, // (!) box drawings heavy up and horizontal
-              /* 0xF2, */ 0x00002533, // (!) box drawings heavy down and horizontal
-              /* 0xF3, */ 0x0000252B, // (!) box drawings heavy vertical and left
-              /* 0xF4, */ 0x0000258E, // (!) left one quarter block
-              /* 0xF5, */ 0x0000258D, // (!) left three eights block
-              /* 0xF6, */ 0x0001FB88, // (!) right three eights block
-              /* 0xF7, */ 0x0001FB82, // (!) upper one quarter block
-              /* 0xF8, */ 0x0001FB83, // (!) upper three eights block
-              /* 0xF9, */ 0x00002583, // (!) lower three eights block
-              /* 0xFA, */ 0x00002713, // (!) check mark  --- from lowercase
-              /* 0xFB, */ 0x00002596, // (!) black small square lower left
-              /* 0xFC, */ 0x0000259D, // (!) black small square upper right
-              /* 0xFD, */ 0x0000251b, // (!) box drawings heavy up and left
-              /* 0xFE, */ 0x00002598, // (!) black small square upper left
-              /* 0xFF, */ 0x00002592 //  (!) medium shade  --- from lowercase
+              /* 0xF0, */ 0x0000250F, // (!) BOX DRAWINGS HEAVY DOWN AND RIGHT
+              /* 0xF1, */ 0x0000253B, // (!) BOX DRAWINGS HEAVY UP AND HORIZONTAL
+              /* 0xF2, */ 0x00002533, // (!) BOX DRAWINGS HEAVY DOWN AND HORIZONTAL
+              /* 0xF3, */ 0x0000252B, // (!) BOX DRAWINGS HEAVY VERTICAL AND LEFT
+              /* 0xF4, */ 0x0000258E, // (!) LEFT ONE QUARTER BLOCK
+              /* 0xF5, */ 0x0000258D, // (!) LEFT THREE EIGHTS BLOCK
+              /* 0xF6, */ 0x0001FB88, // (!) RIGHT THREE EIGHTS BLOCK
+              /* 0xF7, */ 0x0001FB82, // (!) UPPER ONE QUARTER BLOCK
+              /* 0xF8, */ 0x0001FB83, // (!) UPPER THREE EIGHTS BLOCK
+              /* 0xF9, */ 0x00002583, // (!) LOWER THREE EIGHTS BLOCK
+              /* 0xFA, */ 0x00002713, // (!) CHECK MARK  --- FROM LOWERCASE
+              /* 0xFB, */ 0x00002596, // (!) BLACK SMALL SQUARE LOWER LEFT
+              /* 0xFC, */ 0x0000259D, // (!) BLACK SMALL SQUARE UPPER RIGHT
+              /* 0xFD, */ 0x0000251b, // (!) BOX DRAWINGS HEAVY UP AND LEFT
+              /* 0xFE, */ 0x00002598, // (!) BLACK SMALL SQUARE UPPER LEFT
+              /* 0xFF, */ 0x00002592 //  (!) MEDIUM SHADE  --- FROM LOWERCASE
           };
 
     return petsciiMapping[petscii];
@@ -377,6 +380,27 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
 uint8_t PETSCII::fromUnicode(char32_t c, uint8_t fallback) {
     static std::unordered_map<char32_t, uint8_t> mapping;
     if (mapping.empty()) {
+        // some additional mappings from https://github.com/mist64/c64ref/blob/main/src/charset/C64IPRI.TXT
+        // the PET had many glyphs in 1/8th width.
+        // The C64/C128 mapping I use, is not really correct
+        // but looks better when importing programs.
+        mapping[0x02500] = 0xC0; // BOX DRAWINGS LIGHT HORIZONTAL
+        mapping[0x1FB72] = 0xC2; // VERTICAL ONE EIGHTH BLOCK-4
+        mapping[0x1FB78] = 0xC3; // HORIZONTAL ONE EIGHTH BLOCK-4
+        mapping[0x02022] = 0xD1; // BULLET (or 0x25CF BLACK CIRCLE)
+        mapping[0x02502] = 0xDD; // BOX DRAWINGS LIGHT VERTICAL
+        mapping[0x0258F] = 0xE5; // LEFT ONE EIGHTH BLOCK
+        mapping[0x02595] = 0xE7; // RIGHT ONE EIGHTH BLOCK
+        mapping[0x025E4] = 0xE9; // BLACK UPPER LEFT TRIANGLE
+        mapping[0x0251C] = 0xEB; // BOX DRAWINGS LIGHT VERTICAL AND RIGHT
+        mapping[0x02514] = 0xED; // BOX DRAWINGS LIGHT UP AND RIGHT
+        mapping[0x02510] = 0xEE; // BOX DRAWINGS LIGHT DOWN AND LEFT
+        mapping[0x0250C] = 0xF0; // BOX DRAWINGS LIGHT DOWN AND RIGHT
+        mapping[0x02534] = 0xF1; // BOX DRAWINGS LIGHT UP AND HORIZONTAL
+        mapping[0x0252C] = 0xF2; // BOX DRAWINGS LIGHT DOWN AND HORIZONTAL
+        mapping[0x02524] = 0xF3; // BOX DRAWINGS LIGHT VERTICAL AND LEFT
+        mapping[0x02518] = 0xFD; // BOX DRAWINGS LIGHT UP AND LEFT
+
         for (size_t i = 0; i < 0x00ff; ++i) {
             mapping[toUnicode(uint8_t(i & 0xff))] = uint8_t(i & 0xff);
         }

@@ -1,12 +1,13 @@
 ﻿// Full C64 6502 Emulator with all documented opcodes
 #include <cstdint>
 
+using MEMCELL = uint32_t;
 class CPU6502 {
 public:
     // Registers
     uint8_t A = 0, X = 0, Y = 0, SP = 0xFF, P = 0x24;
     uint16_t PC     = 0;
-    uint8_t* memory = nullptr;
+    MEMCELL* memory = nullptr;
     uint8_t opcode;
     bool cpuJam = false;
 
@@ -32,14 +33,14 @@ private:
         push(value >> 8);
         push(value & 0xFF);
     }
-    uint8_t pop() { return memory[0x0100 + ++SP]; }
+    uint8_t pop() { return uint8_t(memory[0x0100 + ++SP]); }
     uint16_t popWord() {
         uint8_t lo = pop();
         uint8_t hi = pop();
         return (hi << 8) | lo;
     }
 
-    uint8_t fetchByte() { return memory[PC++]; }
+    uint8_t fetchByte() { return uint8_t(memory[PC++]); }
     uint16_t fetchWord() {
         uint8_t lo = fetchByte();
         uint8_t hi = fetchByte();

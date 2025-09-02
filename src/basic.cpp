@@ -775,14 +775,8 @@ void cmdPOKE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (address < 0 || address >= int64_t(basic->memory.size())) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
-    uint8_t byt            = value & 0xff;
-    basic->memory[address] = byt;
-
-    // if (address >= 0x0400 && address < 0x0400 + 80 * 25) {
-    //     // char ram
-    // } else if (address >= 0xd800 && address < 0xd800 + 80 * 25) {
-    //     // color ram
-    // }
+    basic->memory[address]      = uint32_t(value & 0xffffffff);
+    basic->os->screen.dirtyFlag = true;
 }
 
 
@@ -1307,6 +1301,15 @@ Basic::Value& Basic::Array::at(const Basic::ArrayIndex& ix) {
 Basic::Options Basic::options; // static instance
 
 Basic::Basic(Os* os, SoundSystem* ss) {
+
+    memory.resize(0x20000);
+    os->screen.charRam        = &memory[0x0400];
+    os->screen.colRam         = &memory[0xd800];
+    os->screen.lineLinkTable  = &memory[0x00d9]; // C64 style. The C128 has a complex bit mapping at $035E-$0361
+    os->screen.cursorPosition = os->screen.charRam;
+
+
+
     for (int i = 0; i < 256; ++i) {
         openFiles.emplace_back(FilePtr(os));
     }
@@ -1334,6 +1337,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     os->init(this, ss);
     os->screen.setColors(13, 11);
     os->screen.setBorderColor(13);
+    os->screen.clear();
 
     keyShortcuts[1 - 1] = "\"CHDIR\"";
     keyShortcuts[2 - 1] = "\"LOAD \"";
@@ -1444,21 +1448,6 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "XOR", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 3); return basic->valueToInt(args[0]) ^ basic->valueToInt(args[2]); } }
     });
 
-#if 0
-    printUtf8String("0123456789012345678901234567890123456789\n111111111x111111111x111111111x111111111x\n222222222x222222222x222222222x222222222x");
-    printUtf8String("0123456789012345678901234567890123456789\n111111111x111111111x111111111x111111111x\n222222222x222222222x222222222x222222222x");
-    size_t p = os.screen.setCursorPos({0, 2});
-    size_t p2 = os.screen.getPosAtCursor({0,2});
-
-    os.screen.setTextColor(1); os.screen.putC('1'); os.presentScreen();
-    os.screen.setTextColor(2); os.screen.putC('2'); os.presentScreen();
-    os.screen.setTextColor(3); os.screen.putC('3'); os.presentScreen();
-    os.screen.setTextColor(4); os.screen.putC('4'); os.presentScreen();
-    os.screen.setTextColor(5); os.screen.putC('5'); os.presentScreen();
-    os.screen.setTextColor(6); os.screen.putC('6'); os.presentScreen();
-    os.screen.setTextColor(7); os.screen.putC('7'); os.presentScreen();
-    os.screen.putC('\n');
-#endif
 
     size_t centerx = 3;
     printUtf8String("\n");
@@ -1511,10 +1500,12 @@ inline std::string Basic::valueToString(const Value& v) {
 }
 
 inline double Basic::valueToDouble(const Value& v) {
-    if (auto i = std::get_if<int64_t>(&v))
+    if (auto i = std::get_if<int64_t>(&v)) {
         return (double)(*i);
-    if (auto d = std::get_if<double>(&v))
+    }
+    if (auto d = std::get_if<double>(&v)) {
         return (*d);
+    }
     if (auto s = std::get_if<std::string>(&v)) {
         const char* str = s->c_str();
         double d        = 0;
@@ -1525,10 +1516,12 @@ inline double Basic::valueToDouble(const Value& v) {
     throw Error(ErrorId::TYPE_MISMATCH);
 }
 inline double Basic::valueToDoubleOrZero(const Value& v) {
-    if (auto i = std::get_if<int64_t>(&v))
+    if (auto i = std::get_if<int64_t>(&v)) {
         return (double)(*i);
-    if (auto d = std::get_if<double>(&v))
+    }
+    if (auto d = std::get_if<double>(&v)) {
         return (*d);
+    }
     if (auto s = std::get_if<std::string>(&v)) {
         const char* str = s->c_str();
         double d        = 0;
@@ -1540,10 +1533,12 @@ inline double Basic::valueToDoubleOrZero(const Value& v) {
 }
 
 inline int64_t Basic::valueToInt(const Value& v) {
-    if (auto i = std::get_if<int64_t>(&v))
+    if (auto i = std::get_if<int64_t>(&v)) {
         return (*i);
-    if (auto d = std::get_if<double>(&v))
+    }
+    if (auto d = std::get_if<double>(&v)) {
         return (int)(*d);
+    }
     if (auto s = std::get_if<std::string>(&v)) {
         const char* str = s->c_str();
         int64_t i       = 0;
@@ -1555,8 +1550,9 @@ inline int64_t Basic::valueToInt(const Value& v) {
 }
 
 bool Basic::valueIsOperator(const Value& v) {
-    if (auto i = std::get_if<Basic::Operator>(&v))
+    if (auto i = std::get_if<Basic::Operator>(&v)) {
         return true;
+    }
     return false;
 }
 
@@ -2001,144 +1997,207 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
     std::vector<std::string> ops;
 
     auto applyOpSS = [](const std::string& a, const std::string& b, const std::string& op) -> Value {
-        if (op == "+")
+        if (op == "+") {
             return a + b;
-        if (op == "=")
+        }
+        if (op == "=") {
             return a == b ? int64_t(-1) : int64_t(0);
-        if (op == ">")
+        }
+        if (op == ">") {
             return a > b ? int64_t(-1) : int64_t(0);
-        if (op == "<")
+        }
+        if (op == "<") {
             return a < b ? int64_t(-1) : int64_t(0);
-        if (op == ">=")
+        }
+        if (op == ">=") {
             return a >= b ? int64_t(-1) : int64_t(0);
-        if (op == "<=")
+        }
+        if (op == "<=") {
             return a <= b ? int64_t(-1) : int64_t(0);
-        if (op == "<>")
+        }
+        if (op == "<>") {
             return a != b ? int64_t(-1) : int64_t(0);
+        }
         throw Error(ErrorId::SYNTAX);
     };
     auto applyOpDD = [](double a, double b, const std::string& op) -> Value {
-        if (op == "+")
+        if (op == "+") {
             return a + b;
-        if (op == "-")
+        }
+        if (op == "-") {
             return a - b;
-        if (op == "*")
+        }
+        if (op == "*") {
             return a * b;
-        if (op == "/")
+        }
+        if (op == "/") {
             return a / b;
-        if (op == "=")
+        }
+        if (op == "=") {
             return fabs(a - b) < Basic::eps ? int64_t(-1) : int64_t(0);
-        if (op == ">")
+        }
+        if (op == ">") {
             return a > b ? int64_t(-1) : int64_t(0);
-        if (op == "<")
+        }
+        if (op == "<") {
             return a < b ? int64_t(-1) : int64_t(0);
-        if (op == ">=")
+        }
+        if (op == ">=") {
             return a >= b ? int64_t(-1) : int64_t(0);
-        if (op == "<=")
+        }
+        if (op == "<=") {
             return a <= b ? int64_t(-1) : int64_t(0);
-        if (op == "<>")
+        }
+        if (op == "<>") {
             return a != b ? int64_t(-1) : int64_t(0);
-        if (op == "^")
+        }
+        if (op == "^") {
             return pow(a, b);
-        if (op == "AND")
+        }
+        if (op == "AND") {
             return int64_t(a) & int64_t(b);
-        if (op == "OR")
+        }
+        if (op == "OR") {
             return int64_t(a) | int64_t(b);
-        if (op == "NOT")
+        }
+        if (op == "NOT") {
             return ~int64_t(b);
+        }
         throw Error(ErrorId::SYNTAX);
     };
     auto applyOpII = [](int64_t a, int64_t b, const std::string& op) -> Value {
-        if (op == "+")
+        if (op == "+") {
             return a + b;
-        if (op == "-")
+        }
+        if (op == "-") {
             return a - b;
-        if (op == "*")
+        }
+        if (op == "*") {
             return a * b;
-        if (op == "/")
+        }
+        if (op == "/") {
             return double(a) / double(b);
-        if (op == "=")
+        }
+        if (op == "=") {
             return a == b ? int64_t(-1) : int64_t(0);
-        if (op == ">")
+        }
+        if (op == ">") {
             return a > b ? int64_t(-1) : int64_t(0);
-        if (op == "<")
+        }
+        if (op == "<") {
             return a < b ? int64_t(-1) : int64_t(0);
-        if (op == ">=")
+        }
+        if (op == ">=") {
             return a >= b ? int64_t(-1) : int64_t(0);
-        if (op == "<=")
+        }
+        if (op == "<=") {
             return a <= b ? int64_t(-1) : int64_t(0);
-        if (op == "<>")
+        }
+        if (op == "<>") {
             return a != b ? int64_t(-1) : int64_t(0);
-        if (op == "^")
+        }
+        if (op == "^") {
             return int64_t(pow(a, b));
-        if (op == "AND")
+        }
+        if (op == "AND") {
             return int64_t(a) & int(b);
-        if (op == "OR")
+        }
+        if (op == "OR") {
             return int64_t(a) | int(b);
-        if (op == "NOT")
+        }
+        if (op == "NOT") {
             return ~int64_t(b);
+        }
         throw Error(ErrorId::SYNTAX);
     };
     auto applyOpDI = [](double a, int64_t b, const std::string& op) -> Value {
-        if (op == "+")
+        if (op == "+") {
             return a + double(b);
-        if (op == "-")
+        }
+        if (op == "-") {
             return a - double(b);
-        if (op == "*")
+        }
+        if (op == "*") {
             return a * double(b);
-        if (op == "/")
+        }
+        if (op == "/") {
             return a / double(b);
-        if (op == "=")
+        }
+        if (op == "=") {
             return fabs(a - double(b)) < Basic::eps ? int64_t(-1) : int64_t(0);
-        if (op == ">")
+        }
+        if (op == ">") {
             return a > b ? int64_t(-1) : int64_t(0);
-        if (op == "<")
+        }
+        if (op == "<") {
             return a < double(b) ? int64_t(-1) : int64_t(0);
-        if (op == ">=")
+        }
+        if (op == ">=") {
             return a >= double(b) ? int64_t(-1) : int64_t(0);
-        if (op == "<=")
+        }
+        if (op == "<=") {
             return a <= double(b) ? int64_t(-1) : int64_t(0);
-        if (op == "<>")
+        }
+        if (op == "<>") {
             return a != double(b) ? int64_t(-1) : int64_t(0);
-        if (op == "^")
+        }
+        if (op == "^") {
             return pow(double(a), double(b));
-        if (op == "AND")
+        }
+        if (op == "AND") {
             return int64_t(a) & int64_t(b);
-        if (op == "OR")
+        }
+        if (op == "OR") {
             return int64_t(a) | int64_t(b);
-        if (op == "NOT")
+        }
+        if (op == "NOT") {
             return ~int64_t(b);
+        }
         throw Error(ErrorId::SYNTAX);
     };
     auto applyOpID = [](int64_t a, double b, const std::string& op) -> Value {
-        if (op == "+")
+        if (op == "+") {
             return double(a) + b;
-        if (op == "-")
+        }
+        if (op == "-") {
             return double(a) - b;
-        if (op == "*")
+        }
+        if (op == "*") {
             return double(a) * b;
-        if (op == "/")
+        }
+        if (op == "/") {
             return double(a) / b;
-        if (op == "=")
+        }
+        if (op == "=") {
             return fabs(double(a) - b) < Basic::eps ? int64_t(-1) : int64_t(0);
-        if (op == ">")
+        }
+        if (op == ">") {
             return double(a) > b ? int64_t(-1) : int64_t(0);
-        if (op == "<")
+        }
+        if (op == "<") {
             return double(a) < b ? int64_t(-1) : int64_t(0);
-        if (op == ">=")
+        }
+        if (op == ">=") {
             return double(a) >= b ? int64_t(-1) : int64_t(0);
-        if (op == "<=")
+        }
+        if (op == "<=") {
             return double(a) <= b ? int64_t(-1) : int64_t(0);
-        if (op == "<>")
+        }
+        if (op == "<>") {
             return double(a) != b ? int64_t(-1) : int64_t(0);
-        if (op == "^")
+        }
+        if (op == "^") {
             return pow(double(a), double(b));
-        if (op == "AND")
+        }
+        if (op == "AND") {
             return int64_t(a) & int64_t(b);
-        if (op == "OR")
+        }
+        if (op == "OR") {
             return int64_t(a) | int64_t(b);
-        if (op == "NOT")
+        }
+        if (op == "NOT") {
             return ~int64_t(b);
+        }
         throw Error(ErrorId::SYNTAX);
     };
 
@@ -2425,7 +2484,7 @@ void Basic::doNEW() {
     mod.variables.clear();
     mod.arrays.clear();
     mod.listing.clear();
-    memory = {};
+    // memory = {};
     mod.loopStack.clear();
     mod.setProgramCounterToEnd();
 }
@@ -2975,8 +3034,9 @@ void Basic::handleNETGET(const std::vector<Token>& tokens) {
 
 // DIM statement (array declaration)
 inline void Basic::handleDIM(const std::vector<Token>& tokens) {
-    if (tokens.size() < 2)
+    if (tokens.size() < 2) {
         return;
+    }
     // if (tokens[2].type != TokenType::PARENTHESIS || tokens.back().type != TokenType::PARENTHESIS) {
     //     throw Error(ErrorId::SYNTAX);
     // }
@@ -3085,7 +3145,6 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
         sline += '\n';
         os->screen.cleanCurrentLine();
         printUtf8String(sline);
-        os->screen.putC('\0');
 
         handleEscapeKey(true);
         os->delay(50);
@@ -3551,8 +3610,9 @@ void Basic::handleDEFFN(std::vector<Token>& tokens) {
 
 // Handle FOR statement
 void Basic::handleFOR(const std::vector<Token>& tokens) {
-    if (tokens.size() < 6 || tokens[2].value != "=")
+    if (tokens.size() < 6 || tokens[2].value != "=") {
         return;
+    }
     std::string varName = tokens[1].value;
     auto values         = evaluateExpression(tokens, 3);
     if (values.size() != 1) {
@@ -4076,6 +4136,7 @@ std::string Basic::inputLine(bool allowVertical) {
 
     os->screen.setCursorActive(true);
     for (;;) {
+        os->updateEvents();
         os->presentScreen();
         handleEscapeKey();
 
@@ -4575,6 +4636,8 @@ void Basic::handleEscapeKey(bool allowPauseWithShift) {
             throw Error(ErrorId::BREAK);
         }
         os->delay(30);
+        os->updateEvents();
+        os->presentScreen();
     }
 }
 
@@ -4851,7 +4914,6 @@ bool Basic::saveProgram(std::string filenameUtf8) {
                 sline += '\n';
                 os->screen.cleanCurrentLine();
                 printUtf8String(sline);
-                os->screen.putC('\0');
 
                 handleEscapeKey(true);
                 os->delay(50);
@@ -4871,7 +4933,6 @@ bool Basic::saveProgram(std::string filenameUtf8) {
     if (!file.close()) {
         os->screen.cleanCurrentLine();
         printUtf8String(file.status());
-        os->screen.putC('\0');
     }
 
 

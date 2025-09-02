@@ -99,12 +99,11 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
         //     return {};
         // }
 
-        std::string lockSymbol = Os::lockSymbol(); // not any derived class!
-        char* next_line        = nullptr;
-        char* buffer           = nullptr;
-        if (!resp.bytes.empty()) {
-            buffer = StringHelper::strtok_r((char*)(&resp.bytes[0]), "\r\n", &next_line);
-        }
+        std::string lockSymbol  = Os::lockSymbol(); // not any derived class!
+        char* next_line         = nullptr;
+        char* buffer            = nullptr;
+        std::string responseStr = resp.toString();
+        buffer                  = StringHelper::strtok_r(const_cast<char*>(responseStr.c_str()), "\r\n", &next_line);
         while (buffer != nullptr) {
             for (size_t i = 0; i < 512; ++i) {
                 if (buffer[i] == '\n' || buffer[i] == '\r' || buffer[i] == '\0') {
@@ -134,32 +133,6 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
 
             buffer = StringHelper::strtok_r(nullptr, "\r\n", &next_line);
         }
-        // char buffer[512] = { 0 };
-        // while (!feof(f)) {
-        //     memset(buffer, 0, sizeof(buffer));
-        //     fgets(buffer, 512, f);
-        //     for (size_t i = 0; i < 512; ++i) {
-        //         if (buffer[i] == '\n' || buffer[i] == '\r' || buffer[i] == '\0') {
-        //             buffer[i] = '\0';
-        //             break;
-        //         }
-        //     }
-        //     Os::FileInfo fi;
-        //     fi.filesize   = atoi(buffer);
-        //     const char* c = buffer;
-        //     while (*c != '\0' && *c != ' ') {
-        //         ++c;
-        //     }
-        //     if (*c == ' ') {
-        //         ++c;
-        //     }
-        //     fi.name = c;
-        //     if (!fi.name.empty()) {
-        //         files.emplace_back(fi);
-        //     }
-        // }
-        // f.close();
-        // scratchFile(tmp);
 
         currentDirIsCloud = true; // restore cloud state
     } else {
@@ -304,6 +277,7 @@ bool Os::init(Basic* basic, SoundSystem* ss) {
     sound       = ss;
     sound->os   = this;
     this->basic = basic;
+
     return true;
 }
 
@@ -523,8 +497,9 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
                 temp += c;
             }
         }
-        if (!temp.empty())
+        if (!temp.empty()) {
             args.push_back(temp);
+        }
 
         std::vector<char*> argv;
         for (auto& arg : args) {
@@ -573,8 +548,9 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
 
             if (fds[1].revents & POLLIN) { // Check for user input
                 char32_t c32 = this->getc();
-                if (c32 == '\r')
+                if (c32 == '\r') {
                     c32 = '\n';
+                }
                 if (c32 != 0) {
                     this->updateEvents();
                     this->screen.putC(c32);

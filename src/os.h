@@ -54,7 +54,7 @@ public:
     // [ms] get a continuous timer value
     virtual uint64_t tick() const = 0;
 
-    // delay for some time
+    // delay for some time.
     virtual void delay(int ms);
 
 public:

@@ -168,14 +168,17 @@ void OsWindowsConsole::presentScreen() {
     chars.clear();
     colors.clear();
     for (size_t y = 0; y < screen.height; ++y) {
-        auto& ln = screen.getLineBuffer()[y];
+        const auto* lnCh = screen.charRam + y * screen.width;
+        const auto* lnCo = screen.colRam + y * screen.width;
+
+        // auto& ln = screen.getLineBuffer()[y];
         for (size_t x = 0; x < screen.width; ++x) {
-            auto& sc = ln->cols[x];
-            if (sc.ch == U'\0') {
+            auto& ch = lnCh[x];
+            if (ch == U'\0') {
                 break;
             }
-            chars.push_back(sc.ch);
-            colors.push_back(sc.col);
+            chars.push_back(ch);
+            colors.push_back(char(lnCo[x]));
         }
         chars.push_back(U'\n');
         colors.push_back(1);

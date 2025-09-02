@@ -39,7 +39,7 @@
 ,{"ON", R"RAW(ON expr GOTO/GOSUB line1, line2, ...)RAW"}
 ,{"OPEN", R"RAW(OPEN fileno, device=1, secondary=0, "filename , MODE_RW")RAW"}
 ,{"PLAY", R"RAW(PLAY abc_notation$)RAW"}
-,{"POKE", R"RAW(POKE address, byte)RAW"}
+,{"POKE", R"RAW(POKE address, value)RAW"}
 ,{"PRINT", R"RAW(PRINT expr [[,|;| ] expr ...])RAW"}
 ,{"PRINT USING", R"RAW(PRINT USING format; expr [, expr ...])RAW"}
 ,{"QUIT", R"RAW(QUIT)RAW"}

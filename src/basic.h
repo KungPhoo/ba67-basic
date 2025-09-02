@@ -181,7 +181,7 @@ public:
 
     std::unordered_map<std::string, cmdpointer> commands;
     std::unordered_map<std::string, fktpointer> functions;
-    std::array<uint8_t, 0x20000> memory; // for PEEK&POKE - no other use
+    std::vector<uint32_t> memory; // for PEEK&POKE. charram, colram, lineLinkTable,...
 
     CPU6502 cpu;
 
