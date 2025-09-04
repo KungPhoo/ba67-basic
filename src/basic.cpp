@@ -13,6 +13,16 @@
 #include "minifetch.h"
 #include "petscii.h"
 
+
+
+
+
+// TODO try 10 DIM JU(13): FOR I = 0 TO 13 : READ JU(I) : NEXT : PRINT JU(I): DATA 5, 4, 3, 2, 1, 1, 0, 0, -1, -1, -2, -3, -4, -5
+
+
+
+
+
 #if defined(__cplusplus) && __cplusplus > 202002L
     #include <format>
 #else
@@ -2604,10 +2614,13 @@ void Basic::handleRUN(const std::vector<Token>& tokens) {
 }
 
 void Basic::handleMODULE(const std::vector<Token>& tokens) {
-    const char* name = "";
+    std::string name = "";
     auto it          = modules.end();
+
+    bool direct = currentModule().isInDirectMode();
+
     if (tokens.size() > 1) {
-        name = tokens[1].value.c_str();
+        name = Unicode::toUpper(tokens[1].value.c_str());
         it   = modules.find(tokens[1].value);
     }
     if (it == modules.end()) {
@@ -2615,6 +2628,10 @@ void Basic::handleMODULE(const std::vector<Token>& tokens) {
         it            = modules.find(name);
     }
     moduleVariableStack.push_back(it);
+
+    if (direct) {
+        printUtf8String("MODULE IS " + name);
+    }
 
     // debug("MODULE VARIABLES "); debug(name.c_str()); debug("\n");
 }
@@ -3107,6 +3124,17 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
 
     if (tokens.size() == 1) {
         // list all
+    } else if (tokens.size() == 2 && tokens[1].type == TokenType::KEYWORD && tokens[1].value == "MODULE") {
+        // LIST MODULE
+
+        for (auto& lmd : modules) {
+            os->screen.cleanCurrentLine();
+            printUtf8String("MODULE \"" + lmd.first + "\"\n");
+
+            handleEscapeKey(true);
+            os->delay(50);
+        }
+        return;
     } else if (tokens.size() == 2 && tokens[1].type != TokenType::OPERATOR) {
         // LIST 10
         from = to = int(valueToInt(tokens[1].value));
@@ -3799,9 +3827,6 @@ void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
             auto pcAfterThisData = cm.readDataPosition; // where to read next DATA
             cm.readDataPosition  = pcOfThisData; // rewind to this DATA for more values
 
-            bool previousWasComma = false;
-            int nthData           = 0;
-
             // this is a hack. When the last data is a comma, there is
             // one empty data piece at the end of that line - which is not tokenized!
             // This way, we add an empty item.
@@ -3817,7 +3842,18 @@ void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
                 tokens.push_back(t);
             }
 
+
+            bool previousWasComma = false;
+            int nthData           = 0;
+            bool unaryMinus       = false;
             for (size_t itok = 1 /* skip "DATA"*/; itok < tokens.size(); ++itok) {
+                if (nthData == cm.readDataIndex && tokens[itok].type == TokenType::OPERATOR) {
+                    if (tokens[itok].value == "-") {
+                        unaryMinus = true;
+                        ++itok;
+                    }
+                }
+
                 auto& t = tokens[itok];
                 if (nthData == cm.readDataIndex) {
                     ++cm.readDataIndex;
@@ -3834,13 +3870,13 @@ void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
                         if (valuePostfix == '$') {
                             throw Error(ErrorId::TYPE_MISMATCH);
                         }
-                        *pval = strToInt(t.value);
+                        *pval = unaryMinus ? -strToInt(t.value) : strToInt(t.value);
                         break;
                     case TokenType::NUMBER:
                         if (valuePostfix == '$') {
                             throw Error(ErrorId::TYPE_MISMATCH);
                         }
-                        *pval = atof(t.value.c_str());
+                        *pval = unaryMinus ? -atof(t.value.c_str()) : atof(t.value.c_str());
                         break;
                     case TokenType::COMMA:
                         skipComma = false;
@@ -3853,8 +3889,12 @@ void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
                         break;
                     default: break;
                     }
+
                     // skip following comma
                     if (skipComma && itok + 1 < tokens.size() && tokens[itok + 1].type == TokenType::COMMA) {
+                        if (unaryMinus) {
+                            ++cm.readDataIndex;
+                        }
                         ++cm.readDataIndex;
                     }
                     return;

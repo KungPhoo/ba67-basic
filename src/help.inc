@@ -29,7 +29,7 @@
 ,{"INPUT", R"RAW(INPUT var)RAW"}
 ,{"KEY", R"RAW(KEY [index, string])RAW"}
 ,{"LET", R"RAW(LET var = expr)RAW"}
-,{"LIST", R"RAW(LIST [from][-][to])RAW"}
+,{"LIST", R"RAW(LIST [from][-][to][MODULE])RAW"}
 ,{"LOAD", R"RAW(LOAD "bas*folder/*.bas")RAW"}
 ,{"MOVSPR", R"RAW(MOVSPR number, x25, y50)RAW"}
 ,{"NEW", R"RAW(NEW)RAW"}

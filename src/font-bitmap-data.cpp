@@ -1075,6 +1075,7 @@ static FontDataBits::DataStruct staticTable[] = {
     {     0x204a,                        { 0, 0, 0, 62, 2, 2, 0, 0 } },
     {     0x2055,                   { 8, 42, 28, 127, 28, 42, 8, 0 } },
     {     0x205c,                     { 8, 42, 8, 127, 8, 42, 8, 0 } },
+#if 0  // 2070-2BFE are hand drawn in emoji.inc
     // Currency
     {     0x20a0,                   { 28, 32, 79, 72, 62, 8, 15, 0 } },
     {     0x20a1,                  { 20, 30, 34, 64, 64, 62, 20, 0 } },
@@ -1396,7 +1397,6 @@ static FontDataBits::DataStruct staticTable[] = {
     {     0x2575,                         { 8, 8, 8, 8, 0, 0, 0, 0 } },
     {     0x2576,                        { 0, 0, 0, 0, 15, 0, 0, 0 } },
     {     0x2577,                         { 0, 0, 0, 0, 8, 8, 8, 8 } },
-#if 0  // these are hand drawn in emoji.inc
       // Block elements
         { 0x2580, { 255, 255, 255, 255, 0, 0, 0, 0 } },
         { 0x2581, { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff } }, // $64 PETSCII lower one eighth block
@@ -1828,7 +1828,7 @@ static FontDataBits::DataStruct staticTable[] = {
     {    0x1fb6e,                        { 1, 3, 7, 15, 7, 3, 1, 0 } },
     {    0x1fb6f,                     { 0, 0, 0, 0, 8, 28, 62, 127 } },
 
-#if 0
+#if 0  // emoji.inc
         { 0x1FB70, { 0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60 } }, // $54 PETSCII box drawings light vertical two quarters left
         { 0x1FB72, { 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18 } }, // $42 PETSCII box drawings light vertical
         { 0x1fb73, { 8, 8, 8, 8, 8, 8, 8, 8 } },

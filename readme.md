@@ -188,10 +188,10 @@ Here are the key features:
 - Full Unicode character set (even emoji end stuff)
 - 64 bit precision for numbers
 - 64 bit integers
-- Modular programming (See keyword `MODULE`)
+- Modular programming (See keyword [MODULE](#module))
 - Direct access to your local file system
-- Easy access to proprietary cloud storage (See `CLOUD`)
-- Get data from the internet (See `NETGET`)
+- Easy access to proprietary cloud storage (See [CLOUD](#cloud))
+- Get data from the internet (See [NETGET](#netget))
 - Written in C++ (using some C libraries)
 - Very easy to use as a scripting language in your projects
 - Easy to port to other platforms
@@ -243,7 +243,8 @@ command and supports the full Unicode range
 (uses a map internally).
 
 For the sound, the ABC music notation is used. For sound
-effects, DrPetter's SFXR is used. See `PLAY` and `SOUND`.
+effects, DrPetter's SFXR is used. See [PLAY](#play) and
+[SOUND](#sound).
 
 -------------------------------------------------------------
 ## Syntax
@@ -400,7 +401,8 @@ is accepted but mandatory. Saving will write UTF-8 without BOM.
 
 When saving to a .prg file (only for export - don't use this
 as your development format!), the Unicode characters in
-strings are mapped back to PETSCII. See annex G for details.
+strings are mapped back to PETSCII. See [Annex G](#annex)
+for details.
 
 ### Cloud file storage
 With `CLOUD` you can specify a webserver, that BA67 can use
@@ -408,7 +410,7 @@ as a remote drive. There are no subdirectories on a cloud
 storage.
 You simply `CHDIR "CLOUD"` to navigate the current directory
 to the previously defined cloud storage.
-See the `CLOUD` command for details.
+See the [CLOUD](#cloud) command for details.
 
 ### boot.bas
 The C++ class that derives from the C++ class `Os` should
@@ -441,7 +443,7 @@ The line `1 REMBA67` also can add more keywords. These are
 After loading, the parser returns to the default behaviour.
 Don't forget to backup and remove line `1` before saving.
 
-See Annex G for mapping PETSCII to Unicode.
+See [Annex G](#annex) for mapping PETSCII to Unicode.
 
 -------------------------------------------------------------
 ## Keywords, Commands, Functions
@@ -583,9 +585,9 @@ cursor at the end of the printed string's position.
 Other BASICs have a command `LOCATE` or `PRINT AT` for this.
 
 The parameter `color` was ignored on the C128, but here it is
-used as the text color index. See `COLOR` for possible values
-from 0 to 16. The color 0 (or omitting the parameter) uses
-the current text color.
+used as the text color index. See [COLOR](#color) for possible
+values from 0 to 16. The color 0 (or omitting the parameter)
+uses the current text color.
 
 The command will leave the cursor at the end of the text
 and restore the current text color.
@@ -688,7 +690,7 @@ your local file system with `CHDIR "."`.
 If you have a local directory "CLOUD" and want to change
 to that directory, you can do so with  `CHDIR "./CLOUD"`.
 
-See annex for more details.
+See [Annex C](#annex) for more details.
 
 ### DATA
 **Usage:** `DATA value, value, string, "string with spaces", ...`
@@ -752,7 +754,7 @@ Terminates program execution.
 **Usage:** `FAST`
 
 Enables fast mode for this `MODULE`. That's the default
-speed. No delay will be added. See also `SLOW`.
+speed. No delay will be added. See also [SLOW](#slow).
 
 ### FIND
 **Usage:** `FIND "print*hello world"`
@@ -817,7 +819,7 @@ are supported:
 
 In the 80 column mode, each character still is 8x8 pixels.
 However, the display is scaled to it looks like they're 8x16
-pixels. You can change that in the code. See also `CHARDEF`.
+pixels. You can change that in the code. See also [CHARDEF](#chardef).
 
 ### GOSUB
 **Usage:** `GOSUB line`
@@ -826,10 +828,10 @@ Calls a subroutine at the specified line number. Execution
 resumes after a `RETURN`. The `FOR-NEXT` stack from inside
 the subroutine is popped from the stack.
 
-See the `FOR` command for how the call stack is maintained,
+See the [FOR](#for) command for how the call stack is maintained,
 internally.
 
-See the `BAKE` command for how to use labels instead of
+See the [BAKE](#bake) command for how to use labels instead of
 line numbers.
 
 Example:
@@ -847,7 +849,7 @@ Example:
 GOTO 100
 ```
 
-See the `BAKE` command for how to use labels instead of
+See the [BAKE](#bake) command for how to use labels instead of
 line numbers.
 
 ### HELP
@@ -895,9 +897,14 @@ LET X = 5
 ```
 
 ### LIST
-**Usage:** `LIST [from][-][to]`
+**Usage:** `LIST [from][-][to][MODULE]`
 
-Displays the program listing.
+Displays the program listing. Optionally, a line
+number range can be provided.
+
+`LIST MODULE` lists all loaded modules. See [MODULE](#module).
+
+
 
 ### LOAD
 **Usage:** `LOAD "bas*folder/*.bas"`
@@ -1040,7 +1047,7 @@ Don't forget to `CLOSE` the file afterwards.
 The PLAY command plays a music score in the background of
 your program. The music string is in ABC music notation.
 
-See the annex for details.
+See the [annex] for details.
 
 
 #### Technical Background
@@ -1077,7 +1084,7 @@ BA67 internally has 32 bit  values for each address.
 So you can `POKE` larger values to an address. This is
 required to display Unicode screen characters.
 
-See the annex I for supported addresses.
+See the [Annex I](#annex) for supported addresses.
 
 **Usage:** `POKE address, value`
 
@@ -1138,7 +1145,7 @@ loaded or saved.
 ### RCHARDEF
 **Usage:** `RCHARDEF char$, mono, bits1, bits2, ..., bits8`
 
-Reads the pixels for a character image. See `CHARDEF`
+Reads the pixels for a character image. See [CHARDEF](#chardef)
 before reading this.
 
 The `mono` parameter will be filled with -1 (yes, mono) or
@@ -1154,7 +1161,7 @@ Reads a variable from the next DATA keyword.
 ### REM
 **Usage:** `REM --LABEL-- or comment`
 
-Adds a comment in the program. See the `BAKE` command
+Adds a comment in the program. See the [BAKE](#bake) command
 for special comments that can be used as `GOTO` labels.
 
 Example:
@@ -1195,8 +1202,8 @@ number, then. The default is zero - no milestone.
 
 *DO SAVE YOUR WORK* before you renumber the listing.
 
-Please also see the `BAKE` command for using labels instead
-of line numbers.
+Please also see the [BAKE](#bake) command for using labels
+instead of line numbers.
 
 **Example:**
 ```basic
@@ -1262,7 +1269,7 @@ Example:
 This parameter has no effect on the C128 and is, thus,
 backwards compatible.
 
-See also `QSAVE`.
+See also [QSAVE](#qsave).
 
 
 ### SCNCLR
@@ -1306,7 +1313,7 @@ can be found on his homepage:
 https://www.drpetter.se/project_sfxr.html
 
 Optionally different sound engines might be used during
-compilation. See Build chapter.
+compilation. See Build chapter in the [annex](#annex).
 
 Here's the list of parameters:
 ```
@@ -1426,7 +1433,7 @@ It's required to have the command in quotes, so you can
 use variables.
 
 If a number is given, the assembler code at that memory
-address is executed. See Annex H for details.
+address is executed. See [Annex H](#annex) for details.
 
 ### THEN
 **Usage:** `IF condition THEN expression|line` 
@@ -1480,7 +1487,7 @@ Returns the cosine of an angle in radians.
 **Usage:** `PRINT DEC("FF")`
 
 Converts a hex string to an integer number.
-See also `HEX$`.
+See also [HEX$](#hex$).
 
 ### EXP
 **Usage:** `EXP(expr)`
@@ -1599,7 +1606,7 @@ Internally it's an integer operation, currently.
 **Usage:** `PEEK(address)`
 
 Returns the value from a memory address.
-See annex I for more details on the memory model.
+See [Annex I](#annex) for more details on the memory model.
 
 ### PEN
 **Usage:** `PEN(X0_Y1_X2_Y3_BT4)`
@@ -1841,7 +1848,7 @@ The line height must be a either 8 or 16 pixels.
 If you re-implement BA67 in your own project and your
 character height is defined to 16, but you only pass
 8 lines, each line will be duplicated.
-See ScreenInfo structure in the code.
+See `ScreenInfo` structure in the code.
 
 -------------------------------------------------------------
 ## C - Cloud

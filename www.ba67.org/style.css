@@ -18,6 +18,8 @@ li{
 
 a{
     color: #91ff84; /* Light green */
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
 }
 a:hover{
     color: #ffffff; /* White */
