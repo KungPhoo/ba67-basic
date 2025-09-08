@@ -52,9 +52,9 @@ char32_t Unicode::parseNextUtf8(const char*& utf8) {
 }
 
 void Unicode::appendAsUtf8(std::string& out, char32_t unicodeCodepoint) {
-    if (unicodeCodepoint <= 0x7f)
+    if (unicodeCodepoint <= 0x7f) {
         out.append(1, static_cast<char>(unicodeCodepoint));
-    else if (unicodeCodepoint <= 0x7ff) {
+    } else if (unicodeCodepoint <= 0x7ff) {
         out.append(1, static_cast<char>(0xc0 | ((unicodeCodepoint >> 6) & 0x1f)));
         out.append(1, static_cast<char>(0x80 | (unicodeCodepoint & 0x3f)));
     } else if (unicodeCodepoint <= 0xffff) {
@@ -78,8 +78,9 @@ std::string Unicode::toUtf8String(const char32_t* str) {
 }
 
 std::string Unicode::toUtf8String(const char16_t* str) {
-    if (!str)
+    if (!str) {
         return std::string();
+    }
 
     std::string utf8;
     while (*str) {
@@ -242,10 +243,50 @@ std::string Unicode::toLower(const char* utf8) {
     return str;
 }
 
+
+void Unicode::toUpper(std::string& utf8) {
+    std::string tmp;
+    char* str = utf8.data();
+    while (*str != '\0') {
+        char* start = str;
+        char32_t cp = parseNextUtf8((const char*&)str);
+        if (cp == 0) {
+            break;
+        }
+        tmp.clear();
+        appendAsUtf8(tmp, Unicode::toUpper(cp));
+        if (str - start == tmp.length()) {
+            memcpy(start, tmp.c_str(), tmp.length());
+        } else {
+            throw "case changes utf8 length!?";
+        }
+    }
+}
+void Unicode::toLower(std::string& utf8) {
+    std::string tmp;
+    char* str = utf8.data();
+    while (*str != '\0') {
+        char* start = str;
+        char32_t cp = parseNextUtf8((const char*&)str);
+        if (cp == 0) {
+            break;
+        }
+        tmp.clear();
+        appendAsUtf8(tmp, Unicode::toUpper(cp));
+        if (str - start == tmp.length()) {
+            memcpy(start, tmp.c_str(), tmp.length());
+        } else {
+            throw "case changes utf8 length!?";
+        }
+    }
+}
+
+
 // Finds utf8Find in utf8 starting at a specific Unicode code point index.
 std::string::size_type Unicode::strstr(const std::string& utf8, const std::string& utf8Find, size_t startCodePoint) {
-    if (utf8Find.empty())
+    if (utf8Find.empty()) {
         return 0; // Empty substring matches at start
+    }
 
     const char* search = utf8.c_str();
     const char* target = utf8Find.c_str();
@@ -253,8 +294,9 @@ std::string::size_type Unicode::strstr(const std::string& utf8, const std::strin
     // Advance search to startCodePoint
     size_t currentCodePoint = 0;
     while (*search && currentCodePoint < startCodePoint) {
-        if (!parseNextUtf8(search))
+        if (!parseNextUtf8(search)) {
             return std::string::npos;
+        }
         currentCodePoint++;
     }
 
@@ -278,8 +320,9 @@ std::string::size_type Unicode::strstr(const std::string& utf8, const std::strin
         }
 
         // Move to next code point in search string
-        if (!parseNextUtf8(search))
+        if (!parseNextUtf8(search)) {
             break;
+        }
         ++currentCodePoint;
     }
 

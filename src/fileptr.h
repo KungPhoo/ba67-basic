@@ -58,7 +58,7 @@ public:
     int seek(int offset, int origin);
     size_t tell();
     size_t read(void* buffer, size_t bytes);
-    size_t write(void* buffer, size_t bytes);
+    size_t write(const void* buffer, size_t bytes);
     std::vector<uint8_t> readAll();
     std::string status() const { return lastStatus; }
 

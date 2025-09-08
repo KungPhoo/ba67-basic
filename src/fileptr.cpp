@@ -208,7 +208,7 @@ size_t FilePtr::read(void* buffer, size_t bytes) {
     return fread(buffer, bytes, 1, file);
 }
 
-size_t FilePtr::write(void* buffer, size_t bytes) {
+size_t FilePtr::write(const void* buffer, size_t bytes) {
     if (!file) {
         lastStatus = "BAD FILE";
         return 0;

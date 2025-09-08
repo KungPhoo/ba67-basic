@@ -170,8 +170,9 @@ protected:
     // Token structure
     struct Token {
         TokenType type;
-        std::string value;
+        std::string_view value;
     };
+
 
     std::set<std::string> keywords;
 
@@ -179,8 +180,24 @@ public:
     using cmdpointer = std::function<void(Basic*, const std::vector<Value>&)>; // PRINT
     using fktpointer = std::function<Value(Basic*, const std::vector<Value>&)>; // MID$()
 
-    std::unordered_map<std::string, cmdpointer> commands;
-    std::unordered_map<std::string, fktpointer> functions;
+
+    // we need this hash for unordered containers, so we can quickly find(const char*)
+    struct string_hash {
+        using is_transparent = void;
+        [[nodiscard]] size_t operator()(const char* txt) const {
+            return std::hash<std::string_view> {}(txt);
+        }
+        [[nodiscard]] size_t operator()(std::string_view txt) const {
+            return std::hash<std::string_view> {}(txt);
+        }
+        [[nodiscard]] size_t operator()(const std::string& txt) const {
+            return std::hash<std::string> {}(txt);
+        }
+    };
+
+
+    std::unordered_map<std::string, cmdpointer, string_hash, std::equal_to<>> commands;
+    std::unordered_map<std::string, fktpointer, string_hash, std::equal_to<>> functions;
     std::vector<uint32_t> memory; // for PEEK&POKE. charram, colram, lineLinkTable,...
 
     CPU6502 cpu;
@@ -240,9 +257,24 @@ public:
         }
     };
 
+    struct ProgramLine {
+        ProgramLine() = default;
+        ProgramLine(const ProgramLine& l)
+            : ProgramLine() { *this = l; }
+        ProgramLine& operator=(const ProgramLine& l) {
+            code = l.code;
+            return *this;
+        }
+        std::string code;
+        std::vector<std::vector<Token>> tokens; // tokens for each command. Has string_views to code
+        operator std::string&() { return code; }
+    };
+
+
     struct ProgramCounter {
-        std::map<int, std::string>::iterator line;
-        size_t position;
+        std::map<int, ProgramLine>::iterator line;
+        size_t cmdpos; // current command is at nth vector in ProgramLine.tokens[]
+        // size_t position; // character index in program code
     };
 
     // Loop stack for nested FOR loops and GOSUB stack
@@ -267,13 +299,21 @@ public:
 
     // Def Fn
     struct FunctionDefinition {
+        std::string lineCopy; // because Token has string_views
         std::vector<Token> parameters;
         std::vector<Token> body;
+        void clear() {
+            lineCopy.clear();
+            parameters.clear();
+            body.clear();
+        }
     };
 
     // Files
     std::vector<FilePtr> openFiles;
     size_t currentFileNo = 0;
+
+
 
     // Modules
     class Module {
@@ -281,14 +321,14 @@ public:
         // listing[-2] = immediate mode argument
         // listing[-1] = "END"
         std::string filenameQSAVE;
-        std::map<int, std::string> listing; // [basic number] = line
-        std::unordered_map<std::string, Value> variables;
-        std::unordered_map<std::string, Array> arrays;
+        std::map<int, ProgramLine> listing; // [basic number] = line
+        std::unordered_map<std::string, Value, string_hash, std::equal_to<>> variables;
+        std::unordered_map<std::string, Array, string_hash, std::equal_to<>> arrays;
 
         std::vector<LoopItem> loopStack;
         // std::vector<ProgramCounter> gosubStack;
 
-        std::unordered_map<std::string, FunctionDefinition> functionTable;
+        std::unordered_map<std::string, FunctionDefinition, string_hash, std::equal_to<>> functionTable;
         size_t autoNumbering          = 0; // set this value with AUTO
         int64_t lastEnteredLineNumber = 0;
 
@@ -301,24 +341,31 @@ public:
         bool traceOn  = false;
 
         void restoreDataPosition() {
-            readDataPosition.line     = listing.begin();
-            readDataPosition.position = 0;
-            readDataIndex             = 0;
+            readDataPosition.line   = listing.begin();
+            readDataPosition.cmdpos = 0;
+            readDataIndex           = 0;
         }
 
         void setProgramCounterToEnd() {
-            programCounter.line     = listing.end();
-            programCounter.position = 0;
+            programCounter.line   = listing.end();
+            programCounter.cmdpos = 0;
         }
 
         bool isInDirectMode() const {
             return (programCounter.line == listing.end() || programCounter.line->first <= 0);
         }
+
+        void forceTokenizing() {
+            for (auto& ln : listing) {
+                ln.second.tokens.clear();
+            }
+        }
     };
 
-    std::map<std::string, Module> modules; // modules currently in memory
-    std::vector<std::map<std::string, Module>::iterator> moduleVariableStack; // entered modules - this is for the variable space
-    std::vector<std::map<std::string, Module>::iterator> moduleListingStack; // entered modules - this is for the listing and program counter
+    using moduleT = std::unordered_map<std::string, Module, string_hash, std::equal_to<>>;
+    moduleT modules; // modules currently in memory
+    std::vector<moduleT::iterator> moduleVariableStack; // entered modules - this is for the variable space
+    std::vector<moduleT::iterator> moduleListingStack; // entered modules - this is for the listing and program counter
 
     int colorForModule(const std::string& str) const;
 
@@ -339,7 +386,7 @@ public:
     // ProgramCounter* programCounter; // the position in the current listing
 
     Module& currentModule() { return moduleVariableStack.back()->second; } // the module (variable space) to work in
-    std::map<int, std::string>& currentListing() { return moduleListingStack.back()->second.listing; }
+    std::map<int, ProgramLine>& currentListing() { return moduleListingStack.back()->second.listing; }
     ProgramCounter& programCounter() { return moduleListingStack.back()->second.programCounter; }
 
 public:
@@ -357,20 +404,24 @@ public:
     static const char* skipWhite(const char*& str);
     static bool parseDouble(const char*& str, double* number = nullptr);
     static bool parseInt(const char*& str, int64_t* number = nullptr); // int - not a double! "1.23" returns false
-    static bool parseFileHandle(const char*& str, std::string* number = nullptr);
+    static bool parseFileHandle(const char*& str, std::string_view* number = nullptr);
     static int64_t strToInt(const std::string& str); // parses "255" and "$ff"
+    static int64_t strToInt(const std::string_view& str); // parses "255" and "$ff"
+    static int64_t strToInt(const char* str); // parses "255" and "$ff"
 protected:
-    bool parseKeyword(const char*& str, std::string* keyword = nullptr);
-    bool parseCommand(const char*& str, std::string* command = nullptr);
-    bool parseString(const char*& str, std::string* stringUnquoted);
-    bool parseOperator(const char*& str, std::string* op);
-    bool parseIdentifier(const char*& str, std::string* identifier);
+    bool parseKeyword(const char*& str, std::string_view* keyword = nullptr);
+    bool parseCommand(const char*& str, std::string_view* command = nullptr);
+    bool parseString(const char*& str, std::string_view* stringUnquoted);
+    bool parseOperator(const char*& str, std::string_view* op);
+    bool parseIdentifier(const char*& str, std::string_view* identifier);
 
-    std::vector<Token> tokenize(ProgramCounter* pProgramCounter = nullptr);
-    std::vector<std::vector<Token>> tokenize(const std::string& code);
+    // void tokenizeNextCommand(ProgramCounter* pProgramCounter);
+    const char* tokenizeNextCommand(const char* pc, std::vector<Token>& tokens);
+    void tokenizeLine(ProgramLine& line);
+    // std::vector<std::vector<Token>> tokenizeNextCommand(const std::string& code);
 
     // Operator precedence
-    int precedence(const std::string& op);
+    int precedence(const std::string_view& op);
 
     Basic::Value evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::vector<Basic::Value>& arguments);
 
@@ -388,7 +439,7 @@ protected:
     void handleRUN(const std::vector<Token>& tokens);
     void handleMODULE(const std::vector<Token>& tokens);
     void doPrintValue(Value& v);
-    void handlePRINT(std::vector<Token>& tokens);
+    void handlePRINT(const std::vector<Token>& tokens);
     void handlePRINT_USING(const std::vector<Token>& tokens);
     void handleGET(const std::vector<Token>& tokens, bool waitForKeypress);
     void handleINPUT(const std::vector<Token>& tokens);
@@ -406,21 +457,23 @@ protected:
     Value* findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr, bool allowDimArray = false);
 
     void doGOTO(int line, bool isGoSub);
-    void handleGOTO(std::vector<Token>& tokens);
-    void handleGOSUB(std::vector<Token>& tokens);
-    void handleONGOTO(std::vector<Token>& tokens);
-    void handleHELP(std::vector<Token>& tokens);
-    void handleDEFFN(std::vector<Token>& tokens);
+    void handleGOTO(const std::vector<Token>& tokens);
+    void handleGOSUB(const std::vector<Token>& tokens);
+    void handleONGOTO(const std::vector<Token>& tokens);
+    void handleHELP(const std::vector<Token>& tokens);
+    void handleDEFFN(const std::vector<Token>& tokens);
     void handleFOR(const std::vector<Token>& tokens);
     void handleNEXT(const std::vector<Token>& tokens);
 
-    void handleIFTHEN(std::vector<Token>& tokens);
+    void handleIFTHEN(const std::vector<Token>& tokens);
 
     void readNextData(Value* pval, char valuePostfix);
-    void handleREAD(std::vector<Token>& tokens);
-    void handleRESTORE(std::vector<Token>& tokens);
+    void handleREAD(const std::vector<Token>& tokens);
+    void handleRESTORE(const std::vector<Token>& tokens);
 
-    void executeTokens(std::vector<Token>& tokens);
+    void ensureTokenized(Module& module, ProgramCounter& pc);
+    void executeParsedTokens(const std::vector<Token>& tokens);
+    // void execute(ProgramLine& line, bool mustTokenize = true);
 
     std::array<std::string, 12> keyShortcuts; // F1..F12 key shortcuts. Set with KEY command
 
@@ -430,8 +483,9 @@ public:
 
     void uppercaseProgram(std::string& line);
 
-    void printUtf8String(const char* utf8, bool applyCtrlCodes = false);
-    inline void printUtf8String(const std::string& utf8, bool applyCtrlCodes = false) { printUtf8String(utf8.c_str(), applyCtrlCodes); }
+    void printUtf8String(const char* utf8, const char* pend = nullptr, bool applyCtrlCodes = false);
+    inline void printUtf8String(const std::string& utf8, bool applyCtrlCodes = false) { printUtf8String(utf8.c_str(), utf8.c_str() + utf8.length(), applyCtrlCodes); }
+    void printUtf8String(std::string_view utf8, bool applyCtrlCodes = false) { printUtf8String(utf8.data(), utf8.data() + utf8.length(), applyCtrlCodes); }
     // inline void printUtf8String(const char8_t* utf8, bool applyCtrlCodes = false) { printUtf8String((const char*)utf8, applyCtrlCodes); }
 
     enum class ParseStatus {
@@ -441,7 +495,8 @@ public:
         PS_IDLE // just pressed enter
     };
     void restoreColorsAndCursor(bool resetFont);
-    ParseStatus parseInput(const char* pline);
+    ParseStatus parseInput(const char* pline); // program or run BASIC code - will reset program counter
+    void executeCommands(const char* pline); // will not reset program counter
 
     std::string inputLine(bool allowVertical = true);
 

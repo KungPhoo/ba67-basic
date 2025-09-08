@@ -32,6 +32,8 @@ public:
     static char32_t toLower(char32_t c);
     static std::string toUpper(const char* utf8);
     static std::string toLower(const char* utf8);
+    static void toUpper(std::string& utf8);
+    static void toLower(std::string& utf8);
 
     static std::string substr(const std::string& utf8, size_t startCodePoint, size_t length = ~size_t(0));
 
