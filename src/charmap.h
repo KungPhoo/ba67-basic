@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <stdexcept>
 #include "screeninfo.h"
+#include <cstdint>
 
 class CharBitmap {
 public:
@@ -52,8 +53,9 @@ public:
 
     // Multicolor: Get the nth pixel (0-based index)
     inline uint8_t multi(size_t n) const {
-        if (n >= ScreenInfo::charPixY * ScreenInfo::charPixY)
+        if (n >= ScreenInfo::charPixY * ScreenInfo::charPixY) {
             throw std::out_of_range("Pixel index out of range");
+        }
         size_t byteIndex = n / 2;
         bool highNibble  = (n % 2 == 0);
         return highNibble ? (bits[byteIndex] >> 4) : (bits[byteIndex] & 0x0F);
@@ -61,10 +63,12 @@ public:
 
     // Multicolor: Set the nth pixel (0-based index) to value (4-bit)
     inline void setMulti(size_t n, uint8_t value) {
-        if (n >= ScreenInfo::charPixY * ScreenInfo::charPixY)
+        if (n >= ScreenInfo::charPixY * ScreenInfo::charPixY) {
             throw std::out_of_range("Pixel index out of range");
-        if (value > 0xF)
+        }
+        if (value > 0xF) {
             throw std::invalid_argument("Pixel value must be 4-bit (0-15)");
+        }
 
         size_t byteIndex = n / 2;
         bool highNibble  = (n % 2 == 0);

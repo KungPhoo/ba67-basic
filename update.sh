@@ -24,7 +24,8 @@ git stash
 echo update sources
 git fetch origin
 git reset --hard origin/main
-git pull origin main
+git pull --recurse-submodules origin main
+
 
 if [ -f ~/ba67/get_dependencies.sh ]; then
     echo "Updating dependencies"
