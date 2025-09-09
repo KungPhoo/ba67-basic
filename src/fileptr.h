@@ -3,6 +3,8 @@
 #include <string>
 #include <cstdio>
 #include <vector>
+#include <cstdint>
+
 class Os;
 
 class FilePtr {
