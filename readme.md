@@ -902,9 +902,13 @@ LET X = 5
 Displays the program listing. Optionally, a line
 number range can be provided.
 
+I only the `-` is given, the last from/to range
+will be listed again.
+
 `LIST MODULE` lists all loaded modules. See [MODULE](#module).
 
-
+`LIST BAKE` will list all `BAKE` compatible remarks. See
+[BAKE](#bake).
 
 ### LOAD
 **Usage:** `LOAD "bas*folder/*.bas"`

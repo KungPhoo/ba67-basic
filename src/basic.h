@@ -407,7 +407,6 @@ public:
     static bool parseFileHandle(const char*& str, std::string_view* number = nullptr);
     static int64_t strToInt(const std::string& str); // parses "255" and "$ff"
     static int64_t strToInt(const std::string_view& str); // parses "255" and "$ff"
-    static int64_t strToInt(const char* str); // parses "255" and "$ff"
 protected:
     bool parseKeyword(const char*& str, std::string_view* keyword = nullptr);
     bool parseCommand(const char*& str, std::string_view* command = nullptr);

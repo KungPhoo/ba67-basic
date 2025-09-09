@@ -36,8 +36,10 @@ echo "Building from sources..."
 chmod +x build.sh
 ./build.sh && echo .
 
-echo "Installing..."
-chmod +x install.sh
-./install.sh && echo .
-echo "Starting..."
+# echo "Installing..."
+# chmod +x install.sh
+# ./install.sh && echo .
 
+# echo "Starting..."
+
+echo "end of update"

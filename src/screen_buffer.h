@@ -256,36 +256,10 @@ public:
     ScreenBuffer();
 
     // SCNCLR
-    void clear() {
-        dirtyFlag = true;
-        size_t n  = width * height;
-        for (size_t i = 0; i < n; ++i) {
-            charRam[i] = U' ';
-            colRam[i]  = currentColor();
-        }
-        memset(lineLinkTable, 0, sizeof(lineLinkTable[0]) * height);
-        cursorPosition = charRam;
-    }
+    void clear();
 
     // blank out current line, reset line link table flag
-    void cleanCurrentLine() {
-        dirtyFlag = true;
-        size_t y  = rowOf(cursorPosition);
-        if (y < height) {
-            auto* p = charRam + y * width;
-            for (size_t x = 0; x < width; ++x) {
-                *p++ = U' ';
-            }
-            auto cl = currentColor();
-            auto* c = colRam + y * width;
-            for (size_t x = 0; x < width; ++x) {
-                *c++ = cl;
-            }
-            if (lineLinkTable) {
-                lineLinkTable[y] = 0;
-            }
-        }
-    }
+    void cleanCurrentLine();
 
 
     // Cursor <-> Position
@@ -300,10 +274,7 @@ public:
         dirtyFlag      = true;
         cursorPosition = ptrAt(crsr.y, crsr.x);
     }
-    void moveCursorPos(int dx, int dy) {
-        dirtyFlag = true;
-        cursorPosition += (dy * width + dx);
-    }
+    void moveCursorPos(int dx, int dy);
 
     Cursor getStartOfLineAt(Cursor crsr) {
         if (!charRam || !lineLinkTable) {

@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# install BA67 to autostart when booting.
+# This is still a WIP.
+
+
 # Exit on error
 set -e
 

@@ -865,6 +865,15 @@ void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
 
+
+    // TODO:
+    // TXTPTR    $7A/$7B    Pointer to current position in BASIC program text
+    // GETARG  (JSR $B79B) uses $7A/$7B to know where it currently is in the BASIC text.
+    // 10 PRINT PEEK(122),PEEK(123) prints 13,8 which is $080d - printed, seems correct!
+    // $0808 seems a perfect spot to copy the current BASIC line to. Beware! commands
+    //       must be compressed to 2-byte form.
+
+
     // address specified
     if (!basic->valueIsString(values[0])) {
         // TODO POKE 214, (Zeile): POKE 211, (Spalte): SYS 58640 : PRINT "TEXT"
@@ -1684,22 +1693,13 @@ bool Basic::parseFileHandle(const char*& str, std::string_view* number) {
 }
 
 int64_t Basic::strToInt(const std::string& str) {
-    return strToInt(str.c_str());
-    // if (str.starts_with("$") && str.length() > 1) {
-    //     return static_cast<int64_t>(std::stoull(str.substr(1), nullptr, 16));
-    // } else if (str.length() > 0) {
-    //     return std::stoll(str);
-    // }
-    // return 0;
+    return strToInt(std::string_view(str));
 }
 int64_t Basic::strToInt(const std::string_view& str) {
-    return strToInt(str.data());
-}
-int64_t Basic::strToInt(const char* str) {
     if (str[0] == '$' && str[1] != '\0') { // str.starts_with("$") && str.length() > 1
-        return static_cast<int64_t>(std::stoull(str + 1, nullptr, 16));
+        return StringHelper::strtoi64_hex(str.substr(1));
     } else if (str[0] != '\0') { // str.length() > 0
-        return std::stoll(str);
+        return StringHelper::strtoi64(str);
     }
     return 0;
 }
@@ -3186,22 +3186,32 @@ inline void Basic::handleDIM(const std::vector<Token>& tokens) {
 }
 
 void Basic::handleLIST(const std::vector<Token>& tokens) {
+    static int lastFrom = 0, lastTo = 0x7fffffff;
     int from = 0;
     int to   = 0x7ffffff;
 
+    if (tokens.size() == 2) {
+        if (tokens[1].type == TokenType::KEYWORD && tokens[1].value == "MODULE") {
+            // LIST MODULE
+            for (auto& lmd : modules) {
+                os->screen.cleanCurrentLine();
+                printUtf8String("MODULE \"" + lmd.first + "\"\n");
+
+                handleEscapeKey(true);
+                os->delay(50);
+            }
+            return;
+        }
+        if (tokens[1].type == TokenType::COMMAND && tokens[1].value == "BAKE") {
+            // LIST BAKE
+            executeCommands("FIND \"REM*--*--*\"");
+            return;
+        }
+    }
+
+
     if (tokens.size() == 1) {
         // list all
-    } else if (tokens.size() == 2 && tokens[1].type == TokenType::KEYWORD && tokens[1].value == "MODULE") {
-        // LIST MODULE
-
-        for (auto& lmd : modules) {
-            os->screen.cleanCurrentLine();
-            printUtf8String("MODULE \"" + lmd.first + "\"\n");
-
-            handleEscapeKey(true);
-            os->delay(50);
-        }
-        return;
     } else if (tokens.size() == 2 && tokens[1].type != TokenType::OPERATOR) {
         // LIST 10
         from = to = int(strToInt(tokens[1].value));
@@ -3218,9 +3228,16 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
     } else if (tokens.size() == 3 && tokens[2].type == TokenType::OPERATOR) {
         // LIST 20-
         from = int(strToInt(tokens[1].value));
+    } else if (tokens.size() == 2 && tokens[1].type == TokenType::OPERATOR) {
+        // LIST -
+        from = lastFrom;
+        to   = lastTo;
     } else {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
+
+    lastFrom = from;
+    lastTo   = to;
 
     std::string sline;
     for (auto& ln : currentModule().listing) {
