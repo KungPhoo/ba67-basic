@@ -1,6 +1,6 @@
 #include "unicode.h"
 #include <codecvt>
-// #include <cstring>
+#include <cstring>
 #include <locale>
 #include "string_helper.h"
 

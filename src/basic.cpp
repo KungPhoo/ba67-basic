@@ -4245,7 +4245,10 @@ void Basic::uppercaseProgram(std::string& codeline) {
 * */
 void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCodes) {
     if (pend == nullptr) {
-        pend = utf8 + strlen(utf8);
+        pend = utf8;
+        while (*pend != '\0') {
+            ++pend;
+        }
     }
 
     if (currentFileNo == 0) {
