@@ -14,6 +14,7 @@ public:
 
     bool init(Basic* basic, SoundSystem* sound) override;
     void updateEvents() override;
+    std::string getHomeDirectory() override;
 
     // --- TIME ---
     uint64_t tick() const override;

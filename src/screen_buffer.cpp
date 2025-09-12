@@ -27,37 +27,36 @@ static CharMap& charMap() {
 void ScreenBuffer::clear() {
     dirtyFlag = true;
     size_t n  = width * height;
+    auto col  = currentColor();
     for (size_t i = 0; i < n; ++i) {
         charRam[i] = U' ';
-        colRam[i]  = currentColor();
+        colRam[i]  = col;
     }
     memset(lineLinkTable, 0, sizeof(lineLinkTable[0]) * height);
-    cursorPosition = charRam;
+    setCursorPos({ 0, 0 });
 }
 
 // blank out current line, reset line link table flag
 void ScreenBuffer::cleanCurrentLine() {
     dirtyFlag = true;
-    size_t y  = rowOf(cursorPosition);
+    size_t y  = getCursorPos().y;
     if (y < height) {
         auto* p = charRam + y * width;
         for (size_t x = 0; x < width; ++x) {
             *p++ = U' ';
         }
-        auto cl = currentColor();
-        auto* c = colRam + y * width;
+        auto col = currentColor();
+        auto* c  = colRam + y * width;
         for (size_t x = 0; x < width; ++x) {
-            *c++ = cl;
+            *c++ = col;
         }
-        if (lineLinkTable) {
-            lineLinkTable[y] = 0;
-        }
+        makeRowOwner(y);
     }
 }
 
 void ScreenBuffer::moveCursorPos(int dx, int dy) {
     dirtyFlag       = true;
-    MEMCELL* newPos = cursorPosition + (dy * width + dx);
+    MEMCELL* newPos = getCursorPtr() + (dy * width + dx);
     if (newPos < charRam) {
         auto crsr = getCursorPos();
         crsr.y    = 0;
@@ -67,13 +66,13 @@ void ScreenBuffer::moveCursorPos(int dx, int dy) {
 
     if (newPos >= charRam + width * height) {
         scrollUpOne();
-        cursorPosition = newPos;
-        auto crsr      = getCursorPos();
-        crsr.y         = height - 1;
+        setCursorPtr(newPos);
+        auto crsr = getCursorPos();
+        crsr.y    = height - 1;
         setCursorPos(crsr);
         return;
     }
-    cursorPosition = newPos;
+    setCursorPtr(newPos);
 }
 
 ScreenBuffer::Cursor ScreenBuffer::getStartOfLineAt(Cursor crsr) {
@@ -118,22 +117,28 @@ ScreenBuffer::Cursor ScreenBuffer::getEndOfLineAt(Cursor crsr) {
 }
 
 ScreenBuffer::ScreenBuffer() {
+    charMap(); // load bitmaps
+}
+
+void ScreenBuffer::initMemory(MEMCELL* mem) {
+    memory        = mem;
+    lineLinkTable = mem + krnl.LDTB1;
+    charRam       = mem + krnl.CHARRAM;
+    colRam        = mem + krnl.COLRAM;
+
+    setCursorPos({ 0, 0 });
     resize(40, 25);
 
     resetDefaultColors();
     setColors(1, 0);
-    borderColor = 1;
-
-    charMap(); // load bitmaps
-    // resetCharmap();
-
-    // clear();
+    setBorderColor(1);
 }
+
 
 void ScreenBuffer::updateScreenPixelsPalette(bool highlightCursor, std::vector<uint8_t>& pixelsPal) {
     // chars
-    MEMCELL* visibleCursorPosition = cursorPosition;
-    if (!highlightCursor || !cursorActive) {
+    MEMCELL* visibleCursorPosition = getCursorPtr();
+    if (!highlightCursor || !isCursorActive()) {
         visibleCursorPosition = nullptr;
     }
 
@@ -152,7 +157,7 @@ void ScreenBuffer::updateScreenPixelsPalette(bool highlightCursor, std::vector<u
                     ((*co) >> 4) & 0x0f,
                     ch == visibleCursorPosition);
         if (x + 1 == width) {
-            if (lineLinkTable[y + 1] & 0x80) {
+            if (isContinuationRow(y + 1)) {
                 drawLineContinuationPal(pixelsPal, y);
             }
         }
@@ -217,17 +222,6 @@ std::u32string ScreenBuffer::getSelectedText(Cursor start, Cursor end) const {
 }
 
 
-void ScreenBuffer::setColors(uint8_t text, uint8_t back) {
-    textColor = (text & 0x0f) | ((back << 4) & 0xf0);
-}
-
-void ScreenBuffer::setTextColor(int index) {
-    setColors(index, textColor >> 4);
-}
-
-void ScreenBuffer::setBackgroundColor(int index) {
-    setColors(textColor & 0x0f, index);
-}
 
 void ScreenBuffer::defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     if (index > 15) {
@@ -287,14 +281,17 @@ void ScreenBuffer::putC(char32_t c) {
     }
     // if (c < 0x20) return;
 
-    *cursorPosition = c;
+    MEMCELL* pCh = getCursorPtr();
+    *pCh         = c;
+    // *cursorPosition = c;
     assertCursor();
     if (colRam) {
-        colRam[idxOf(cursorPosition)] = currentColor();
+        colRam[idxOf(pCh)] = currentColor();
     }
 
-    if (colOf(cursorPosition) + 1 < width) {
-        cursorPosition++;
+    if (getCursorPos().x + 1 < width) {
+        moveCursorPos(1, 0);
+        // cursorPosition++;
         assertCursor();
     } else {
         softWrapToNextRow();
@@ -308,11 +305,12 @@ void ScreenBuffer::deleteChar() {
 
     dirtyFlag = true;
 
-    size_t r = rowOf(cursorPosition);
-    size_t c = colOf(cursorPosition);
+    auto crsr = getCursorPos();
+    // size_t r = rowOf(cursorPosition);
+    // size_t c = colOf(cursorPosition);
 
     while (true) {
-        size_t srcR = r, srcC = c + 1;
+        size_t srcR = crsr.y, srcC = crsr.x + 1;
         if (srcC >= width) {
             if (!rowContinues(srcR)) {
                 break;
@@ -322,22 +320,22 @@ void ScreenBuffer::deleteChar() {
         }
         MEMCELL ch = charAt(srcR, srcC);
         MEMCELL co = colorAt(srcR, srcC);
-        setAt(r, c, ch, co);
+        setAt(crsr.y, crsr.x, ch, co);
 
-        c++;
-        if (c >= width) {
-            if (!rowContinues(r)) {
+        crsr.x++;
+        if (crsr.x >= width) {
+            if (!rowContinues(crsr.y)) {
                 break;
             }
-            r++;
-            c = 0;
+            crsr.y++;
+            crsr.x = 0;
         }
     }
-    setAt(r, c, blankChar, currentColor());
+    setAt(crsr.y, crsr.x, blankChar, currentColor());
 }
 
 void ScreenBuffer::backspaceChar() {
-    if (cursorPosition <= charRam) {
+    if (getCursorPtr() <= charRam) {
         return;
     }
     moveCursorPos(-1, 0);
@@ -354,7 +352,7 @@ void ScreenBuffer::insertSpace() {
 
     assertCursor();
     size_t tailR, tailC;
-    findTailCell(rowOf(cursorPosition), tailR, tailC);
+    findTailCell(getCursorPos().y, tailR, tailC);
     ensureOneCellAtTail(tailR, tailC);
 
     size_t r = tailR, c = tailC;
@@ -369,7 +367,7 @@ void ScreenBuffer::insertSpace() {
         MEMCELL co = colorAt(r, c);
         setAt(dstR, dstC, ch, co);
 
-        if (r == rowOf(cursorPosition) && c == colOf(cursorPosition)) {
+        if (r == getCursorPos().y && c == getCursorPos().x) {
             break;
         }
         if (c > 0) {
@@ -379,13 +377,13 @@ void ScreenBuffer::insertSpace() {
             c = width - 1;
         }
     }
-    setAt(rowOf(cursorPosition), colOf(cursorPosition), blankChar, currentColor());
+    setAt(getCursorPos().y, getCursorPos().x, blankChar, currentColor());
 }
 
 void ScreenBuffer::hardNewline() {
-    size_t r = rowOf(cursorPosition);
+    size_t r = getCursorPos().y;
     // in case we're at x=0, the newline just breaks continuation of the line
-    size_t c = colOf(cursorPosition);
+    size_t c = getCursorPos().x;
     if (c == 0 && isContinuationRow(r)) {
         makeRowOwner(r);
         return;
@@ -395,20 +393,22 @@ void ScreenBuffer::hardNewline() {
         scrollUpOne();
     }
 
-
-    cursorPosition = ptrAt(std::min(r + 1, height - 1), 0);
+    setCursorPos({ 0, std::min(r + 1, height - 1) });
+    // cursorPosition = ptrAt(std::min(r + 1, height - 1), 0);
     assertCursor();
-    makeRowOwner(rowOf(cursorPosition));
+    makeRowOwner(getCursorPos().y);
 }
 
 void ScreenBuffer::softWrapToNextRow() {
-    size_t r = rowOf(cursorPosition);
+    size_t r = getCursorPos().y;
     if (r + 1 >= height) {
         scrollUpOne();
     }
-    cursorPosition = ptrAt(std::min(r + 1, height - 1), 0);
+
+    setCursorPos({ 0, std::min(r + 1, height - 1) });
+    // cursorPosition = ptrAt(std::min(r + 1, height - 1), 0);
     assertCursor();
-    makeRowContinuation(rowOf(cursorPosition));
+    makeRowContinuation(getCursorPos().y);
 }
 
 void ScreenBuffer::findTailCell(size_t startR, size_t& outR, size_t& outC) {
@@ -435,9 +435,27 @@ void ScreenBuffer::ensureOneCellAtTail(size_t tailR, size_t tailC) {
     }
     if (tailR + 1 >= height) {
         scrollUpOne();
+        --tailR;
     }
-    makeRowContinuation(std::min(tailR + 1, height - 1));
-    setAt(std::min(tailR + 1, height - 1), 0, blankChar, currentColor());
+    // makeRowContinuation(std::min(tailR + 1, height - 1));
+    // setAt(std::min(tailR + 1, height - 1), 0, blankChar, currentColor());
+
+    // 1. Scroll everything down by one row (bottom row drops off)
+    for (size_t r = height - 1; r > tailR + 1; --r) {
+        // move characters
+        for (size_t c = 0; c < width; ++c) {
+            setAt(r, c, charAt(r - 1, c), colorAt(r - 1, c));
+        }
+        lineLinkTable[r] = lineLinkTable[r - 1]; // copy link flag
+    }
+
+    // 2. Clear the newly opened row just after tailR
+    for (size_t c = 0; c < width; ++c) {
+        setAt(tailR + 1, c, blankChar, currentColor());
+    }
+
+    // 3. Mark continuation flag so this row belongs to same logical line
+    makeRowContinuation(tailR + 1);
 }
 
 size_t ScreenBuffer::lastUsedColumn(size_t r) const {
@@ -467,8 +485,11 @@ void ScreenBuffer::scrollUpOne() {
         lineLinkTable[r] = lineLinkTable[r + 1];
     }
     makeRowOwner(height - 1);
-    size_t col     = std::min(colOf(cursorPosition), width - 1);
-    cursorPosition = ptrAt(height - 1, col);
+    auto crsr  = getCursorPos();
+    size_t col = std::min(crsr.x, width - 1);
+
+    setCursorPos({ col, crsr.y - 1 });
+    // cursorPosition = ptrAt(height - 1, col);
     assertCursor();
 }
 

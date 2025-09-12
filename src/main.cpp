@@ -62,15 +62,11 @@ void printfHelp();
 // ---------------------------------------
 int main(int argc, char** argv) {
     if (argc == 1) {
-        std::cout << "BA67 BASIC Interpreter\n";
+        std::cout << "BA67 BASIC\n";
     }
 #if _DEBUG
     MarkdownParser::ParseAndApplyManual();
 #endif
-
-    OsBackend os;
-    OsSoundsystem sound;
-    Basic basic(&os, &sound);
 
     // ARGV to UTF-8
     std::vector<std::string> args; // utf-8
@@ -96,18 +92,21 @@ int main(int argc, char** argv) {
 
 #ifdef _DEBUG
     args = {
-        // "--video", "opengl",  // "--fullscreen"
+        "--video", "opengl",
+        // "--fullscreen"
         "--crtemulation", "false",
         // "--demo", "true",
         ""
     };
 #endif
 
+
     auto& sets = Os::settings;
     args.push_back(""); // ensure [i] and [i+1]
     for (size_t i = 0; i + 1 < args.size(); ++i) {
         if (args[i] == "--help") {
             printfHelp();
+            exit(0);
         }
         if (args[i] == "--fullscreen") {
             sets.fullscreen = true;
@@ -137,6 +136,11 @@ int main(int argc, char** argv) {
     }
 
 
+    OsBackend os;
+    OsSoundsystem sound;
+    Basic basic(&os, &sound);
+    std::cout << __FILE__ << "(" << __LINE__ << "\n";
+
     // load boot.bas
     try {
         if (basic.loadProgram("boot.bas")) {
@@ -146,6 +150,7 @@ int main(int argc, char** argv) {
     } catch (...) {
     }
 
+    std::cout << __FILE__ << "(" << __LINE__ << "\n";
 
 
     // run bas program from command line
@@ -160,6 +165,7 @@ int main(int argc, char** argv) {
 #if defined(__EMSCRIPTEN__)
     basic.parseInput("CHDIR \"CLOUD\": CATALOG:");
 #endif
+
 
     basic.runInterpreter();
     return 0;

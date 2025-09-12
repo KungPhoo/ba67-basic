@@ -8,8 +8,7 @@
 #include <string>
 #include <vector>
 #include "charmap.h"
-
-
+#include "kernal.h"
 
 class Sprite {
 public:
@@ -43,6 +42,8 @@ public:
     };
 
     ScreenBuffer();
+    void initMemory(MEMCELL* mem);
+    const MEMCELL* getMemory() const { return &memory[0]; }
 
     // SCNCLR
     void clear();
@@ -52,17 +53,28 @@ public:
 
 
     // Cursor <-> Position
-    void setCursorActive(bool active) { cursorActive = active; }
-    bool isCursorActive() const { return cursorActive; }
+    void setCursorActive(bool active) { memory[krnl.BLNSW] = active ? 0 : 1; }
+    bool isCursorActive() const { return memory[krnl.BLNSW] == 0; }
 
     // these return position in buffer
-    Cursor getCursorPos() const {
-        return { colOf(cursorPosition), rowOf(cursorPosition) };
+    inline Cursor getCursorPos() const {
+        // return { colOf(cursorPosition), rowOf(cursorPosition) };
+        return { memory[krnl.PNTR], memory[krnl.TBLX] };
     }
-    void setCursorPos(Cursor crsr) {
-        dirtyFlag      = true;
-        cursorPosition = ptrAt(crsr.y, crsr.x);
+    inline void setCursorPos(Cursor crsr) {
+        dirtyFlag = true;
+        // cursorPosition    = ptrAt(crsr.y, crsr.x);
+        memory[krnl.PNTR] = MEMCELL(crsr.x);
+        memory[krnl.TBLX] = MEMCELL(crsr.y);
     }
+    inline void setCursorPtr(MEMCELL* pos) {
+        setCursorPos({ colOf(pos), rowOf(pos) });
+    }
+    inline MEMCELL* getCursorPtr() {
+        Cursor c = getCursorPos();
+        return charRam + c.x + width * c.y;
+    }
+
     void moveCursorPos(int dx, int dy);
 
     Cursor getStartOfLineAt(Cursor crsr);
@@ -80,15 +92,23 @@ public:
     std::u32string getSelectedText(Cursor start, Cursor end) const;
 
     // set the color index [0..15]
-    void setColors(uint8_t text, uint8_t back);
-    void setTextColor(int index);
-    void setBackgroundColor(int index);
-    void setBorderColor(int index) { borderColor = (index & 0x0f); }
-    void reverseMode(bool enable) { reverse = enable; } // reverse text and background colors
+    void setColors(uint8_t text, uint8_t back) {
+        setTextColor(text);
+        setBackgroundColor(back);
+    }
 
-    inline int getTextColor() const { return currentColor() & 0x0f; }
-    inline int getBackgroundColor() const { return (currentColor() >> 4) & 0x0f; }
-    inline int getBorderColor() const { return (borderColor) & 0x0f; }
+    void setTextColor(int index) { memory[krnl.COLOR] = (index & 0x0f); }
+    inline uint8_t getTextColor() const { return memory[krnl.COLOR] & 0x0f; }
+
+    void setBackgroundColor(int index) { memory[krnl.VIC_BKGND] = (index & 0x0f); }
+    inline uint8_t getBackgroundColor() const { return memory[krnl.VIC_BKGND] & 0x0f; }
+
+    void setBorderColor(int index) { memory[krnl.VIC_BORDER] = (index & 0x0f); }
+    uint8_t getBorderColor() const { return memory[krnl.VIC_BORDER] & 0x0f; }
+
+    void setReverseMode(bool enable) { memory[krnl.RVS] = enable ? 1 : 0; } // reverse text and background colors
+    bool getReverseMode() const { return memory[krnl.RVS] != 0; }
+
     void defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xff);
     void resetDefaultColors();
 
@@ -107,7 +127,7 @@ public:
     std::array<uint32_t, 16> palette; // AABBGGRR little endian format
     std::array<Sprite, 256> sprites;
 
-
+    // save/restore screen for emoji picker etc.
     struct SaveState {
         std::vector<MEMCELL> screen;
         Cursor crsr;
@@ -134,28 +154,32 @@ public:
     size_t scrollCount = 0; // jus to indicate the screen was scrolled during input
 
 
-    // charRam; // pointer to screen ram $0400 (specified in $00f3..$00f4)
-    // colRam; // pointers to color ram $d800-$dbe7
-    // llT; // line link table $d9-$f1 on C64, other on C128
+private:
+    MEMCELL* memory  = nullptr; // all memory
+    MEMCELL* charRam = nullptr; // screen chars
+    // !BA67 uses high/low nibble for fore/background of each char
+    // colRam & 0x0f = foreground, colRam >> 4 = background
+    MEMCELL* colRam = nullptr; // screen colors
 
-
-    MEMCELL* charRam       = nullptr; // screen chars
-    MEMCELL* colRam        = nullptr; // screen colors
+    // C64 style line link table. The C128 has a complex bit mapping at $035E-$0361
     MEMCELL* lineLinkTable = nullptr; // continuation flags: 0 = owner, 0x80 = continuation
 
-    MEMCELL* cursorPosition = nullptr;
+    // MEMCELL* cursorPosition = nullptr; // internal pointer, to where the cursor is (points to charRam)
 
     MEMCELL blankChar    = U' ';
     MEMCELL defaultColor = 1;
 
-    inline void assertCursor() const {
+    inline void assertCursor() {
 #if defined(_DEBUG)
-        if (cursorPosition >= charRam && cursorPosition < charRam + width * height) {
+        const auto* ptr = getCursorPtr();
+        if (ptr >= charRam && ptr < charRam + width * height) {
         } else {
             throw "cursor is out of screen memory";
         }
 #endif
     }
+
+public:
     void putC(char32_t c);
 
     void deleteChar();
@@ -166,9 +190,9 @@ public:
     void insertSpace();
 
 private:
-    size_t idxOf(const MEMCELL* p) const { return static_cast<size_t>(p - charRam); }
-    size_t rowOf(const MEMCELL* p) const { return idxOf(p) / width; }
-    size_t colOf(const MEMCELL* p) const { return idxOf(p) % width; }
+    inline size_t idxOf(const MEMCELL* p) const { return static_cast<size_t>(p - charRam); }
+    inline size_t rowOf(const MEMCELL* p) const { return idxOf(p) / width; }
+    inline size_t colOf(const MEMCELL* p) const { return idxOf(p) % width; }
     const MEMCELL* ptrAt(size_t r, size_t c) const { return &charRam[r * width + c]; }
     MEMCELL* ptrAt(size_t r, size_t c) { return &charRam[r * width + c]; }
     MEMCELL charAt(size_t r, size_t c) const { return charRam[r * width + c]; }
@@ -186,7 +210,9 @@ private:
     bool isOwnerRow(size_t r) const { return (lineLinkTable[r] & 0x80) == 0; }
     bool isContinuationRow(size_t r) const { return (lineLinkTable[r] & 0x80) != 0; }
     bool rowContinues(size_t r) const { return r + 1 < height && isContinuationRow(r + 1); }
-    void makeRowOwner(size_t r) { lineLinkTable[r] = 0; }
+    void makeRowOwner(size_t r) {
+        lineLinkTable[r] = 0;
+    }
     void makeRowContinuation(size_t r) {
         lineLinkTable[r] = 0x80;
     }
@@ -208,15 +234,21 @@ protected:
     mutable std::mutex lock;
 
     void resize(size_t w, size_t h) {
-        width  = w;
-        height = h;
+        memory[krnl.LNMX] = MEMCELL(w - 1);
+        width             = w;
+        height            = h;
     }
 
-    inline MEMCELL currentColor() const { return reverse ? (((textColor & 0xf) << 4) | ((textColor >> 4) & 0x0f)) : textColor; }
-    uint8_t textColor; // color&0x0f = foreground, color>>4 = background
-    uint8_t borderColor;
-    bool reverse      = false; // reverse the color?
-    bool cursorActive = false;
+    // get colRam value for current text and background colors
+    inline MEMCELL currentColor() const {
+        uint8_t tx = getTextColor();
+        uint8_t bk = getBackgroundColor();
+        if (getReverseMode()) {
+            return MEMCELL(bk | (tx << 4));
+        } else {
+            return MEMCELL(tx | (bk << 4));
+        }
+    }
 
     // draw character at given character position
     // colText and colBack are the AABBGGRR values of the pixels.

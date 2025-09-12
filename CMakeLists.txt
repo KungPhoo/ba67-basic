@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12.0)
+cmake_minimum_required(VERSION 3.13.0)
 
 # ==========================================
 # PROJECT CONFIGURATION
@@ -53,7 +53,7 @@ else()
     project(${APP_NAME} LANGUAGES CXX C)
 endif()
 
-
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (MSVC)
@@ -68,7 +68,8 @@ add_compile_definitions(_CRT_SECURE_NO_WARNINGS=1)
 add_compile_definitions(_UNICODE=1 UNICODE=1) # Windows needs this
 
 # CMake defines NDEBUG for release builds
-add_compile_options("$<$<CONFIG:DEBUG>:-DDEBUG -D_DEBUG>")
+add_compile_options("$<$<CONFIG:DEBUG>:-DDEBUG>")
+add_compile_options("$<$<CONFIG:DEBUG>:-D_DEBUG>")
 
 # Hide all warnings for release builds
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -133,6 +134,7 @@ include_directories(AFTER ./final_platform_layer)
 # precompiled headers (CMake 3.16.0-RC2 and greater)
 if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16.0")
     target_precompile_headers(${APP_NAME} PUBLIC src/stdafx.h "$<$<COMPILE_LANGUAGE:CXX>:cxx_only.h>")
+    target_precompile_headers(${APP_NAME} PUBLIC src/stdafx.h "$<$<COMPILE_LANGUAGE:C>:c_only.h>")
 endif()
 
 # SoLoud
@@ -151,6 +153,13 @@ if(${BA67_GRAPHICS_ENABLE_OPENGL} STREQUAL "ON" )
 find_package(OpenGL)
 TARGET_LINK_LIBRARIES(${APP_NAME} PRIVATE OpenGL::GL)
 endif()
+
+# GLAD
+if(${BA67_GRAPHICS_ENABLE_OPENGL} STREQUAL "ON" )
+include_directories(AFTER ./glad/include)
+target_sources(${APP_NAME} PUBLIC glad/src/glad.cpp)
+endif()
+
 
 # Bluetooth on Linux
 # if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
@@ -205,7 +214,6 @@ if (EMSCRIPTEN)
 
     set_target_properties(${APP_NAME} PROPERTIES
     LINK_FLAGS "\
-    -std=c++20 \
     -emrun \
     -fexceptions \
     -O2 \
@@ -229,6 +237,7 @@ if (EMSCRIPTEN)
 
 # these are not required
 #    -sMODULARIZE=1 \
+#    -std=c++20 \
 
     # Copy PWA/HTML assets to build output
     file(GLOB HTML_ASSETS

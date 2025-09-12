@@ -1,8 +1,6 @@
 #pragma once
 
 #include "os.h"
-#include <mutex>
-#include <condition_variable>
 
 class OsFPL : public Os {
 public:
@@ -33,24 +31,19 @@ public:
 
     MouseStatus getMouseStatus() override;
 
+    std::string getHomeDirectory() override;
+
+
 
     // thread buffered window update
     bool hasFocus; // window has focus/is active
-    std::condition_variable cv;
 
-    std::atomic<bool> stopThread = false;
-
-    std::atomic<size_t> videoW = 100, videoH = 100; // size of rendering window in pixels
+    size_t videoW = 100, videoH = 100; // size of rendering window in pixels
 
     struct Buffered {
         // accessing these requires the screenLock
         Buffered() {
         }
-
-        // the front buffer is what the thread currently works on.
-        // swapping happens in the thread.
-        // when presenting a new screen, write to the back buffer.
-        // use the screenLock to lock the back buffer.
         std::vector<uint32_t> memBackBuffer; // the thread draws to this back buffer. It's then copied to the real one
         std::vector<uint8_t> pixelsPal; // final screen, pixel index in color palette
         std::vector<uint32_t> palette; // AABBGGRR little endian format
@@ -63,19 +56,11 @@ public:
             int pixelscalex = 1, pixelscaley = 1; // number of screen pixels for one BA67 pixel
         } windowPixels = {};
 
-
-        // size_t videoW = 100, videoH = 100;
-
         bool dirtyFlag    = false;
-        bool imageCreated = false; // memBackBuffer is rendered
         bool crtEmulation = true;
 
-        void lock() { } // { mutex.lock(); }
-        void unlock() { } // { mutex.unlock(); }
-        // std::mutex mutex;
     private:
-    } buffer1 = {}, buffer2 = {};
-    // std::mutex bufferLock; // prevent pointers from swapping
+    } buffer = {};
 
-    Buffered *frontBuffer = &buffer1, *backBuffer = &buffer2;
+    Buffered* backBuffer = &buffer;
 };

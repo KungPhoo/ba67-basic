@@ -208,6 +208,18 @@ size_t FilePtr::read(void* buffer, size_t bytes) {
     return fread(buffer, bytes, 1, file);
 }
 
+std::string FilePtr::getline() {
+    std::string str;
+    char c = 0;
+    while (read(&c, 1) != 0) {
+        str += c;
+        if (c == '\n') {
+            break;
+        }
+    }
+    return str;
+}
+
 size_t FilePtr::write(const void* buffer, size_t bytes) {
     if (!file) {
         lastStatus = "BAD FILE";
@@ -228,7 +240,32 @@ std::vector<uint8_t> FilePtr::readAll() {
     return bytes;
 }
 
+void FilePtr::sanitizePath(std::string& path, char separator) {
+    size_t pos = 0;
+    for (auto& c : path) {
+        if (c == '/' || c == '\\') {
+            c = separator;
+        }
+        if (c == '?' || c == '*' || c == '\"' || c == '|' || c == '<' || c == '>') {
+            c = '-';
+        }
+        if (c == ':' && pos != 1) {
+            c = '.';
+        }
+        ++pos;
+    }
+}
+
+char FilePtr::nativeDirectorySeparator() {
+#ifdef _WIN32
+    return '\\';
+#else
+    return '/';
+#endif
+}
+
 void FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {
+    sanitizePath(filenameUtf8, nativeDirectorySeparator());
     lastStatus.clear();
     file        = nullptr;
     fileIsStdIo = false;

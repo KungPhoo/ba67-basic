@@ -277,7 +277,7 @@ bool Os::init(Basic* basic, SoundSystem* ss) {
     sound       = ss;
     sound->os   = this;
     this->basic = basic;
-
+    setCurrentDirectory(getHomeDirectory());
     return true;
 }
 

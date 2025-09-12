@@ -42,32 +42,7 @@ bool OsSDL2::init(Basic* basic, SoundSystem* sound) {
     start_os_sdl2();
     Os::init(basic, sound);
 
-
-    #ifdef __EMSCRIPTEN__
-
-
-    // Create a mount point
-    EM_ASM(
-
-        FS.mkdir('/home/web_user/BASIC');
-        FS.mount(IDBFS, {}, '/home/web_user/BASIC');
-
-        // Load previously saved files (async)
-        FS.syncfs(true, function(err) { console.error("Error loading persistent data:", err); });
-
-    );
-
-    std::string home = "/home/web_user";
-    if (doesFileExist(home) && isDirectory(home)) {
-        setCurrentDirectory(home);
-        home += "/BASIC";
-        if (!doesFileExist(home)) {
-            std::filesystem::create_directory("BASIC");
-        }
-        setCurrentDirectory(home);
-    }
-    #endif
-
+    setCurrentDirectory(getHomeDirectory());
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER) != 0) {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
@@ -98,6 +73,41 @@ bool OsSDL2::init(Basic* basic, SoundSystem* sound) {
     return true;
 }
 
+
+std::string OsSDL2::getHomeDirectory() {
+
+    #ifdef __EMSCRIPTEN__
+
+    // Create a mount point
+    EM_ASM(
+        try {
+            FS.mkdir('/home/web_user/BASIC');
+            FS.mount(IDBFS, {}, '/home/web_user/BASIC');
+
+            // Load previously saved files (async)
+            FS.syncfs(true, function(err) { console.error("Error loading persistent data:", err); });
+        } catch {}
+
+    ); // EM_ASM
+
+    std::string home = "/home/web_user";
+    #elif defined(_WIN32)
+        #error implement OsSDL2::getHomeDirectory()
+    #else
+    std::string home = "~";
+    #endif
+
+    if (doesFileExist(home) && isDirectory(home)) {
+        setCurrentDirectory(home);
+        home += "/BASIC";
+        if (!doesFileExist(home)) {
+            std::filesystem::create_directory("BASIC");
+        }
+    }
+    return home;
+}
+
+
 // --- TIME ---
 uint64_t OsSDL2::tick() const {
     return SDL_GetTicks64(); // ms
@@ -121,6 +131,18 @@ void OsSDL2::presentScreen() {
     nextShow = now + 12;
     #endif
 
+    bool cursorVisible = true; // screen.isCursorActive(); // considered in updateScreenPixelsPalette
+    if (cursorVisible && (tick() % 800) < 400) {
+        cursorVisible = false;
+    }
+
+    palette.resize(16);
+    pixelsPal.resize(screen.width * ScreenInfo::charPixX * screen.height * ScreenInfo::charPixY);
+    memBackBuffer.resize(pixelsPal.size());
+
+    screen.updateScreenPixelsPalette(cursorVisible, pixelsPal);
+    screen.updateScreenBitmap(pixelsPal, memBackBuffer);
+
     if (texture == nullptr || txW != int(screen.width) * ScreenInfo::charPixX || txH != int(screen.height) * ScreenInfo::charPixY) {
         txW = int(screen.width) * ScreenInfo::charPixX;
         txH = int(screen.height) * ScreenInfo::charPixY;
@@ -140,17 +162,6 @@ void OsSDL2::presentScreen() {
             txH);
     }
 
-    bool cursorVisible = true; // screen.isCursorActive(); // considered in updateScreenPixelsPalette
-    if (cursorVisible && (tick() % 800) < 400) {
-        cursorVisible = false;
-    }
-
-    palette.resize(16);
-    pixelsPal.resize(screen.width * ScreenInfo::charPixX * screen.height * ScreenInfo::charPixY);
-    memBackBuffer.resize(pixelsPal.size());
-
-    screen.updateScreenPixelsPalette(cursorVisible, pixelsPal);
-    screen.updateScreenBitmap(pixelsPal, memBackBuffer);
     SDL_UpdateTexture(texture, nullptr, memBackBuffer.data(), screen.width * ScreenInfo::charPixX * 4 /*bytes per row*/);
 
     #ifdef __EMSCRIPTEN__
@@ -249,13 +260,14 @@ void OsSDL2::updateEvents() {
             // only for special keys. Alt+1 / Crsr / Return
             if ((k.holdAlt || k.holdCtrl) || k.code != 0) {
                 if (k.code == 0) {
-                    k.code = uint32_t(event.key.keysym.sym);
+                    k.code = Unicode::toUpper(char32_t(event.key.keysym.sym));
                 }
                 putToKeyboardBuffer(k);
             }
         }
     }
 }
+
 
 SDL_Keycode OsSDL2::SDLKeyFromIndex(uint32_t idx) {
     // direct mapping for ASCII
@@ -274,6 +286,7 @@ SDL_Keycode OsSDL2::SDLKeyFromIndex(uint32_t idx) {
 
 // --- CLIPBOARD ---
 std::string OsSDL2::getClipboardData() {
+    // no way you get real clipboard in a web-browser
     if (SDL_HasClipboardText()) {
         char* txt = SDL_GetClipboardText();
         std::string s(txt);
@@ -284,7 +297,20 @@ std::string OsSDL2::getClipboardData() {
 }
 
 void OsSDL2::setClipboardData(const std::string utf8) {
-    SDL_SetClipboardText(utf8.c_str());
+    SDL_SetClipboardText(utf8.c_str()); //  SDL uses an internal clipboard in JS
+
+    #ifdef __EMSCRIPTEN__
+    EM_ASM({
+        try {
+            navigator.clipboard.writeText(UTF8ToString($0));
+
+        } catch { }
+        // --end JS
+    },
+           utf8.c_str() // $0
+    ); // EM_ASM
+
+    #endif
 }
 
 // --- MOUSE ---

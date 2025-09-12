@@ -167,9 +167,12 @@ void OsWindowsConsole::presentScreen() {
     // screen.getPrintBuffer(chars, colors);
     chars.clear();
     colors.clear();
+
+    const auto* memCh = screen.getMemory() + krnl.CHARRAM;
+    const auto* memCl = screen.getMemory() + krnl.COLRAM;
     for (size_t y = 0; y < screen.height; ++y) {
-        const auto* lnCh = screen.charRam + y * screen.width;
-        const auto* lnCo = screen.colRam + y * screen.width;
+        const auto* lnCh = memCh + y * screen.width;
+        const auto* lnCo = memCl + y * screen.width;
 
         // auto& ln = screen.getLineBuffer()[y];
         for (size_t x = 0; x < screen.width; ++x) {

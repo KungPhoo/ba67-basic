@@ -60,10 +60,13 @@ public:
     int seek(int offset, int origin);
     size_t tell();
     size_t read(void* buffer, size_t bytes);
+    std::string getline();
     size_t write(const void* buffer, size_t bytes);
     std::vector<uint8_t> readAll();
     std::string status() const { return lastStatus; }
 
+    static void sanitizePath(std::string& path, char separator = '/');
+    static char nativeDirectorySeparator();
 
 private:
     Os* os         = nullptr;
@@ -77,4 +80,5 @@ private:
     std::string lastStatus;
 
     void fopenLocal(std::string filenameUtf8, const char* mode);
+    void fopenCloud(std::string filenameUtf8, const char* mode);
 };

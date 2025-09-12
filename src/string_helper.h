@@ -60,6 +60,43 @@ public:
         return result;
     }
 
+
+private:
+    struct HexTable {
+        int tab[256];
+        HexTable()
+            : tab {} {
+            tab['1'] = 1;
+            tab['2'] = 2;
+            tab['3'] = 3;
+            tab['4'] = 4;
+            tab['5'] = 5;
+            tab['6'] = 6;
+            tab['7'] = 7;
+            tab['8'] = 8;
+            tab['9'] = 9;
+            tab['a'] = 10;
+            tab['A'] = 10;
+            tab['b'] = 11;
+            tab['B'] = 11;
+            tab['c'] = 12;
+            tab['C'] = 12;
+            tab['d'] = 13;
+            tab['D'] = 13;
+            tab['e'] = 14;
+            tab['E'] = 14;
+            tab['f'] = 15;
+            tab['F'] = 15;
+        }
+    };
+
+public:
+    static int hexchartoi(char number) {
+        static HexTable table {};
+        return table.tab[(std::size_t)number];
+    }
+
+
     static int64_t strtoi64_hex(const std::string_view str) {
         const char* p   = str.data();
         const char* end = p + str.size();
@@ -72,10 +109,7 @@ public:
         }
         int64_t result = 0;
         while (p < end && std::isxdigit(static_cast<unsigned char>(*p))) {
-            char c    = *p;
-            int digit = (c >= '0' && c <= '9') ? (c - '0')
-                      : (c >= 'a' && c <= 'f') ? (c - 'a' + 10)
-                                               : (c - 'A' + 10);
+            int digit = hexchartoi(*p);
             result    = (result << 4) | digit;
             ++p;
         }

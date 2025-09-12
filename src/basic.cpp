@@ -13,7 +13,7 @@
 #include "minifetch.h"
 #include "petscii.h"
 
-
+#include "rawconfig.h"
 
 
 
@@ -57,7 +57,7 @@ void cmdAUTO(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.empty() || basic->valueToInt(values[0]) < 1) {
         basic->currentModule().autoNumbering = 0;
     }
-    basic->currentModule().autoNumbering = basic->valueToInt(values[0]);
+    basic->currentModule().autoNumbering = int32_t(basic->valueToInt(values[0]));
 }
 
 void cmdBAKE(Basic* basic, const std::vector<Basic::Value>& values) {
@@ -173,7 +173,7 @@ void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
     cr.y = y;
     basic->os->screen.setCursorPos(cr);
     if (inverse) {
-        basic->os->screen.reverseMode(true);
+        basic->os->screen.setReverseMode(true);
     }
     if (color > 0) {
         if (color > 16) {
@@ -199,7 +199,7 @@ void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
 
     // inverse flag is only for this string
     if (inverse) {
-        basic->os->screen.reverseMode(false);
+        basic->os->screen.setReverseMode(false);
     }
     basic->os->presentScreen();
 }
@@ -1322,14 +1322,8 @@ Basic::Value& Basic::Array::at(const Basic::ArrayIndex& ix) {
 Basic::Options Basic::options; // static instance
 
 Basic::Basic(Os* os, SoundSystem* ss) {
-
     memory.resize(0x20000);
-    os->screen.charRam        = &memory[0x0400];
-    os->screen.colRam         = &memory[0xd800];
-    os->screen.lineLinkTable  = &memory[0x00d9]; // C64 style. The C128 has a complex bit mapping at $035E-$0361
-    os->screen.cursorPosition = os->screen.charRam;
-
-
+    os->screen.initMemory(&memory[0]);
 
     for (int i = 0; i < 256; ++i) {
         openFiles.emplace_back(FilePtr(os));
@@ -4203,6 +4197,12 @@ void Basic::executeParsedTokens(const std::vector<Token>& tokens) {
             throw Error(ErrorId::UNIMPLEMENTED_COMMAND);
         }
     } else {
+
+        if (tokens.size() > 1 && tokens[0].value == "READY") {
+            throw Error(ErrorId::READY_COMMAND);
+        }
+
+
         throw Error(ErrorId::SYNTAX);
     }
 }
@@ -4263,8 +4263,8 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
                 case 0x13: os->screen.setCursorPos({ 0, 0 }); break; // home
                 case 0x14: os->screen.backspaceChar(); break; // delete
                 case 0x93: os->screen.clear(); break; // clear
-                case 0x12: os->screen.reverseMode(true); break; // reverse on
-                case 0x92: os->screen.reverseMode(false); break; // reverse off
+                case 0x12: os->screen.setReverseMode(true); break; // reverse on
+                case 0x92: os->screen.setReverseMode(false); break; // reverse off
                 case 0x90: os->screen.setTextColor(0); break; // Black
                 case 0x05: os->screen.setTextColor(1); break; // White
                 case 0x1c: os->screen.setTextColor(2); break; // Red
@@ -4363,12 +4363,10 @@ std::string Basic::inputLine(bool allowVertical) {
         // if shift is pressed and cursor gets moved, a selection is made
         auto startSel = [&]() {
             if (key.holdShift) {
-                if (!isSelecting) {
-                    isSelecting    = true;
-                    startSelection = os->screen.getCursorPos();
-                }
+                isSelecting = true;
             } else {
-                isSelecting = false;
+                isSelecting    = false;
+                startSelection = os->screen.getCursorPos();
             }
         };
 
@@ -4376,19 +4374,22 @@ std::string Basic::inputLine(bool allowVertical) {
             if (key.holdCtrl) {
                 char32_t ctrlChar = 0;
                 switch (key.code) {
-
+                case U'c':
                 case U'C': {
                     auto str32            = os->screen.getSelectedText(startSelection, os->screen.getCursorPos());
                     std::string clipboard = Unicode::toUtf8String(str32.c_str());
+                    StringHelper::trimRight(clipboard, " \r\n\t");
+
                     if (clipboard.length() > 0) {
-                        // printf("copy %s\n", clipboard.c_str());
+                        std::cout << "copy to clipboard: " << clipboard << std::endl;
                         os->setClipboardData(clipboard);
                     }
                     break;
                 }
+                case U'v':
                 case U'V': {
                     std::string clipboard = os->getClipboardData();
-                    // printf("pasted %s\n", clipboard.c_str());
+                    std::cout << "pasted from clipboard: " << clipboard << std::endl;
                     if (clipboard.length() != 0) {
                         std::string cliptext = clipboard;
 
@@ -4580,34 +4581,42 @@ std::string Basic::inputLine(bool allowVertical) {
                         }
                         continue;
                     case uint32_t(Os::KeyConstant::CRSR_LEFT):
-                        startSel();
                         os->screen.moveCursorPos(-1, 0);
+                        startSel();
                         continue;
                     case uint32_t(Os::KeyConstant::CRSR_RIGHT):
-                        startSel();
                         os->screen.moveCursorPos(1, 0);
+                        startSel();
                         continue;
                     case uint32_t(Os::KeyConstant::CRSR_UP):
-                        startSel();
                         os->screen.moveCursorPos(0, -1);
+                        startSel();
                         movedVertical = true;
                         continue;
                     case uint32_t(Os::KeyConstant::CRSR_DOWN):
-                        startSel();
                         os->screen.moveCursorPos(0, 1);
+                        startSel();
                         movedVertical = true;
                         continue;
                     case uint32_t(Os::KeyConstant::HOME):
-                        startSel();
                         os->screen.setCursorPos({ 0, os->screen.getCursorPos().y });
-                        continue;
-                    case uint32_t(Os::KeyConstant::END):
                         startSel();
-                        {
-                            auto crsr = os->screen.getEndOfLineAt(os->screen.getCursorPos()); // that's the '\n' character
-                            os->screen.setCursorPos(crsr);
-                            os->screen.moveCursorPos(1, 0);
+                        continue;
+                    case uint32_t(Os::KeyConstant::END): {
+                        auto crsr = os->screen.getEndOfLineAt(os->screen.getCursorPos()); // that's the '\n' character
+                        os->screen.setCursorPos(crsr);
+                        os->screen.moveCursorPos(1, 0);
+                    }
+                        startSel();
+                        continue;
+                    case uint32_t(Os::KeyConstant::PAUSE): {
+                        std::string statePath(os->getHomeDirectory() + "/quicksave.state67");
+                        if (key.holdShift) {
+                            loadState(statePath);
+                        } else {
+                            saveState(statePath);
                         }
+                    }
                         continue;
                     }
                 }
@@ -4687,7 +4696,7 @@ void Basic::restoreColorsAndCursor(bool resetFont) {
 
     os->screen.setBackgroundColor(11);
     os->screen.setTextColor(colorForModule(moduleVariableStack.back()->first));
-    os->screen.reverseMode(false);
+    os->screen.setReverseMode(false);
     insertMode = false;
 
     for (auto& s : os->screen.sprites) {
@@ -4721,13 +4730,16 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
                     cm.listing.erase(itr);
                 }
             } else {
-                ProgramLine& prgline = cm.listing[int(n)];
-                prgline.code         = pc;
+                ProgramLine& prgline = cm.listing[int32_t(n)];
+
+                prgline.code = pc;
+                StringHelper::trimRight(prgline.code, " \r\n\t");
+
                 tokenizeLine(prgline); // check sanity, but don't execute
 
-                cm.lastEnteredLineNumber = n;
+                cm.lastEnteredLineNumber = int32_t(n);
 
-                cm.programCounter.line   = cm.listing.find(int(n));
+                cm.programCounter.line   = cm.listing.find(int32_t(n));
                 cm.programCounter.cmdpos = 0;
 
                 // while (!tokenizeNextCommand().empty()) { } // check sanity, but don't execute
@@ -4926,6 +4938,7 @@ void Basic::runInterpreter() {
                 restoreColorsAndCursor(false);
                 printUtf8String("\nREADY." + std::string(os->screen.width - 7, ' ') + "\n");
                 printUtf8String(std::string(os->screen.width, ' ') + "\n");
+                auto pos = os->screen.getCursorPos();
                 size_t y = os->screen.getCursorPos().y;
                 os->screen.setCursorPos({ 0, y - 1 });
             }
@@ -5210,4 +5223,67 @@ bool Basic::fileExists(const std::string& filenameUtf8, bool allowWildCard) {
         return os->doesFileExist(os->findFirstFileNameWildcard(filenameUtf8));
     }
     return os->doesFileExist(filenameUtf8);
+}
+
+bool Basic::saveState(std::string& filenameUtf8) {
+    RawConfig cfg(os);
+    cfg.set("options.spacingRequired", options.spacingRequired);
+    cfg.set("options.dotAsZero", options.dotAsZero);
+    cfg.set("options.uppercaseInput", options.uppercaseInput);
+    cfg.set("memory", &memory[0], memory.size());
+    cfg.set("time0", time0);
+
+    auto& mod = currentModule();
+    cfg.set("module.fastmode", mod.fastMode);
+    cfg.set("module.traceOn", mod.traceOn);
+    cfg.set("module.autoNumbering", mod.autoNumbering);
+    cfg.set("module.lastEnteredLineNumber", mod.lastEnteredLineNumber);
+    cfg.set("module.filenameQSAVE", mod.filenameQSAVE);
+    int32_t nlines = int32_t(mod.listing.size());
+    cfg.set("module.linecount", nlines);
+    int64_t i = 0;
+    for (auto& ln : mod.listing) {
+        cfg.set("lst.ln" + std::to_string(i), ln.first);
+        cfg.set("lst.tx" + std::to_string(i), ln.second);
+        ++i;
+    }
+    cfg.save(filenameUtf8.c_str());
+    return false;
+}
+
+bool Basic::loadState(std::string& filenameUtf8) {
+    RawConfig cfg(os);
+    if (!cfg.load(filenameUtf8.c_str())) {
+        return false;
+    }
+    cfg.get("options.spacingRequired", options.spacingRequired);
+    cfg.get("options.dotAsZero", options.dotAsZero);
+    cfg.get("options.uppercaseInput", options.uppercaseInput);
+    cfg.get("memory", &memory[0], memory.size());
+    cfg.get("time0", time0);
+
+    auto& mod = currentModule();
+    cfg.get("module.fastmode", mod.fastMode);
+    cfg.get("module.traceOn", mod.traceOn);
+    cfg.get("module.autoNumbering", mod.autoNumbering);
+    cfg.get("module.lastEnteredLineNumber", mod.lastEnteredLineNumber);
+    cfg.get("module.filenameQSAVE", mod.filenameQSAVE);
+
+    mod.restoreDataPosition();
+    mod.setProgramCounterToEnd();
+    mod.listing.clear();
+
+    int32_t nlines = 0;
+    cfg.get("module.linecount", nlines);
+
+    for (int32_t i = 0; i < nlines; ++i) {
+        ProgramLine pl;
+        int32_t lineNo = 0;
+        cfg.get("lst.ln" + std::to_string(i), lineNo);
+        cfg.get("lst.tx" + std::to_string(i), pl.code);
+        mod.listing[lineNo] = pl;
+    }
+    mod.forceTokenizing();
+    os->screen.dirtyFlag = true;
+    return true;
 }

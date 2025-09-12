@@ -131,6 +131,7 @@ public:
         bool printable = false; // true: visible character, false: cursor keys etc.
         bool holdShift = false;
         bool holdAlt   = false;
+        bool holdAltGr = false;
         bool holdCtrl  = false;
 
         void debug() const;
@@ -202,6 +203,7 @@ public:
     };
     virtual std::string lockSymbol() const;
     virtual std::string getCurrentDirectory();
+    virtual std::string getHomeDirectory() = 0; // ~/BASIC e.g.
     virtual bool setCurrentDirectory(const std::string& dir);
     virtual std::vector<FileInfo> listCurrentDirectory();
     virtual bool doesFileExist(const std::string& path);

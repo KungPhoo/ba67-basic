@@ -15,12 +15,11 @@
     #include <cmath>
     // #include <cstring>
     #include <filesystem>
-    #include <thread>
     #include <chrono>
     #include "string_helper.h"
 
     #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
-        #include <GL/gl.h>
+        #include "opengl_painter.h"
     #endif
 
     #ifdef _WIN32
@@ -29,18 +28,8 @@
         #include <tchar.h>
     #endif
 
-// void displayUpdateThread(OsFPL* fpl);
 
 OsFPL::~OsFPL() {
-    stopThread = true;
-
-    // wait until the thread released the buffers
-    // frontBuffer->lock();
-    // backBuffer->lock();
-    // frontBuffer->unlock();
-    // backBuffer->unlock();
-
-
     fplWindowShutdown();
 }
 
@@ -66,8 +55,11 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
     if (this->settings.renderMode == BA68settings::RenderMode::OpenGL) {
         // Use Legacy OpenGL (1.1)
-        settings.video.backend                          = fplVideoBackendType_OpenGL;
-        settings.video.graphics.opengl.compabilityFlags = fplOpenGLCompabilityFlags_Legacy;
+        settings.video.backend = fplVideoBackendType_OpenGL;
+        // settings.video.graphics.opengl.compabilityFlags = fplOpenGLCompabilityFlags_Legacy;
+        settings.video.graphics.opengl.compabilityFlags = fplOpenGLCompabilityFlags_Core;
+        settings.video.graphics.opengl.majorVersion     = 3;
+        settings.video.graphics.opengl.minorVersion     = 3;
         settings.video.isVSync                          = true;
     } else
     #endif
@@ -95,6 +87,7 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
         fplSetWindowFullscreenSize(true, 0, 0, 0);
     }
 
+
     #ifdef _WIN32
     fpl__PlatformAppState* appState    = fpl__global__AppState;
     fpl__Win32AppState* win32AppState  = &appState->win32;
@@ -104,7 +97,14 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     HICON hIcon                        = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_ICON1));
     SendMessageW(hWnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
     SendMessageW(hWnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+    #endif
 
+    return true;
+}
+
+std::string OsFPL::getHomeDirectory() {
+    std::string homeDir = ".";
+    #ifdef _WIN32
     wchar_t* user = nullptr;
     size_t len    = 0;
     if (0 == _wdupenv_s(&user, &len, L"USERPROFILE") && user != nullptr) {
@@ -115,10 +115,12 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
         ::CreateDirectoryW(home.c_str(), NULL);
         home += L"\\BASIC";
         ::CreateDirectoryW(home.c_str(), NULL);
-        ::SetCurrentDirectoryW(home.c_str());
+        homeDir = Unicode::toUtf8String((const char16_t*)home.c_str());
+        ;
+        // ::SetCurrentDirectoryW(home.c_str());
     }
     #else
-    char homepath[1024] = {};
+    char homepath[1024] = "~";
     fplGetHomePath(homepath, 1024);
     std::string home = homepath;
     for (auto& c : home) {
@@ -133,13 +135,11 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
         if (!doesFileExist(home)) {
             std::filesystem::create_directory("BASIC");
         }
-        setCurrentDirectory(home);
+        homeDir = home;
     }
     #endif
 
-    // std::thread upd(displayUpdateThread, this);
-    // upd.detach();
-    return true;
+    return homeDir;
 }
 
 uint64_t OsFPL::tick() const {
@@ -253,11 +253,7 @@ static uint32_t emphasizeRGB(uint32_t color, double facR, double facG, double fa
 
 // == DRAW ==
 static void renderToFrontBuffer(OsFPL* fpl, OsFPL::Buffered* buffer) {
-    buffer->imageCreated = false;
-
     std::array<std::array<uint32_t, 16>, 6> palettes; // [r,g,b, dark r,g,b]
-    // OsFPL::Buffered state;
-    // std::vector<uint8_t> pixelsPal; // what's actually drawn
 
 
     size_t videoW   = fpl->videoW;
@@ -313,12 +309,7 @@ static void renderToFrontBuffer(OsFPL* fpl, OsFPL::Buffered* buffer) {
     }
     #endif
 
-    // we don't access the RGB buffer - we use the color indices
-    // screen.updateScreenBitmap();
-
     // Compute scaling factors
-
-
     double scaleX = static_cast<double>(videoW) / buffer->pixelsW;
     double scaleY = static_cast<double>(videoH) / buffer->pixelsH;
 
@@ -379,43 +370,7 @@ static void renderToFrontBuffer(OsFPL* fpl, OsFPL::Buffered* buffer) {
             *pdest++ = palettes[pal][color];
         }
     }
-    buffer->imageCreated = true;
 }
-
-// void displayUpdateThread(OsFPL* fpl) {
-//
-//     bool oldCursorVisible                                = false;
-//     std::chrono::steady_clock::time_point nextShowCursor = std::chrono::steady_clock::now(); // blink time
-//     // size_t srcWidth                                      = ScreenInfo::pixX; // ScreenBitmap width (80x8)
-//     // size_t srcHeight                                     = ScreenInfo::pixY; // ScreenBitmap height (25x16)
-//
-//     // uint64_t sleepAfter = 0;
-//
-//     static int passes  = 0;
-//     bool cursorVisible = true;
-//     for (;;) {
-//         // == UPDATE STATE ==
-//         std::chrono::milliseconds flipDelay(400);
-//
-//
-//         // wait for next presentScreen (draw to back buffer) or a delay
-//         // protected by the mutex, it waits for some time or the dirtyFlag to be set.
-//         // While waiting, the mutex is unlocked for the main tread.
-//         auto nextCursorToggle = std::chrono::steady_clock::now() + flipDelay;
-//         std::unique_lock<std::mutex> lock(fpl->backBuffer->mutex);
-//         fpl->cv.wait_until(lock, nextCursorToggle, [&] { return fpl->backBuffer->dirtyFlag || fpl->stopThread; });
-//
-//         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-//         if (fpl->stopThread) {
-//             return;
-//         }
-//
-//         // flip back/front buffer
-//         std::swap(fpl->frontBuffer, fpl->backBuffer);
-//
-//         renderToFrontBuffer(fpl, fpl->frontBuffer);
-//     }
-// }
 
 void OsFPL::presentScreen() {
 
@@ -424,8 +379,7 @@ void OsFPL::presentScreen() {
     if (nextShow > now) {
         return;
     }
-    nextShow = now + 12;
-
+    nextShow = now + 5;
 
     static bool lastCursorBlink = false;
     bool cursorVisible          = true;
@@ -438,13 +392,6 @@ void OsFPL::presentScreen() {
     }
 
     if (screen.dirtyFlag) {
-        fplWindowSize sz { 0, 0 };
-        fplGetWindowSize(&sz);
-        // it seems fplWindowEventType_Closed is never fired
-        if (sz.width == 0) {
-            return; // window minimized
-        }
-
         screen.dirtyFlag = false;
 
         // Get window size
@@ -452,6 +399,10 @@ void OsFPL::presentScreen() {
         if (!fplGetWindowSize(&winSize)) {
             printf("can't get window size\n");
             return;
+        }
+        // it seems fplWindowEventType_Closed is never fired
+        if (winSize.width == 0) {
+            return; // window minimized
         }
         videoW = winSize.width;
         videoH = winSize.height;
@@ -461,15 +412,6 @@ void OsFPL::presentScreen() {
             backBuffer->palette[i] = screen.palette[i];
         }
         screen.updateScreenPixelsPalette(cursorVisible, backBuffer->pixelsPal);
-        backBuffer->pixelsH          = screen.height * ScreenInfo::charPixX;
-        backBuffer->pixelsW          = screen.width * ScreenInfo::charPixY;
-        backBuffer->borderColorIndex = screen.getBorderColor();
-        backBuffer->dirtyFlag        = true;
-        backBuffer->crtEmulation     = settings.emulateCRT;
-        // backBuffer->unlock();
-
-        std::swap(frontBuffer, backBuffer);
-        renderToFrontBuffer(this, frontBuffer);
 
         switch (settings.renderMode) {
         case BA68settings::RenderMode::OpenGL:
@@ -482,62 +424,54 @@ void OsFPL::presentScreen() {
             break;
         }
     }
-
-    // if (mustNotify) {
-    //     cv.notify_one();
-    // }
 }
 
 
-
-
 void OsFPL::renderSoftware() {
+    backBuffer->pixelsH          = screen.height * ScreenInfo::charPixX;
+    backBuffer->pixelsW          = screen.width * ScreenInfo::charPixY;
+    backBuffer->borderColorIndex = screen.getBorderColor();
+    backBuffer->dirtyFlag        = true;
+    backBuffer->crtEmulation     = settings.emulateCRT;
+
+    renderToFrontBuffer(this, backBuffer);
+
     fplVideoBackBuffer* vidBackBuffer = fplGetVideoBackBuffer();
     if (vidBackBuffer != nullptr) {
         if (vidBackBuffer->width != videoW || vidBackBuffer->height != videoH) {
             screen.dirtyFlag = true;
-            frontBuffer->lock();
-            frontBuffer->imageCreated = false;
-            frontBuffer->unlock();
             fplResizeVideoBackBuffer(uint32_t(videoW), uint32_t(videoH));
             vidBackBuffer = fplGetVideoBackBuffer();
         }
     }
 
-    frontBuffer->lock();
-    if (vidBackBuffer != nullptr && vidBackBuffer->pixels != nullptr && vidBackBuffer->width * vidBackBuffer->height == frontBuffer->memBackBuffer.size()) {
-        StringHelper::memcpy(vidBackBuffer->pixels, &frontBuffer->memBackBuffer[0], sizeof(uint32_t) * frontBuffer->memBackBuffer.size());
+    if (vidBackBuffer != nullptr && vidBackBuffer->pixels != nullptr && vidBackBuffer->width * vidBackBuffer->height == backBuffer->memBackBuffer.size()) {
+        StringHelper::memcpy(vidBackBuffer->pixels, &backBuffer->memBackBuffer[0], sizeof(uint32_t) * backBuffer->memBackBuffer.size());
     }
-    frontBuffer->imageCreated = false;
-    frontBuffer->unlock();
     fplVideoFlip();
 }
 
 void OsFPL::renderOpenGL() {
     #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
 
-    size_t winW = videoW, winH = videoH;
-    if (winW * winH != frontBuffer->memBackBuffer.size()) {
-        screen.dirtyFlag = true;
-        return;
+    static OpenGLPainter ogl {};
+    static bool firstTime = true;
+    if (firstTime) {
+        firstTime = false;
+        ogl.initGL();
     }
-    glClear(GL_COLOR_BUFFER_BIT);
+    backBuffer->memBackBuffer.resize(backBuffer->pixelsPal.size());
+    screen.updateScreenBitmap(backBuffer->pixelsPal, backBuffer->memBackBuffer);
 
-    // Flip the image vertically
-    glViewport(0, 0, GLsizei(winW), GLsizei(winH));
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0, GLdouble(winW), 0, GLdouble(winH), 0.1, 1);
-    glPixelZoom(1, -1);
-    glRasterPos3f(0, GLfloat(winH - 1), -0.3f);
-
-    // Draw pixels
-    frontBuffer->lock();
-    glDrawPixels(GLsizei(winW), GLsizei(winH), GL_BGRA_EXT, GL_UNSIGNED_BYTE, frontBuffer->memBackBuffer.data());
-    frontBuffer->imageCreated = false;
-    frontBuffer->unlock();
+    ogl.draw(videoW, videoH,
+             screen.width * ScreenInfo::charPixX,
+             screen.height * ScreenInfo::charPixY,
+             &backBuffer->memBackBuffer[0],
+             screen.palette[screen.getBorderColor()]);
 
     fplVideoFlip();
+    #else
+    renderSoftware();
     #endif
 }
 
@@ -582,9 +516,10 @@ void OsFPL::updateEvents() {
             }
         } else if (event.type == fplEventType_Keyboard) {
             KeyPress keyPress;
-            keyPress.holdShift = event.keyboard.modifiers & fplKeyboardModifierFlags_LShift;
-            keyPress.holdCtrl  = event.keyboard.modifiers & fplKeyboardModifierFlags_LCtrl;
+            keyPress.holdShift = event.keyboard.modifiers & (fplKeyboardModifierFlags_LShift | fplKeyboardModifierFlags_RShift);
+            keyPress.holdCtrl  = event.keyboard.modifiers & (fplKeyboardModifierFlags_LCtrl | fplKeyboardModifierFlags_RCtrl);
             keyPress.holdAlt   = event.keyboard.modifiers & fplKeyboardModifierFlags_LAlt;
+            keyPress.holdAltGr = event.keyboard.modifiers & fplKeyboardModifierFlags_RAlt;
             keyPress.code      = uint32_t(event.keyboard.keyCode); // has umlaut characters
 
             //
@@ -1042,9 +977,7 @@ Os::MouseStatus OsFPL::getMouseStatus() {
 
     fplMouseState fst;
     if (fplPollMouseState(&fst)) {
-        frontBuffer->lock();
-        auto wpx = frontBuffer->windowPixels;
-        frontBuffer->unlock();
+        auto wpx = backBuffer->windowPixels;
         if (wpx.pixelscalex == 0) {
             wpx.pixelscalex = 1;
         }

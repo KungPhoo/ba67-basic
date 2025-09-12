@@ -107,7 +107,8 @@ public:
         BREAK,
         UNDEFD_MODULE,
         ARGUMENT_COUNT = 101,
-        VARIABLE_UNDEFINED
+        VARIABLE_UNDEFINED,
+        READY_COMMAND // easter egg: press enter on "READY."
     };
 
 
@@ -141,7 +142,8 @@ public:
                 {                 ErrorId::BREAK,                       "BREAK" },
                 {         ErrorId::UNDEFD_MODULE,         "UNDEFD MODULE ERROR" },
                 {        ErrorId::ARGUMENT_COUNT,        "ARGUMENT COUNT ERROR" },
-                {    ErrorId::VARIABLE_UNDEFINED,    "VARIABLE UNDEFINED ERROR" }
+                {    ErrorId::VARIABLE_UNDEFINED,    "VARIABLE UNDEFINED ERROR" },
+                {         ErrorId::READY_COMMAND,                "YES, I AM..." }
             };
 
             return errorMessages[ID].c_str();
@@ -321,7 +323,7 @@ public:
         // listing[-2] = immediate mode argument
         // listing[-1] = "END"
         std::string filenameQSAVE;
-        std::map<int, ProgramLine> listing; // [basic number] = line
+        std::map<int32_t, ProgramLine> listing; // [basic number] = line
         std::unordered_map<std::string, Value, string_hash, std::equal_to<>> variables;
         std::unordered_map<std::string, Array, string_hash, std::equal_to<>> arrays;
 
@@ -329,8 +331,8 @@ public:
         // std::vector<ProgramCounter> gosubStack;
 
         std::unordered_map<std::string, FunctionDefinition, string_hash, std::equal_to<>> functionTable;
-        size_t autoNumbering          = 0; // set this value with AUTO
-        int64_t lastEnteredLineNumber = 0;
+        int32_t autoNumbering         = 0; // set this value with AUTO
+        int32_t lastEnteredLineNumber = 0;
 
         ProgramCounter programCounter = { listing.end(), 0 };
 
@@ -508,4 +510,7 @@ public:
     bool loadProgram(std::string& inOutFilenameUtf8);
     bool saveProgram(std::string filenameUtf8);
     bool fileExists(const std::string& filenameUtf8, bool allowWildCard);
+
+    bool saveState(std::string& filenameUtf8);
+    bool loadState(std::string& filenameUtf8);
 };
