@@ -37,11 +37,13 @@ uniform vec4 uBorderColor;  // RGBA color for out-of-range areas
 uniform bool crt_emulation;
 
 // Hard-coded 4x4 RGB multipliers
+const float drk=0.7;
+const float scn=0.85;
 const vec3 blockMatrix[16] = vec3[16]( // vertically flipped
-    0.7*vec3(1.0, 0.7, 0.7), 0.7*vec3(0.7, 1.0, 0.7), 0.7*vec3(0.7, 0.7, 1.0), 0.7*vec3(0.7, 0.7, 0.7),
-    vec3(1.0, 0.7, 0.7),vec3(0.7, 1.0, 0.7),vec3(0.7, 0.7, 1.0),vec3(0.7, 0.7, 0.7),
-    vec3(1.0, 0.7, 0.7),vec3(0.7, 1.0, 0.7),vec3(0.7, 0.7, 1.0),vec3(0.7, 0.7, 0.7),
-    vec3(1.0, 0.7, 0.7),vec3(0.7, 1.0, 0.7),vec3(0.7, 0.7, 1.0),vec3(0.7, 0.7, 0.7)
+    scn*vec3(1.0, drk, drk), scn*vec3(drk, 1.0, drk), scn*vec3(drk, drk, 1.0), scn*vec3(drk, drk, drk),
+    vec3(1.0, drk, drk),vec3(drk, 1.0, drk),vec3(drk, drk, 1.0),vec3(scn, scn, scn),
+    vec3(1.0, drk, drk),vec3(drk, 1.0, drk),vec3(drk, drk, 1.0),vec3(scn, scn, scn),
+    vec3(1.0, drk, drk),vec3(drk, 1.0, drk),vec3(drk, drk, 1.0),vec3(scn, scn, scn)
 );
 
 

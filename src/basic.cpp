@@ -1469,7 +1469,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     printUtf8String(
         std::string(centerx, ' ') + std::string(" ****    BA67 BASIC") + charLogo + " V" + version() + ("   ****\n"));
 
-    std::string strmem = " " + valueToString(int64_t(os->getFreeMemoryInBytes())) + std::string(" BASIC BYTES FREE");
+    std::string strmem = " " + valueToString(int64_t(os->getFreeMemoryInBytes()) / (1024 * 1024)) + std::string(" BASIC MEGA BYTES FREE");
     while (strmem.length() < 31) {
         strmem.insert(strmem.begin(), ' ');
     }
@@ -5230,7 +5230,7 @@ bool Basic::saveState(std::string& filenameUtf8) {
     cfg.set("options.spacingRequired", options.spacingRequired);
     cfg.set("options.dotAsZero", options.dotAsZero);
     cfg.set("options.uppercaseInput", options.uppercaseInput);
-    cfg.set("memory", &memory[0], memory.size());
+    cfg.set("memory", &memory[0], memory.size(), sizeof(memory[0]));
     cfg.set("time0", time0);
 
     auto& mod = currentModule();
@@ -5259,7 +5259,7 @@ bool Basic::loadState(std::string& filenameUtf8) {
     cfg.get("options.spacingRequired", options.spacingRequired);
     cfg.get("options.dotAsZero", options.dotAsZero);
     cfg.get("options.uppercaseInput", options.uppercaseInput);
-    cfg.get("memory", &memory[0], memory.size());
+    cfg.get("memory", &memory[0], memory.size(), sizeof(memory[0]));
     cfg.get("time0", time0);
 
     auto& mod = currentModule();

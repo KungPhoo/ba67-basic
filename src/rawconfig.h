@@ -53,9 +53,17 @@ private:
     }
 
 public:
-    void set(const std::string& key, const void* ptr, size_t len) {
+    void set(const std::string& key, const void* ptr, size_t count, size_t bytesPerItem) {
         const uint8_t* p = static_cast<const uint8_t*>(ptr);
-        data[key]        = std::vector<uint8_t>(p, p + len);
+        data[key]        = std::vector<uint8_t>(count * bytesPerItem);
+
+        const char* src = (const char*)ptr;
+        char* dst       = (char*)data[key].data();
+        for (size_t i = 0; i < count; ++i) {
+            toBigEndian(src, dst, bytesPerItem);
+            src += bytesPerItem;
+            dst += bytesPerItem;
+        }
     }
 
     // == GET ==
@@ -82,7 +90,7 @@ public:
             return false;
         }
         int32_t v;
-        fromBigEndian(it->second, &v, 4);
+        fromBigEndian(it->second.data(), &v, 4);
         value = v;
         return true;
     }
@@ -92,7 +100,7 @@ public:
             return false;
         }
         int32_t v;
-        fromBigEndian(it->second, &v, 4);
+        fromBigEndian(it->second.data(), &v, 4);
         value = v;
         return true;
     }
@@ -114,7 +122,7 @@ public:
     }
 
 
-    size_t get(const std::string& key, void* out, size_t maxlen) const;
+    size_t get(const std::string& key, void* out, size_t count, size_t bytesPerItem) const;
 
 private:
     int64_t getI64(const std::string& key, int64_t def = 0) const {
@@ -123,13 +131,12 @@ private:
             return def;
         }
         int64_t v;
-        fromBigEndian(it->second, &v, 8);
+        fromBigEndian(it->second.data(), &v, 8);
         return v;
     }
 
 private:
-    template <typename T>
-    static void toBigEndian(const T* src, void* dst, size_t size) {
+    static void toBigEndian(const void* src, void* dst, size_t size) {
         const uint8_t* p = reinterpret_cast<const uint8_t*>(src);
         uint8_t* d       = reinterpret_cast<uint8_t*>(dst);
         for (size_t i = 0; i < size; ++i) {
@@ -144,13 +151,7 @@ private:
         }
     }
 
-    template <typename T>
-    static void fromBigEndian(std::vector<uint8_t> vsrc, T* dst, size_t size) {
-        while (size > vsrc.size()) {
-            vsrc.insert(vsrc.begin(), 0);
-        }
-        const void* src = vsrc.data();
-
+    static void fromBigEndian(const void* src, void* dst, size_t size) {
         const uint8_t* s = reinterpret_cast<const uint8_t*>(src);
         uint8_t* d       = reinterpret_cast<uint8_t*>(dst);
         for (size_t i = 0; i < size; ++i) {

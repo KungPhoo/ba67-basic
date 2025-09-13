@@ -135,11 +135,9 @@ int main(int argc, char** argv) {
         }
     }
 
-
     OsBackend os;
     OsSoundsystem sound;
     Basic basic(&os, &sound);
-    std::cout << __FILE__ << "(" << __LINE__ << "\n";
 
     // load boot.bas
     try {
@@ -149,9 +147,6 @@ int main(int argc, char** argv) {
         }
     } catch (...) {
     }
-
-    std::cout << __FILE__ << "(" << __LINE__ << "\n";
-
 
     // run bas program from command line
     for (size_t i = 1; i < args.size(); ++i) {

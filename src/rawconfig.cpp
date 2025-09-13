@@ -82,13 +82,21 @@ bool RawConfig::save(const char* filename) const {
     return true;
 }
 
-size_t RawConfig::get(const std::string& key, void* out, size_t maxlen) const {
+size_t RawConfig::get(const std::string& key, void* out, size_t count, size_t bytesPerItem) const {
     auto it = data.find(key);
     if (it == data.end()) {
         return 0;
     }
-    size_t n = (it->second.size() < maxlen) ? it->second.size() : maxlen;
-    std::memcpy(out, it->second.data(), n);
+
+    size_t n = (it->second.size() / bytesPerItem < count) ? it->second.size() / bytesPerItem : count;
+
+    const char* src = (const char*)it->second.data();
+    char* dst       = (char*)out;
+    for (size_t i = 0; i < n; ++i) {
+        fromBigEndian(src, dst, bytesPerItem);
+        src += bytesPerItem;
+        dst += bytesPerItem;
+    }
     return n;
 }
 
