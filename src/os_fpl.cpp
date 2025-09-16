@@ -383,7 +383,7 @@ void OsFPL::presentScreen() {
 
     static bool lastCursorBlink = false;
     bool cursorVisible          = true;
-    if ((tick() % 800) < 400) {
+    if ((now % 800) < 400) {
         cursorVisible = false;
     }
     if (lastCursorBlink != cursorVisible) {

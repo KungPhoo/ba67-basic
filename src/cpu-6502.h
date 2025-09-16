@@ -19,6 +19,7 @@ public:
     bool sys(uint16_t address);
 
 
+
     // The program counter PC is the 0 based pointer in
     // memory. Call this function to execute one ASM statement.
     // -returns: false -> bad opcode. Read the opcode and PC for
@@ -28,6 +29,21 @@ public:
     void rts();
 
 private:
+    enum AddrMode {
+        IMM, // Immediate
+        ACC, // accumulator variants
+        ZP, // Zero Page
+        ZPX, // Zero Page,X
+        ZPY, // Zero Page,Y
+        ABS, // Absolute
+        ABSX, // Absolute,X
+        ABSY, // Absolute,Y
+        INDX, // (Zero Page,X)
+        INDY // (Zero Page),Y
+    };
+
+
+    uint8_t fetchOperand(AddrMode mode);
     void push(uint8_t value) { memory[0x0100 + SP--] = value; }
     void pushWord(uint16_t value) {
         push(value >> 8);
@@ -48,6 +64,17 @@ private:
     }
     uint16_t readWord(uint16_t addr) { return memory[addr] | (memory[addr + 1] << 8); }
 
+
+    inline bool getFlag(uint8_t f) const { return (P & f) != 0; }
+    inline void clearFlag(uint8_t f) { P &= ~f; }
+    inline void setFlag(uint8_t f) { P |= f; }
+    inline void setFlag(uint8_t f, bool cond = true) {
+        if (cond) {
+            P |= f; // set the bit
+        } else {
+            P &= ~f; // clear the bit
+        }
+    }
     void setZN(uint8_t value);
 
     void brk();

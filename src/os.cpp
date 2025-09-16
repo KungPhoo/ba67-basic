@@ -6,6 +6,7 @@
 // #include <cstring>
 #include "string_helper.h"
 #include "minifetch.h"
+#include "basic.h"
 
 // static instance
 BA68settings Os::settings = {};
@@ -21,6 +22,8 @@ Os::KeyPress Os::getFromKeyboardBuffer() {
     if (settings.demoMode) {
         delay(200);
     }
+
+    pokeKeyboardBuffer();
 
     return k;
 }
@@ -41,6 +44,22 @@ void Os::putToKeyboardBuffer(Os::KeyPress key, bool applyBufferLimit) {
     // Keep buffer size limited
     if (applyBufferLimit && keyboardBuffer.size() > 128 * 1024) {
         keyboardBuffer.pop_back();
+    }
+    pokeKeyboardBuffer();
+}
+
+void Os::pokeKeyboardBuffer() {
+    size_t bufsz = keyboardBuffer.size();
+    if (bufsz > 9) {
+        bufsz = 9;
+    }
+    basic->memory[krnl.NDX] = bufsz;
+    for (size_t i = 0; i < bufsz; ++i) {
+        auto code = keyboardBuffer[bufsz - i - 1].code;
+        if (code == '\n') {
+            code = '\r';
+        }
+        basic->memory[krnl.KEYD + i] = code;
     }
 }
 

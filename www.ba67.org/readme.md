@@ -149,8 +149,8 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
   - [F - The Newline Dilemma](#f---the-newline-dilemma)
   - [G - Going from PETSCII to Unicode](#g---going-from-petscii-to-unicode)
   - [H - Hardcore Assembler Language](#h---hardcore-assembler-language)
-  - [Z Known bugs](#z-known-bugs)
   - [I - Internal Memory Model (PEEK and POKE)](#i---internal-memory-model--peek-and-poke-)
+  - [Z Known bugs](#z-known-bugs)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
@@ -2061,22 +2061,16 @@ BA68 can emulate the code you `POKE'd` into the memory.
 When you hit a RTS $60, command gets returned to the
 BASIC code.
 
-The memory is initially all zeros. There's no kernal
-routines loaded. Might be fun to try what would
-happen.
+The C64 kernal and basic rom is loaded to $E000 and $B000.
+
+Using `SYS $FCE2` you can actually start the BASIC V2,
+but the character mapping is not what it expects.
 
 A few addresses, however, act special:
-- $f508 PRIMM - print null terminated string
-- $ffd2 CHROUT - will print the character in A register
-- $ffe4 CHIN - will wait for a key to be pressed and
-               put it in the A register.
 - $080C - return to BASIC
 - $0100 to $01ff - call stack
 - $00A0 - $00A2 - jiffy clock
 - $D011 - $D012 - current raster line (just a counter)
-
-## Z Known bugs
-`PRINT "X"; IF ` - no colon! but no error, yet
 
 
 ## I - Internal Memory Model (PEEK and POKE)
@@ -2085,28 +2079,36 @@ memory address to display Unicode characters
 instead of PETSCII characters on the screen.
 
 These memory addresses are directly used:
-+--------------+--------------------------+
-| $00A0   (10) | Jiffy Clock              |
-+--------------+--------------------------+
-| $00D9  (217) | Line Link Table          |
++--------------+---------------------------+
+| $00A0   (10) | Jiffy Clock               |
++--------------+---------------------------+
+| $00C6        | NDX Number of Characters  |
+|              | in Keyboard Buffer (Queue)|
++--------------+---------------------------+
+| $00D9  (217) | Line Link Table           |
+|              |                           |
+|              | each line has 0 or 0x80   |
+|              | to indicate it belongs    |
+|              | to the previous line.     |
+|              |                           |
+|              | Compatible with C64.      |
+|              | C128 does this at         |
+|              | $035E-$0361 bits.         |
++--------------+---------------------------+
+| $0277        | Keyboard buffer (9 bytes) |
++--------------+---------------------------+
+| $0400 (2048) | Screen characters (80x25!)|
++--------------+---------------------------+
+| $D800(55296) | Color Ram                 |
 |              |                          |
-|              | each line has 0 or 0x80  |
-|              | to indicate it belongs   |
-|              | to the previous line.    |
-|              |                          |
-|              | Compatible with C64.     |
-|              | C128 does this at        |
-|              | $035E-$0361 bits.        |
-+--------------+--------------------------+
-| $0400 (1024) | Screen characters        |
-+--------------+--------------------------+
-| $D800(55296) | Color Ram                |
-|              |                          |
-|              | foreground+16*background |
-+--------------+--------------------------+
+|              | foreground+16*background  |
++--------------+---------------------------+
 
 See also Annex H for assembler routines.
 
+
+## Z Known bugs
+`PRINT "X"; IF ` - no colon! but no error, yet
 
 -------------------------------------------------------------
 # Disclaimer

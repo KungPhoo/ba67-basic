@@ -1,6 +1,9 @@
 
 // https://www.pagetable.com/c64ref/c64mem/
 struct KernalAddress {
+    const size_t NDX  = 0x00C6; // Number of Characters in Keyboard Buffer (Queue)
+    const size_t KEYD = 0x0277; // keyboard buffer [9]
+
     const size_t BLNSW = 0x00CC; // Cursor Blink Enable: 0=Flash Cursor
     const size_t RVS   = 0x00C7; // Reverse Mode on? 1 on, 0: off
     const size_t PNTR  = 0x00D3; // Current column on current line (cursor x)

@@ -156,6 +156,8 @@ public:
         return {};
     }
 
+private:
+    void pokeKeyboardBuffer();
 
 public:
     // --- JOYPADS ---

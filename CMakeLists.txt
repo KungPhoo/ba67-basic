@@ -72,13 +72,13 @@ add_compile_options("$<$<CONFIG:DEBUG>:-DDEBUG>")
 add_compile_options("$<$<CONFIG:DEBUG>:-D_DEBUG>")
 
 # Hide all warnings for release builds
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    if (MSVC)
-        add_compile_options(/W0)
-    else()
-        add_compile_options(-w)
-    endif()
-endif()
+# if(CMAKE_BUILD_TYPE STREQUAL "Release")
+#     if (MSVC)
+#         add_compile_options(/W0)
+#     else()
+#         add_compile_options(-w)
+#     endif()
+# endif()
 
 # DEBUG and _DEBUG preprocessor defines. NDEBUG is set for release mode by CMake.
 if( ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug") OR ("${CMAKE_BUILD_TYPE}" STREQUAL "DEBUG"))

@@ -14,7 +14,7 @@
 #include "petscii.h"
 
 #include "rawconfig.h"
-
+#include "rom.h"
 
 
 // TODO try 10 DIM JU(13): FOR I = 0 TO 13 : READ JU(I) : NEXT : PRINT JU(I): DATA 5, 4, 3, 2, 1, 1, 0, 0, -1, -1, -2, -3, -4, -5
@@ -810,24 +810,36 @@ void runAssemblerCode(Basic* basic) {
     uint8_t counter   = 0;
     basic->cpu.cpuJam = false;
     uint16_t raster   = 0;
+    bool stoppedByEsc = false;
     for (;;) {
         auto PC = basic->cpu.PC;
         switch (PC) {
-        case 0xf508: { // PRIMM
-            uint16_t addr   = basic->cpu.A | (basic->cpu.X << 8);
-            const char* str = reinterpret_cast<const char*>(&basic->memory[addr]);
-            basic->printUtf8String(str);
-            basic->cpu.rts();
-            break;
-        }
+            // case 0xf508: { // PRIMM
+            //     uint16_t addr   = basic->cpu.A | (basic->cpu.X << 8);
+            //     const char* str = reinterpret_cast<const char*>(&basic->memory[addr]);
+            //     basic->printUtf8String(str);
+            //     basic->cpu.rts();
+            //     break;
+            // }
+            //
+            // case 0xffd2: // CHROUT
+            //     basic->os->screen.putC(basic->cpu.A);
+            //     basic->cpu.rts();
+            //     break;
 
-        case 0xffd2: // CHROUT
-            basic->os->screen.putC(basic->cpu.A);
-            basic->cpu.rts();
+        case 0xE5C6:
+            // BASIF has decreased the keyboard buffer count
+            // clear kb buffer, because BASIC might have changed the NDX value.
+            // we would duplicate the input character otherwise.
+            while (basic->os->keyboardBufferHasData()) {
+                basic->os->getFromKeyboardBuffer();
+            }
             break;
+
         case 0xffe4: // CHIN
             basic->cpu.A = uint8_t(basic->os->getFromKeyboardBuffer().code);
             basic->cpu.rts();
+
             break;
         }
 
@@ -837,12 +849,25 @@ void runAssemblerCode(Basic* basic) {
 
 
         if (++counter == 0xff) {
-            basic->handleEscapeKey();
+            basic->os->updateEvents();
+            basic->os->presentScreen();
+
+
+            // basic->handleEscapeKey();
+            //
+            // break with escape
+            if (basic->os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
+                stoppedByEsc = true;
+                break;
+            }
+
+            //
             // overwrite the jiffy clock
             int64_t TI          = (basic->os->tick() * 60LL) / 1000LL;
             basic->memory[0xA2] = TI & 0xff;
             basic->memory[0xA1] = (TI << 8) & 0xff;
             basic->memory[0xA0] = (TI << 16) & 0xff;
+
 
             ++raster;
             if (raster > 312) {
@@ -852,8 +877,11 @@ void runAssemblerCode(Basic* basic) {
             basic->memory[0xD011] = (raster << 8) & 0xff;
         }
     }
-    if (basic->cpu.cpuJam) {
-        std::string err = "CPU JAM AT " + StringHelper::int2hex(basic->cpu.PC) + ". OPCODE " + StringHelper::int2hex(basic->cpu.opcode);
+    if (basic->cpu.cpuJam || stoppedByEsc) {
+        std::string err = (basic->cpu.cpuJam ? "CPU JAM AT " : "CPU STOP AT ")
+                        + StringHelper::int2hex(basic->cpu.PC)
+                        + "\nOPCODE " + StringHelper::int2hex(basic->cpu.opcode)
+                        + "\n";
         basic->restoreColorsAndCursor(false);
         basic->printUtf8String(err);
         throw Basic::Error(Basic::ErrorId::INTERNAL);
@@ -1323,6 +1351,20 @@ Basic::Options Basic::options; // static instance
 
 Basic::Basic(Os* os, SoundSystem* ss) {
     memory.resize(0x20000);
+
+    auto memcellcpy = [](void* dst, const void* src, size_t count) {
+        const uint8_t* s = static_cast<const uint8_t*>(src);
+        MEMCELL* d       = static_cast<MEMCELL*>(dst);
+        while (count != 0) {
+            --count;
+            *d++ = *s++;
+        }
+    };
+
+    memcellcpy(&memory[0xA000], RomImage::BASIC_V2(), 0x2000);
+    memcellcpy(&memory[0xE000], RomImage::KERNAL_C64(), 0x2000);
+
+
     os->screen.initMemory(&memory[0]);
 
     for (int i = 0; i < 256; ++i) {
@@ -2039,13 +2081,14 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
 // put endPtr to the next token to process
 // put start to the open brace '(' - endPtr will point to the item after the matching close brace
 // put start to inside the brace '(' - endPtr will point to matching the closing brace
+// function calls itself recursively.
 std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd, bool breakEarly) {
     std::vector<Value> output;
-    // printf("Evaluate expression***\n");
-    std::vector<Value> values;
     output.reserve(tokens.size());
+    std::vector<Value> values;
     values.reserve(tokens.size());
     std::vector<std::string_view> ops;
+    ops.reserve(tokens.size());
 
     // static string pointers for string_view of unary operators
     static std::vector<std::string> unaryOperators;

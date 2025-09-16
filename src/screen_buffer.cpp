@@ -26,7 +26,7 @@ static CharMap& charMap() {
 // SCNCLR
 void ScreenBuffer::clear() {
     dirtyFlag = true;
-    size_t n  = width * height;
+    size_t n  = ScreenInfo::charsX * ScreenInfo::charsY; // 80!x25 width * height;
     auto col  = currentColor();
     for (size_t i = 0; i < n; ++i) {
         charRam[i] = U' ';
@@ -211,13 +211,24 @@ std::u32string ScreenBuffer::getSelectedText(Cursor start, Cursor end) const {
     if (cend < cstart) {
         std::swap(cstart, cend);
     }
+
     std::u32string str;
+    auto trim = [&str]() {
+        while (!str.empty() && str.back() == U' ') {
+            str.pop_back();
+        }
+    };
+
     str.reserve(cend - cstart);
     while (cstart != cend) {
         str.push_back(*cstart++);
+        if (colOf(cstart) == 0 && !isContinuationRow(rowOf(cstart))) {
+            trim();
+            str += U"\n";
+        }
     }
     str.push_back(*cend);
-
+    trim();
     return str;
 }
 
