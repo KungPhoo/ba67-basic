@@ -868,7 +868,6 @@ void runAssemblerCode(Basic* basic) {
             basic->memory[0xA1] = (TI << 8) & 0xff;
             basic->memory[0xA0] = (TI << 16) & 0xff;
 
-
             ++raster;
             if (raster > 312) {
                 raster = 0;
@@ -881,6 +880,7 @@ void runAssemblerCode(Basic* basic) {
         std::string err = (basic->cpu.cpuJam ? "CPU JAM AT " : "CPU STOP AT ")
                         + StringHelper::int2hex(basic->cpu.PC)
                         + "\nOPCODE " + StringHelper::int2hex(basic->cpu.opcode)
+                        + "\nPC " + StringHelper::int2hex(basic->cpu.PC)
                         + "\n";
         basic->restoreColorsAndCursor(false);
         basic->printUtf8String(err);
@@ -1363,6 +1363,17 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 
     memcellcpy(&memory[0xA000], RomImage::BASIC_V2(), 0x2000);
     memcellcpy(&memory[0xE000], RomImage::KERNAL_C64(), 0x2000);
+
+    // start C64 BASIC with SYS $FCE2 (TODO GO 64)
+    memory[0xE739 + 1] = 0xff; // don't convert PETSCII to screen code
+    memory[0xE73D + 1] = 0xff; // don't convert PETSCII to screen code
+
+    memory[0xE640 + 0] = 0xea; // NOP-out conversion of screen code to PETSCII
+    memory[0xE640 + 1] = 0xea;
+    memory[0xE640 + 2] = 0xea;
+    memory[0xE640 + 3] = 0xea;
+    memory[0xE640 + 4] = 0xea;
+    memory[0xE640 + 5] = 0xea;
 
 
     os->screen.initMemory(&memory[0]);
@@ -4697,10 +4708,15 @@ std::string Basic::inputLine(bool allowVertical) {
         istart      = os->screen.getStartOfLineAt(startCrsr);
         iend        = os->screen.getEndOfLineAt(crsr); // that's the '\n' character
 
+        screenchars = os->screen.getSelectedText(istart, iend);
+
         crsr   = iend;
         crsr.x = 0;
         crsr.y++;
-        screenchars = os->screen.getSelectedText(istart, iend);
+        if (crsr.y >= os->screen.height) {
+            os->screen.scrollUpOne();
+            --crsr.y;
+        }
         os->screen.setCursorPos(crsr);
     } else {
         istart      = (startCrsr);

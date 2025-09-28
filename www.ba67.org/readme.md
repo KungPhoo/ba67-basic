@@ -2067,10 +2067,10 @@ Using `SYS $FCE2` you can actually start the BASIC V2,
 but the character mapping is not what it expects.
 
 A few addresses, however, act special:
-- $080C - return to BASIC
-- $0100 to $01ff - call stack
-- $00A0 - $00A2 - jiffy clock
-- $D011 - $D012 - current raster line (just a counter)
+- $080C : return to BASIC
+- $0100 - $01ff : call stack
+- $00A0 - $00A2 : jiffy clock
+- $D011 - $D012 : current raster line (just a counter)
 
 
 ## I - Internal Memory Model (PEEK and POKE)
@@ -2100,9 +2100,11 @@ These memory addresses are directly used:
 | $0400 (2048) | Screen characters (80x25!)|
 +--------------+---------------------------+
 | $D800(55296) | Color Ram                 |
-|              |                          |
+|              |                           |
 |              | foreground+16*background  |
 +--------------+---------------------------+
+
+See `kernal.h` for more used locations.
 
 See also Annex H for assembler routines.
 

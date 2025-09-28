@@ -6,6 +6,8 @@ struct KernalAddress {
 
     const size_t BLNSW = 0x00CC; // Cursor Blink Enable: 0=Flash Cursor
     const size_t RVS   = 0x00C7; // Reverse Mode on? 1 on, 0: off
+
+    const size_t PNT   = 0x00D1; // 2 byte pointer to address of current screen line
     const size_t PNTR  = 0x00D3; // Current column on current line (cursor x)
     const size_t LNMX  = 0x00D5; // max cursor x of physical screen line (39 or 79)
     const size_t TBLX  = 0x00D6; // Current Cursor Physical Line Number (cursor y)

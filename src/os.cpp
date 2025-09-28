@@ -53,13 +53,13 @@ void Os::pokeKeyboardBuffer() {
     if (bufsz > 9) {
         bufsz = 9;
     }
-    basic->memory[krnl.NDX] = bufsz;
+    basic->memory[krnl.NDX] = MEMCELL(bufsz);
     for (size_t i = 0; i < bufsz; ++i) {
         auto code = keyboardBuffer[bufsz - i - 1].code;
         if (code == '\n') {
             code = '\r';
         }
-        basic->memory[krnl.KEYD + i] = code;
+        basic->memory[krnl.KEYD + i] = MEMCELL(code);
     }
 }
 

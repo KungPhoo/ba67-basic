@@ -66,6 +66,11 @@ public:
         // cursorPosition    = ptrAt(crsr.y, crsr.x);
         memory[krnl.PNTR] = MEMCELL(crsr.x);
         memory[krnl.TBLX] = MEMCELL(crsr.y);
+
+        size_t pnt           = (charRam + width * crsr.y) - memory;
+        memory[krnl.PNT]     = pnt & 0xff;
+        memory[krnl.PNT + 1] = (pnt >> 8) & 0xff;
+        assertCursor();
     }
     inline void setCursorPtr(MEMCELL* pos) {
         setCursorPos({ colOf(pos), rowOf(pos) });
@@ -188,6 +193,7 @@ public:
 
 
     void insertSpace();
+    void scrollUpOne();
 
 private:
     inline size_t idxOf(const MEMCELL* p) const { return static_cast<size_t>(p - charRam); }
@@ -227,7 +233,6 @@ private:
 
     size_t lastUsedColumn(size_t r) const;
 
-    void scrollUpOne();
 
 
 protected:

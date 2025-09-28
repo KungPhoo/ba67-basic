@@ -1,4 +1,7 @@
 ﻿// Full C64 6502 Emulator with all documented opcodes
+
+// https://www.masswerk.at/6502/6502_instruction_set.html
+
 #include "cpu-6502.h"
 #include <functional>
 
@@ -94,7 +97,8 @@ enum Opcode : uint8_t {
     NOP     = 0xEA,
 
     // Logical
-    BIT_ZP = 0x24,
+    BIT_ZP  = 0x24,
+    BIT_ABS = 0x2C,
 
     // AND (Accumulator AND memory)
     AND_IMM  = 0x29, // Immediate
@@ -311,7 +315,6 @@ bool CPU6502::executeNext() {
         }
     };
 
-
     auto AND = [this](uint8_t value) {
         A &= value;
         setZN(A);
@@ -389,10 +392,44 @@ bool CPU6502::executeNext() {
         return value;
     };
 
+    auto LDA = [this](uint8_t value) {
+        A = value;
+        setZN(value);
+    };
+    auto LDX = [this](uint8_t value) {
+        X = value;
+        setZN(value);
+    };
+    auto LDY = [this](uint8_t value) {
+        Y = value;
+        setZN(value);
+    };
+
 
     opcode = fetchByte();
 
     switch (opcode) {
+    case LDA_IMM:  executeOp(IMM, LDA); break;
+    case LDA_ZP:   executeOp(ZP, LDA); break;
+    case LDA_ZPX:  executeOp(ZPX, LDA); break;
+    case LDA_ABS:  executeOp(ABS, LDA); break;
+    case LDA_ABSX: executeOp(ABSX, LDA); break;
+    case LDA_ABSY: executeOp(ABSY, LDA); break;
+    case LDA_INDX: executeOp(INDX, LDA); break;
+    case LDA_INDY: executeOp(INDY, LDA); break;
+
+    case LDX_IMM:  executeOp(IMM, LDX); break;
+    case LDX_ZP:   executeOp(ZP, LDX); break;
+    case LDX_ZPY:  executeOp(ZPY, LDX); break;
+    case LDX_ABS:  executeOp(ABS, LDX); break;
+    case LDX_ABSY: executeOp(ABSY, LDX); break;
+
+    case LDY_IMM:  executeOp(IMM, LDY); break;
+    case LDY_ZP:   executeOp(ZP, LDY); break;
+    case LDY_ZPX:  executeOp(ZPX, LDY); break;
+    case LDY_ABS:  executeOp(ABS, LDY); break;
+    case LDY_ABSX: executeOp(ABSX, LDY); break;
+
     case ADC_IMM:  executeOp(IMM, ADC); break;
     case ADC_ZP:   executeOp(ZP, ADC); break;
     case ADC_ZPX:  executeOp(ZPX, ADC); break;
@@ -484,26 +521,24 @@ bool CPU6502::executeNext() {
         return false; /*stop asm*/
         break;
 
-
-
         // Register increments/decrements
     case DEX:
-        X = X - 1;
+        --X;
         setZN(X);
         break;
 
     case DEY:
-        Y = Y - 1;
+        --Y;
         setZN(Y);
         break;
 
     case INX:
-        X = X + 1;
+        ++X;
         setZN(X);
         break;
 
     case INY:
-        Y = Y + 1;
+        ++Y;
         setZN(Y);
         break;
 
@@ -565,6 +600,7 @@ bool CPU6502::executeNext() {
         break;
     }
 
+#if 0
     // LOAD INSTRUCTIONS
     case LDA_IMM:
         A = fetchByte();
@@ -654,6 +690,7 @@ bool CPU6502::executeNext() {
         setZN(Y);
         break;
     }
+#endif
 
     // STORE INSTRUCTIONS
     case STA_ZP:   memory[fetchByte()] = A; break;
@@ -716,8 +753,14 @@ bool CPU6502::executeNext() {
         P           = (P & ~(PF_ZERO | PF_NEGATIVE | PF_OVERFLOW)) | ((A & val) == 0 ? PF_ZERO : 0) | (val & 0xC0);
         break;
     }
-
-
+    case BIT_ABS: {
+        uint16_t addr = fetchWord();
+        uint8_t val   = memory[addr];
+        P             = (P & ~(PF_ZERO | PF_NEGATIVE | PF_OVERFLOW))
+          | ((A & val) == 0 ? PF_ZERO : 0)
+          | (val & 0xC0); // Copy bits 7 (N) and 6 (V) from memory
+        break;
+    }
 
         // Branches
     case BEQ: {

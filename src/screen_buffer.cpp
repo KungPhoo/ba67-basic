@@ -66,10 +66,11 @@ void ScreenBuffer::moveCursorPos(int dx, int dy) {
 
     if (newPos >= charRam + width * height) {
         scrollUpOne();
-        setCursorPtr(newPos);
-        auto crsr = getCursorPos();
-        crsr.y    = height - 1;
-        setCursorPos(crsr);
+
+        // setCursorPtr(newPos);
+        // auto crsr = getCursorPos();
+        // crsr.y    = height - 1;
+        setCursorPos({ colOf(newPos), height - 1 });
         return;
     }
     setCursorPtr(newPos);
