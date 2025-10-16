@@ -195,6 +195,9 @@ public:
     void insertSpace();
     void scrollUpOne();
 
+    inline bool isOwnerRow(size_t r) const { return (lineLinkTable[r] & 0x80) == 0; }
+    inline bool isContinuationRow(size_t r) const { return (lineLinkTable[r] & 0x80) != 0; }
+
 private:
     inline size_t idxOf(const MEMCELL* p) const { return static_cast<size_t>(p - charRam); }
     inline size_t rowOf(const MEMCELL* p) const { return idxOf(p) / width; }
@@ -213,9 +216,7 @@ private:
     }
     // MEMCELL currentColor() const { return colRam ? colRam[idxOf(cursorPosition)] : defaultColor; }
 
-    bool isOwnerRow(size_t r) const { return (lineLinkTable[r] & 0x80) == 0; }
-    bool isContinuationRow(size_t r) const { return (lineLinkTable[r] & 0x80) != 0; }
-    bool rowContinues(size_t r) const { return r + 1 < height && isContinuationRow(r + 1); }
+    inline bool rowContinues(size_t r) const { return r + 1 < height && isContinuationRow(r + 1); }
     void makeRowOwner(size_t r) {
         lineLinkTable[r] = 0;
     }

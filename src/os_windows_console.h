@@ -19,6 +19,9 @@ class OsWindowsConsole : public Os {
     KeyPress getFromKeyboardBuffer() override;
     void setCursorVisibility(bool visible);
 
+    // --- FILE SYSTEM ---
+    std::string getHomeDirectory() override;
+
 private:
     void setTextColor(int index);
     void setBackgroundColor(int index);

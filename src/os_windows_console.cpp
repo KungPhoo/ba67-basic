@@ -124,7 +124,7 @@ bool OsWindowsConsole::init(Basic* basic, SoundSystem* ss) {
         ::SetCurrentDirectoryW(home.c_str());
     }
 
-    SetConsoleSize(screen.width, screen.height + 1);
+    SetConsoleSize(screen.width + 1, screen.height + 1);
     // SetConsoleFont(L"Cascadia Mono", 24, true);
     SetConsoleFont(L"Consolas", 24, true);
     // SetConsoleFont(L"Cascadia Code PL", 24, true);
@@ -164,6 +164,15 @@ void OsWindowsConsole::setBackgroundColor(int index) {
 }
 
 void OsWindowsConsole::presentScreen() {
+
+    uint64_t now             = tick();
+    static uint64_t nextShow = 0;
+    if (nextShow > now) {
+        return;
+    }
+    nextShow = now + 5;
+
+
     // screen.getPrintBuffer(chars, colors);
     chars.clear();
     colors.clear();
@@ -183,8 +192,11 @@ void OsWindowsConsole::presentScreen() {
             chars.push_back(ch);
             colors.push_back(char(lnCo[x]));
         }
+
+        // if (y + 1 < screen.height && !screen.isContinuationRow(y + 1)) {
         chars.push_back(U'\n');
         colors.push_back(1);
+        // }
     }
 
     if (chars.length() == 0) {
@@ -209,17 +221,18 @@ void OsWindowsConsole::presentScreen() {
         if (ic >= chars.length()) {
             i = chars.length() - 1;
         }
-        if (x == cutwidth) {
+        char32_t unicodeCodepoint = chars[i];
+
+        if (x == cutwidth || unicodeCodepoint == U'\n') {
             x = 0;
             ++y;
             if (y > screen.height) {
                 break;
             }
-            wprintf(L"\n");
-            setCaretPos(0, y);
+            WriteConsoleW(hStdout, L"\n", 1, nullptr, nullptr);
+            // setCaretPos(0, y);
+            continue;
         }
-
-        char32_t unicodeCodepoint = chars[i];
 
         int craw = colors[i];
         int c    = craw & 0x0000000f;
@@ -429,6 +442,26 @@ void OsWindowsConsole::setCursorVisibility(bool visible) {
     GetConsoleCursorInfo(hConsole, &cursorInfo);
     cursorInfo.bVisible = visible;
     SetConsoleCursorInfo(hConsole, &cursorInfo);
+}
+
+// --- FILE SYSTEM ---
+std::string OsWindowsConsole::getHomeDirectory() {
+    std::string homeDir = ".";
+    wchar_t* user       = nullptr;
+    size_t len          = 0;
+    if (0 == _wdupenv_s(&user, &len, L"USERPROFILE") && user != nullptr) {
+        std::wstring home = user;
+        free(user);
+        user = nullptr;
+        home += L"\\Documents";
+        ::CreateDirectoryW(home.c_str(), NULL);
+        home += L"\\BASIC";
+        ::CreateDirectoryW(home.c_str(), NULL);
+        homeDir = Unicode::toUtf8String((const char16_t*)home.c_str());
+        ;
+        // ::SetCurrentDirectoryW(home.c_str());
+    }
+    return homeDir;
 }
 
 void OsWindowsConsole::updateEvents() {

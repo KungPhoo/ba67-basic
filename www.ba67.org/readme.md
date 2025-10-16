@@ -2063,14 +2063,24 @@ BASIC code.
 
 The C64 kernal and basic rom is loaded to $E000 and $B000.
 
-Using `SYS $FCE2` you can actually start the BASIC V2,
-but the character mapping is not what it expects.
+Using `SYS $FCE2` you can actually start the BASIC V2.
 
 A few addresses, however, act special:
 - $080C : return to BASIC
 - $0100 - $01ff : call stack
 - $00A0 - $00A2 : jiffy clock
 - $D011 - $D012 : current raster line (just a counter)
+
+
+**Attention**
+BA67 patches a few bytes in the C64 KERNAL ROM!
+$E739,$E73D is $FF. Patch CHOUT to "POKE" PETSCII
+to the screen ram.
+
+$E640-$E645 is $EA (NOP). Path the CHIN routine
+to get PETSCII from screen (bypass screen-code conversion).
+
+This way, you can actually use the original BASIC code.
 
 
 ## I - Internal Memory Model (PEEK and POKE)

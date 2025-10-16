@@ -17,7 +17,7 @@ class SoundSystem;
 
 class Basic {
 public:
-    std::string version() const { return "7.01"; }
+    std::string version() const { return "7.02"; }
 
     Os* os;
     Basic(Os* os, SoundSystem* ss = nullptr);

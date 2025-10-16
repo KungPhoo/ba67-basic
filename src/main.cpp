@@ -1,13 +1,13 @@
 ﻿
 #if defined(__EMSCRIPTEN__)
     #include "os_sdl2.h"
-using OsBackend     = OsSDL2;
+// using OsBackend     = OsSDL2;
 using OsSoundsystem = NullSoundSystem;
 #else
 //     // OsWindowsConsole os;
 
     #include "os_fpl.h"
-using OsBackend = OsFPL;
+// using OsBackend = OsFPL;
 
     #if defined(BA67_SOUND_BACKEND_NONE)
 using OsSoundsystem = NullSoundSystem;
@@ -21,12 +21,32 @@ using OsSoundsystem = SoundSystemSoLoud;
 
 #ifdef _WIN32
     #include <Windows.h>
+    #include "os_windows_console.h"
 #endif
 
 #include "basic.h"
 #include "unicode.h"
 #include <iostream>
 #include <vector>
+
+Os* getOsGraphics() {
+#if defined(__EMSCRIPTEN__)
+    static OsSDL2 os;
+#else
+    static OsFPL os;
+#endif
+    return &os;
+}
+
+Os* getOsConsole() {
+#ifdef _WIN32
+    static OsWindowsConsole os;
+#else
+#endif
+    return &os;
+}
+
+
 
 #if _DEBUG
     #include "markdown_parser.h"
@@ -115,8 +135,12 @@ int main(int argc, char** argv) {
             if (args[i + 1] == "opengl") {
                 sets.renderMode = BA68settings::RenderMode::OpenGL;
                 printf("Render mode: OpenGL\n");
-            } else {
+            } else if (args[i + 1] == "software") {
+                sets.renderMode = BA68settings::RenderMode::Software;
                 printf("Render mode: Software\n");
+            } else {
+                sets.renderMode = BA68settings::RenderMode::Text;
+                printf("Render mode: Text Console\n");
             }
         }
         if (args[i] == "--crtemulation") {
@@ -135,9 +159,11 @@ int main(int argc, char** argv) {
         }
     }
 
-    OsBackend os;
+    // OsBackend os;
     OsSoundsystem sound;
-    Basic basic(&os, &sound);
+
+    Os* os = (sets.renderMode == BA68settings::RenderMode::Text) ? getOsConsole() : getOsGraphics();
+    Basic basic(os, &sound);
 
     // load boot.bas
     try {
@@ -172,6 +198,7 @@ void printfHelp() {
     printf("--help                      show this help\n");
     printf("--video        software     (default) use X11 or Windows GDI\n");
     printf("               opengl       Use OpenGL 1.1 glDrawPixels\n");
+    printf("               text         Use console text output (no sprites)\n");
     printf("--crtemulation true         (default) enable the CRT RGB emulation\n");
     printf("               false        disable the CRT RGB emulation\n");
     printf("--demo         true         demo mode - slow typing\n");

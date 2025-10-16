@@ -27,8 +27,9 @@ public:
     bool fullscreen = false;
     struct RenderMode {
         enum Enum {
-            Software = 0,
-            OpenGL   = 1
+            Text     = 0,
+            Software = 1,
+            OpenGL   = 2
         };
     };
     RenderMode::Enum renderMode = RenderMode::Software;

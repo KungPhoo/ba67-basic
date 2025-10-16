@@ -1364,6 +1364,19 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memcellcpy(&memory[0xA000], RomImage::BASIC_V2(), 0x2000);
     memcellcpy(&memory[0xE000], RomImage::KERNAL_C64(), 0x2000);
 
+    // copy the BA67 font to the CHARROM memory.
+    for (size_t i = 0; i < 0x100; ++i) {
+        auto& bmp = os->screen.getCharDefinition(i);
+        for (size_t y = 0; y < 8; ++y) {
+            // uppercase char set
+            memory[0xD000 + i * 8 + y] = bmp.bits[y];
+
+            // lowercase char set (same, but reversed)
+            memory[0xD800 + i * 8 + y] = ~bmp.bits[y];
+        }
+    }
+
+
     // start C64 BASIC with SYS $FCE2 (TODO GO 64)
     memory[0xE739 + 1] = 0xff; // don't convert PETSCII to screen code
     memory[0xE73D + 1] = 0xff; // don't convert PETSCII to screen code
@@ -1374,6 +1387,27 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memory[0xE640 + 3] = 0xea;
     memory[0xE640 + 4] = 0xea;
     memory[0xE640 + 5] = 0xea;
+
+    memory[0xE48D + 0] = '-'; // COMMODORE BASIC V2 -> BA67
+    memory[0xE48D + 1] = '6';
+    memory[0xE48D + 2] = '7';
+
+
+#if defined(_DEBUG)
+    auto savemem = [&](size_t from, size_t len, std::string path) {
+        std::vector<uint8_t> by(len);
+        for (size_t n = 0; n < len; ++n) {
+            by[n] = uint8_t(memory[from + n]);
+        }
+        FilePtr p(os);
+        p.open(path, "wb");
+        p.write(&by[0], len);
+        p.close();
+    };
+    savemem(0xA000, 0x2000, "C:\\Temp\\basic-ba67.bin");
+    savemem(0xE000, 0x2000, "C:\\Temp\\kernal-ba67.bin");
+    savemem(0xD000, 0x1000, "C:\\Temp\\charrom-ba67.bin");
+#endif
 
 
     os->screen.initMemory(&memory[0]);
