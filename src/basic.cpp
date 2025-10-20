@@ -1366,7 +1366,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 
     // copy the BA67 font to the CHARROM memory.
     for (size_t i = 0; i < 0x100; ++i) {
-        auto& bmp = os->screen.getCharDefinition(i);
+        auto& bmp = os->screen.getCharDefinition(char32_t(i));
         for (size_t y = 0; y < 8; ++y) {
             // uppercase char set
             memory[0xD000 + i * 8 + y] = bmp.bits[y];

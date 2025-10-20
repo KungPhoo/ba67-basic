@@ -276,9 +276,9 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
               /* 0xA2, */ 0x00002584, // (!) lower half block
               /* 0xA3, */ 0x000000A3, // (*) pound sign (compatible with ASCII!)
               /* 0xA4, */ 0x00002581, // (!) lower one eighth block
-              /* 0xA5, */ 0x0000258E, // (!) left one quarter block  258F, // (!) left one eighth block
+              /* 0xA5, */ 0x0000258F, // (!) LEFT ONE EIGHTH BLOCK (PET style. C64 has one quarter, here)
               /* 0xA6, */ 0x0001FB90, // (!) INVERSE MEDIUM SHADE
-              /* 0xA7, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
+              /* 0xA7, */ 0x00002595, // (!) RIGHT ONE EIGHTH BLOCK (PET style. C64 has 0x0001FB87RIGHT ONE QUARTER BLOCK)
               /* 0xA8, */ 0x0001FB8F, // (!) LOWER HALF MEDIUM SHADE
               /* 0xA9, */ 0x000025E4, // (!) black upper left triangle
               /* 0xAA, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
@@ -344,9 +344,9 @@ char32_t PETSCII::toUnicode(uint8_t petscii) {
               /* 0xE2, */ 0x00002584, // (!) LOWER HALF BLOCK
               /* 0xE3, */ 0x00002594, // (!) UPPER ONE EIGHTH BLOCK
               /* 0xE4, */ 0x00002581, // (!) LOWER ONE EIGHTH BLOCK
-              /* 0xE5, */ 0x0000258E, // (!) LEFT ONE QUARTER BLOCK
+              /* 0xE5, */ 0x0000258F, // (!) LEFT ONE EIGHTH BLOCK (PET style. C64 has a quarter)
               /* 0xE6, */ 0x0001FB90, // (!) INVERSE MEDIUM SHADE
-              /* 0xE7, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
+              /* 0xE7, */ 0x00002595, // (!) RIGHT ONE QUARTER BLOCK (PET style. C64 has 0x0001FB87 RIGHT ONE QUARTER BLOCK)
               /* 0xE8, */ 0x0001FB8F, // (!) LOWER HALF MEDIUM SHADE
               /* 0xE9, */ 0x0001fb99, // (!) UPPER RIGHT TO LOWER LEFT FILL '//'
               /* 0xEA, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
@@ -593,9 +593,9 @@ char32_t PETSCII::realPETSCIItoUnicode(uint8_t petscii, bool shiftedFont) {
               /* 0xA2, */ 0x00002584, // (!) lower half block
               /* 0xA3, */ 0x00002594, // (!) upper one eighth block
               /* 0xA4, */ 0x00002581, // (!) lower one eighth block
-              /* 0xA5, */ 0x0000258E, // (!) left one quarter block  258F, // (!) left one eighth block
+              /* 0xA5, */ 0x0000258F, // (!) left one eighth block
               /* 0xA6, */ 0x0001FB90, // (!) INVERSE MEDIUM SHADE
-              /* 0xA7, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
+              /* 0xA7, */ 0x00002595, // (!) RIGHT ONE EIGHTH BLOCK (PET style. C64 has 0x0001FB87RIGHT ONE QUARTER BLOCK)
               /* 0xA8, */ 0x0001FB8F, // (!) LOWER HALF MEDIUM SHADE
               /* 0xA9, */ 0x000025E4, // (!) black upper left triangle
               /* 0xAA, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
@@ -661,9 +661,9 @@ char32_t PETSCII::realPETSCIItoUnicode(uint8_t petscii, bool shiftedFont) {
               /* 0xE2, */ 0x00002584, // (!) lower half block
               /* 0xE3, */ 0x00002594, // (!) upper one eighth block
               /* 0xE4, */ 0x00002581, // (!) lower one eighth block
-              /* 0xE5, */ 0x0000258E, // (!) left one quarter block   /* 0xE5, */ 0x0000258F, // (!) left one eighth block
+              /* 0xE5, */ 0x0000258F, // (!) LEFT ONE EIGHTH BLOCK (PET style. C64 has a quarter)
               /* 0xE6, */ 0x0001FB90, // (!) INVERSE MEDIUM SHADE
-              /* 0xE5, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK           /* 0xE7, */ 0x00002595, // (!) right one eighth block
+              /* 0xE7, */ 0x00002595, // (!) RIGHT ONE QUARTER BLOCK (PET style. C64 has 0x0001FB87 RIGHT ONE QUARTER BLOCK)
               /* 0xE8, */ 0x0001FB8F, // (!) LOWER HALF MEDIUM SHADE
               /* 0xE9, */ 0x000025E4, // (!) black upper left triangle
               /* 0xEA, */ 0x0001FB87, // (!) right one quarter block
@@ -868,9 +868,9 @@ char32_t PETSCII::realPETSCIItoUnicode(uint8_t petscii, bool shiftedFont) {
               /* 0xA2, */ 0x00002584, // (!) lower half block
               /* 0xA3, */ 0x000000A3, // (*) pound sign (compatible with ASCII!)
               /* 0xA4, */ 0x00002581, // (!) lower one eighth block
-              /* 0xA5, */ 0x0000258E, // (!) left one quarter block  258F, // (!) left one eighth block
+              /* 0xA5, */ 0x0000258F, // (!) left one eighth block
               /* 0xA6, */ 0x0001FB90, // (!) INVERSE MEDIUM SHADE
-              /* 0xA7, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
+              /* 0xA7, */ 0x00002595, // (!) RIGHT ONE EIGHTH BLOCK (PET style. C64 has 0x0001FB87RIGHT ONE QUARTER BLOCK)
               /* 0xA8, */ 0x0001FB8F, // (!) LOWER HALF MEDIUM SHADE
               /* 0xA9, */ 0x000025E4, // (!) black upper left triangle
               /* 0xAA, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
@@ -936,9 +936,9 @@ char32_t PETSCII::realPETSCIItoUnicode(uint8_t petscii, bool shiftedFont) {
               /* 0xE2, */ 0x00002584, // (!) lower half block
               /* 0xE3, */ 0x00002594, // (!) upper one eighth block
               /* 0xE4, */ 0x00002581, // (!) lower one eighth block
-              /* 0xE5, */ 0x0000258E, // (!) left one quarter block
+              /* 0xE5, */ 0x0000258F, // (!) LEFT ONE EIGHTH BLOCK (PET style. C64 has a quarter)
               /* 0xE6, */ 0x0001FB90, // (!) INVERSE MEDIUM SHADE
-              /* 0xE5, */ 0x0001FB87, // (!) RIGHT ONE QUARTER BLOCK
+              /* 0xE7, */ 0x00002595, // (!) RIGHT ONE QUARTER BLOCK (PET style. C64 has 0x0001FB87 RIGHT ONE QUARTER BLOCK)
               /* 0xE8, */ 0x0001FB8F, // (!) LOWER HALF MEDIUM SHADE
               /* 0xE9, */ 0x0001fb99, // (!) UPPER RIGHT TO LOWER LEFT FILL '//'
               /* 0xEA, */ 0x0001FB87, // (!) right one quarter block
