@@ -1,0 +1,125 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>BA67 - FONT</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <script defer src="menu.js"></script>
+</head>
+<body>
+
+
+    <div id="content">
+        <h1 id="ba67font">BA67-Font</h1>
+        <h2 id="about">About</h2>
+        <p>
+            BA67 was started with the vision of the C64
+            having full Unicode support. As the project
+            evolved, all Unicode characters were added
+            and most of them were hand-crafted pixel-by-pixel.
+            So, having this done, why not use this data
+            to generate a true type font for daily
+            coding work?
+        </p>
+        <p>
+            The BA67 font is a merge of the original CBM
+            fonts from the Commodore C64/C128,
+            characters from <a href="https://www.masswerk.at/char8/">Char8.js</a>,
+            and lots of hand-drawn emojis. It should support
+            all existing Unicode characters (as of 2025-08).
+        </p>
+        <p>
+            It's very crisp at font sizes multiples of 6 pt
+            (6,12,18,24,…)
+        </p>
+        <h2 id="details">Details</h2>
+        <p>
+            The font shows crisp in font size 12 at 95 DPI.
+            The squared version needs size 6 or 12.
+        </p>
+        <p>
+            Some glyphs had been changed from the original
+            Commodore version:
+        </p>
+        <ul>
+            <li>
+                m: The lowercase 'M' in 8 pixels is hard. It
+                was changed to look a bit better besides an
+                'n'.
+            </li>
+            <li>
+                l: Lowercase L to better distinguish from '1'.
+                It matches 't'.
+            </li>
+            <li>'&lt;' and '&gt;' less tall to better distinguish from '(' and ')'.</li>
+            <li>'~' was thickened to match the double-pixel style.</li>
+            <li>
+                Apostrophe was straightened to match the quotation
+                mark to distinguish from accents. ' ´ `
+            </li>
+            <li>
+                b,d,f,h,i,j,k,l,t touch the top,
+                as uppercase letters do.
+            </li>
+            <li>right-aligned the pound sign as M and W do.</li>
+        </ul>
+
+        <h2 id="test">Test</h2>
+        <p>Take a look at this text with BA67 loaded:</p>
+<pre><code class="basic">COMMODORE BASIC V7.0 122365 BYTES FREE
+   (C)1986 COMMODORE ELECTRONICS, LTD.
+         (C)1977 MICROSOFT CORP.
+           ALL RIGHTS RESERVED
+
+READY.
+
+Emoji: 🌴 ♥ 🔒 🐴 🕊
+
+0123456789°!.,:;§$%&amp;=+-*/^
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+abcdefghijklmnopqrstuvwxyz
+&lt;&gt;(){}[] ""''´´``
+
+p  &lt;- these two should touch. 
+L     Your editor might add a one pixel line.
+
+Look-alike glpyhs:
+Iil|
+0Oo°
+OÖöo UÜüu AÄäa bßB
+9q
+3B8
+?ZzSs
+C(&lt;  c&lt;&gt;)
+</code></pre>
+
+<pre><code>
+    C++ example:
+    template class&lt;T&gt; class duh {
+        void foo() {
+            char bar[4] = "1";
+            if (bar[0] &gt;= '1') { bar[0] = '0'; }
+        }
+    };
+</code></pre>
+
+        <h2 id="edit">Edit</h2>
+        <p>
+            In order to edit the font, best use the html editor
+            at <a href="https://github.com/KungPhoo/8x8-pixel-font-editor">Github</a>.
+        </p>
+        <p>
+            It's even hosted online:
+            <a href="https://www.ba67.org/fonteditor/8x8-font-editor.html">GOTO Editor</a>.
+        </p>
+        <p>
+            If you want to join editing this font, you can do so.
+            Your changes are stored locally in your browser.
+            Just send me a copy of the created C++ code for the
+            characters you edited via email.
+        </p>
+
+</body>
+</html>

@@ -46,6 +46,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [FN](#fn)
     - [FOR](#for)
     - [GET](#get)
+    - [GO](#go)
     - [GRAPHIC](#graphic)
     - [GOSUB](#gosub)
     - [GOTO](#goto)
@@ -807,6 +808,13 @@ the return stack in one of four ways:
 
 Gets a key press from the keyboard buffer. Will return
 an empty string, if the buffer is empty.
+
+### GO
+**Usage:** `GO 64`
+
+Runs the original C64 BASIC interpreter in memory.
+It's the same as calling `SYS $FCE2`.
+
 
 
 ### GRAPHIC

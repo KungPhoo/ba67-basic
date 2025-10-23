@@ -21,6 +21,7 @@
 ,{"FIND", R"RAW(FIND "print*hello world")RAW"}
 ,{"FOR", R"RAW(FOR var = start TO end [STEP increment])RAW"}
 ,{"GET", R"RAW(GET a$ [, b$, ...])RAW"}
+,{"GO", R"RAW(GO 64)RAW"}
 ,{"GRAPHIC", R"RAW(GRAPHIC mode5)RAW"}
 ,{"GOSUB", R"RAW(GOSUB line)RAW"}
 ,{"GOTO", R"RAW(GOTO line)RAW"}

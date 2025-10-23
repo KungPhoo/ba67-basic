@@ -3,6 +3,7 @@
         { name: "HOME", url: "index.html" },
         { name: "FEATURES", url: "features.html" },
         { name: "DETAILS", url: "readme.html" },
+        { name: "FONT", url: "font.html" },
         { name: "PROJECT", url: "https://github.com/KungPhoo/ba67-basic" },
         { name: "RUN", url: "run.html" },
     ];

@@ -472,6 +472,20 @@ void cmdFIND(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
+void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values);
+void cmdGO(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() != 1) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    int64_t where = int(Basic::valueToInt(values[0]));
+
+    if (where == 64) {
+        cmdSYS(basic, { 0xFCE2 });
+    } else {
+        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+    }
+}
+
 void cmdGRAPHIC(Basic* basic, const std::vector<Basic::Value>& values) {
     int code = 0;
     if (values.size() == 1) {
@@ -1381,12 +1395,19 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memory[0xE739 + 1] = 0xff; // don't convert PETSCII to screen code
     memory[0xE73D + 1] = 0xff; // don't convert PETSCII to screen code
 
-    memory[0xE640 + 0] = 0xea; // NOP-out conversion of screen code to PETSCII
-    memory[0xE640 + 1] = 0xea;
-    memory[0xE640 + 2] = 0xea;
-    memory[0xE640 + 3] = 0xea;
-    memory[0xE640 + 4] = 0xea;
-    memory[0xE640 + 5] = 0xea;
+    // memory[0xE640 + 0] = 0xea; // NOP-out conversion of screen code to PETSCII
+    // memory[0xE640 + 1] = 0xea;
+    // memory[0xE640 + 2] = 0xea;
+    // memory[0xE640 + 3] = 0xea;
+    // memory[0xE640 + 4] = 0xea;
+    // memory[0xE640 + 5] = 0xea;
+    // memory[0xE652]     = 0xea;
+    // memory[0xE653]     = 0xea;
+    memory[0xE640 + 0] = 0x4c; // JMP $E654 skips conversion of screen code to PETSCII
+    memory[0xE640 + 1] = 0x54;
+    memory[0xE640 + 2] = 0xe6;
+
+
 
     memory[0xE48D + 0] = '-'; // COMMODORE BASIC V2 -> BA67
     memory[0xE48D + 1] = '6';
@@ -1404,9 +1425,9 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         p.write(&by[0], len);
         p.close();
     };
-    savemem(0xA000, 0x2000, "C:\\Temp\\basic-ba67.bin");
-    savemem(0xE000, 0x2000, "C:\\Temp\\kernal-ba67.bin");
-    savemem(0xD000, 0x1000, "C:\\Temp\\charrom-ba67.bin");
+    savemem(0xA000, 0x2000, "C:\\Temp\\basic");
+    savemem(0xE000, 0x2000, "C:\\Temp\\kernal");
+    savemem(0xD000, 0x1000, "C:\\Temp\\chargen");
 #endif
 
 
@@ -1475,6 +1496,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "MOVSPR", cmdMOVSPR },
         { "QUIT", cmdQUIT },
         { "FIND", cmdFIND },
+        { "GO", cmdGO },
         { "GRAPHIC", cmdGRAPHIC },
         { "LOAD", cmdLOAD },
         { "OPEN", cmdOPEN },
