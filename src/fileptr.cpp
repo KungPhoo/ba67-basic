@@ -28,7 +28,30 @@ bool FilePtr::close() {
     }
 
     bool rv = true;
-    if (!cloudFileName.empty() && !localTempPath.empty()) {
+
+    if (!d64FileName.empty() && !localTempPath.empty()) {
+        if (dirty) {
+            D64 d64;
+            d64.init(os);
+            d64.load(d64FileName);
+
+
+            D64::FILE file;
+            file.name = cloudFileName;
+
+
+            FilePtr loc(os);
+            loc.fopenLocal(localTempPath, "rb");
+            file.data = loc.readAll();
+            loc.close();
+            file.type = D64::PRG;
+
+            d64.removeFile(file.name);
+            d64.files.emplace_back(std::move(file));
+            rv = d64.save(d64FileName);
+        }
+
+    } else if (!cloudFileName.empty() && !localTempPath.empty()) {
         if (dirty) {
             // Upload a file
             // os->systemCall("curl -sS -X POST --data-binary @\"" + localTempPath + "\" \"" + os->cloudUrl + "?file=" + cloudFileName + "\" -H \"X-Auth: " + os->cloudUserHash() + "\"");
@@ -55,6 +78,11 @@ bool FilePtr::close() {
             }
         }
     }
+
+    // TODO d64FileName
+
+
+
     if (!localTempPath.empty()) {
         std::error_code ec;
         std::filesystem::remove(localTempPath, ec);
@@ -62,6 +90,7 @@ bool FilePtr::close() {
     dirty = false;
     localTempPath.clear();
     cloudFileName.clear();
+    d64FileName.clear();
 
 
 #ifdef __EMSCRIPTEN__
@@ -115,33 +144,66 @@ bool FilePtr::open(std::string filenameUtf8, const char* mode) {
     lastStatus.clear();
 
     close();
-    if (os->currentDirIsCloud) {
-        localTempPath = FilePtr::tempFileName();
+    if (os->currentDir == Os::IsCloud || os->currentDir == Os::IsD64) {
+        // extract data and write to a temporary file
         cloudFileName = filenameUtf8;
+        localTempPath = FilePtr::tempFileName();
         filenameUtf8  = localTempPath;
-        if (mode[0] == 'r') {
-            // systemCall("curl -sS -X GET \"" + cloudUrl + "?file=" + f.cloudFileName + "\" -H \"X-Auth: " + cloudUserHash() + "\" -o \"" + f.localTempPath + "\"", false);
 
-            MiniFetch ft;
-            ft.request.method = "GET";
-            ft.request.fillServerFromUrl(os->cloudUrl);
-            ft.request.headers = {
-                { "X-Auth", os->cloudUserHash() }
-            };
-            ft.request.getVariables = {
-                { "file", cloudFileName }
-            };
-            auto resp  = ft.fetch();
-            lastStatus = resp.toString();
-            if (resp.status == MiniFetch::Status::OK) {
+        if (os->currentDir == Os::IsD64) {
+            d64FileName = os->D64Path;
+        }
+
+        if (mode[0] == 'r') {
+
+            bool loadWasOK = false;
+            std::vector<uint8_t> bytes;
+            if (os->currentDir == Os::IsCloud) {
+                // systemCall("curl -sS -X GET \"" + cloudUrl + "?file=" + f.cloudFileName + "\" -H \"X-Auth: " + cloudUserHash() + "\" -o \"" + f.localTempPath + "\"", false);
+
+                MiniFetch ft;
+                ft.request.method = "GET";
+                ft.request.fillServerFromUrl(os->cloudUrl);
+                ft.request.headers = {
+                    { "X-Auth", os->cloudUserHash() }
+                };
+                ft.request.getVariables = {
+                    { "file", cloudFileName }
+                };
+                auto resp  = ft.fetch();
+                lastStatus = resp.toString();
+                if (resp.status == MiniFetch::Status::OK) {
+                    loadWasOK = true;
+                    bytes     = resp.bytes;
+                }
+            } else if (os->currentDir == Os::IsD64) {
+                D64 d64 {};
+                d64.init(os);
+                os->currentDir = Os::IsLocal; // avoid recursion
+                loadWasOK      = d64.load(d64FileName);
+                os->currentDir = Os::Os::IsD64;
+
+                if (loadWasOK) {
+                    loadWasOK = false;
+                    for (auto& f : d64.files) {
+                        if (f.name == cloudFileName) {
+                            loadWasOK = true;
+                            bytes     = f.data;
+                        }
+                    }
+                }
+            }
+
+            if (loadWasOK) {
                 FilePtr ftmp(os);
                 ftmp.fopenLocal(filenameUtf8, "wb");
-                ftmp.printf("%s", resp.toString().c_str());
+                ftmp.write(&bytes[0], bytes.size());
                 ftmp.close();
             } else {
                 return false;
             }
         }
+    } else if (os->currentDir == Os::IsD64) {
     }
 
     this->fopenLocal(filenameUtf8, mode);
@@ -225,6 +287,7 @@ size_t FilePtr::write(const void* buffer, size_t bytes) {
         lastStatus = "BAD FILE";
         return 0;
     }
+    dirty = true;
     return fwrite(buffer, bytes, 1, file);
 }
 
@@ -234,6 +297,9 @@ std::vector<uint8_t> FilePtr::readAll() {
     }
     seek(0, SEEK_END);
     size_t len = tell();
+    if (len == -1) {
+        return {};
+    }
     seek(0, SEEK_SET);
     std::vector<uint8_t> bytes(len);
     read(&bytes[0], len);
@@ -264,7 +330,7 @@ char FilePtr::nativeDirectorySeparator() {
 #endif
 }
 
-void FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {
+bool FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {
     sanitizePath(filenameUtf8, nativeDirectorySeparator());
     lastStatus.clear();
     file        = nullptr;
@@ -282,6 +348,7 @@ void FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {
 #endif
         if (!file) {
             lastStatus = "CAN'T OPEN FOR WRITING";
+            return false;
         }
     } else if (mode[0] == 'r') {
         isWriting = false;
@@ -294,6 +361,7 @@ void FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {
 #endif
         if (!file) {
             lastStatus = "CAN'T OPEN FOR READING";
+            return false;
         }
     } else {
         if (!file) {
@@ -301,4 +369,5 @@ void FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {
         }
         throw std::runtime_error("FilePtr::open - only r and w supported");
     }
+    return true;
 }

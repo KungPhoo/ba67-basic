@@ -71,18 +71,26 @@ std::string Os::lockSymbol() const {
 }
 
 std::string Os::getCurrentDirectory() {
-    if (currentDirIsCloud) {
+    if (currentDir == Os::IsCloud) {
         return "CLOUD";
+    } else if (currentDir == Os::IsD64) {
+        return D64Path;
     }
     return (const char*)(std::filesystem::current_path().u8string().c_str());
 }
 
 bool Os::setCurrentDirectory(const std::string& dir) {
+    currentDir = Os::IsLocal;
     if (dir == "CLOUD") {
-        currentDirIsCloud = true;
+        currentDir = Os::IsCloud;
+        return true;
+    } else if (dir.ends_with(".d64") || dir.ends_with(".D64")) {
+        if (D64Img.load(dir)) {
+            currentDir = Os::IsD64;
+            D64Path    = dir;
+        }
         return true;
     }
-    currentDirIsCloud = false;
 
     const int cpp = __cplusplus;
     std::error_code ec;
@@ -93,7 +101,7 @@ bool Os::setCurrentDirectory(const std::string& dir) {
 std::vector<Os::FileInfo> Os::listCurrentDirectory() {
     std::vector<Os::FileInfo> files, dirs;
 
-    if (currentDirIsCloud) {
+    if (currentDir == Os::IsCloud) {
         // List files
 
         std::string tmp = FilePtr::tempFileName();
@@ -112,7 +120,7 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
             return {};
         }
 
-        currentDirIsCloud = false; // now we're writing to local disk
+        currentDir = Os::IsLocal; // now we're writing to local disk
         // auto f            = fopen(tmp, "rb");
         // if (f == nullptr) {
         //     return {};
@@ -153,8 +161,17 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
             buffer = StringHelper::strtok_r(nullptr, "\r\n", &next_line);
         }
 
-        currentDirIsCloud = true; // restore cloud state
+        currentDir = Os::IsCloud; // restore cloud state
+    } else if (currentDir == Os::IsD64) {
+        Os::FileInfo info = {};
+        for (auto& entry : D64Img.files) {
+            info.isDirectory = false;
+            info.filesize    = entry.data.size();
+            info.name        = entry.name;
+            files.push_back(info);
+        }
     } else {
+        // TODO D64
         Os::FileInfo info = {};
         for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path())) {
             info.isDirectory = entry.is_directory();
@@ -162,14 +179,14 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
             info.name        = (const char*)(entry.path().filename().u8string().c_str());
             files.push_back(info);
         }
-        std::sort(files.begin(), files.end());
     }
 
+    std::sort(files.begin(), files.end());
     return files;
 }
 
 bool Os::doesFileExist(const std::string& path) {
-    if (currentDirIsCloud && isRelativePath(path)) {
+    if ((currentDir == Os::IsD64 || currentDir == Os::IsCloud) && isRelativePath(path)) {
         auto files = listCurrentDirectory();
         for (auto& f : files) {
             if (f.name == path) {
@@ -199,11 +216,12 @@ bool Os::isDirectory(const std::string& path) {
     if (path == "CLOUD") {
         return true;
     }
+    // TODO D64?
     return std::filesystem::is_directory(path);
 }
 
 bool Os::scratchFile(const std::string& fileName) {
-    if (currentDirIsCloud && isRelativePath(fileName)) {
+    if (currentDir == Os::IsCloud && isRelativePath(fileName)) {
 
         // systemCall("curl -sS -X DELETE \"" + cloudUrl + "\" -H \"X-Auth: " + cloudUserHash() + "\"", false);
 
@@ -223,6 +241,18 @@ bool Os::scratchFile(const std::string& fileName) {
         }
 
         return true;
+    } else if (currentDir == Os::IsD64) {
+        bool didDelete = false;
+        for (size_t i = 0; i < D64Img.files.size(); ++i) {
+            if (D64Img.files[i].name == fileName) {
+                D64Img.files.erase(D64Img.files.begin() + i);
+                --i;
+                didDelete = true;
+            }
+        }
+        if (didDelete) {
+            return D64Img.save(D64Path);
+        }
     } else {
         if (doesFileExist(fileName)) {
             return std::filesystem::remove(fileName.c_str());
@@ -609,7 +639,7 @@ std::string Os::findFirstFileNameWildcard(std::string filenameUtf8, bool isDirec
     StringHelper::trimRight(filenameUtf8, this->lockSymbol().c_str()); // here, call the overloaded function
 
     std::string fixedDirs;
-    if (!currentDirIsCloud) {
+    if (!currentDir == Os::IsCloud) {
         for (;;) {
             size_t endOfDir = filenameUtf8.find('/');
             if (endOfDir == std::string::npos) {

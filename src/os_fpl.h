@@ -4,6 +4,7 @@
 
 class OsFPL : public Os {
 public:
+    OsFPL() = default;
     virtual ~OsFPL();
     bool init(Basic* basic, SoundSystem* sound) override;
     void updateEvents() override;

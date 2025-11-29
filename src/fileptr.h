@@ -22,6 +22,7 @@ public:
         , dirty(other.dirty)
         , isWriting(other.isWriting)
         , cloudFileName(std::move(other.cloudFileName))
+        , d64FileName(std::move(other.d64FileName))
         , localTempPath(std::move(other.localTempPath))
         , file(other.file) {
         other.os   = nullptr;
@@ -35,6 +36,7 @@ public:
             dirty         = other.dirty;
             isWriting     = other.isWriting;
             cloudFileName = std::move(other.cloudFileName);
+            d64FileName   = std::move(other.d64FileName);
             localTempPath = std::move(other.localTempPath);
             file          = other.file;
 
@@ -68,17 +70,20 @@ public:
     static void sanitizePath(std::string& path, char separator = '/');
     static char nativeDirectorySeparator();
 
-private:
+protected:
+    friend class D64;
+
     Os* os         = nullptr;
     bool dirty     = false;
     bool isWriting = false;
     std::string password; // SAVE "xx,P" -> locking files in the cloud to read-only
     std::string cloudFileName; // filename for cloud
+    std::string d64FileName; // filename for D64 file
     std::string localTempPath; // in case this is a cloud file
     bool fileIsStdIo = false;
     FILE* file       = nullptr;
     std::string lastStatus;
 
-    void fopenLocal(std::string filenameUtf8, const char* mode);
+    bool fopenLocal(std::string filenameUtf8, const char* mode);
     void fopenCloud(std::string filenameUtf8, const char* mode);
 };

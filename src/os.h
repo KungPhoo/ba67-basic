@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "fileptr.h"
+#include "d64.h"
 
 class Basic;
 class Os;
@@ -39,6 +40,7 @@ public:
 
 class Os {
 public:
+    Os() { D64Img.init(this); }
     virtual ~Os() { }
 
     // initialize your operating specific data. Call this base function first!
@@ -219,12 +221,22 @@ public:
 
     std::string cloudUrl  = "https://www.ba67.org/cloud/";
     std::string cloudUser = "examples@ba67.org";
-    bool dirIsInCloud() const { return currentDirIsCloud; }
+    bool dirIsInCloud() const { return currentDir == IsCloud; }
+    bool dirIsInD64() const { return currentDir == IsD64; }
+    std::string D64Path;
+    D64 D64Img;
 
 private:
+    enum CurrentDirIs {
+        IsLocal = 0,
+        IsCloud = 1,
+        IsD64   = 2
+    };
+
     friend class FilePtr;
-    bool currentDirIsCloud = false;
+    CurrentDirIs currentDir = IsLocal;
     std::string cloudUserHash() const;
+
 
 public:
     // Command-line settings

@@ -31,7 +31,7 @@
 ,{"KEY", R"RAW(KEY [index, string])RAW"}
 ,{"LET", R"RAW(LET var = expr)RAW"}
 ,{"LIST", R"RAW(LIST [from][-][to][MODULE])RAW"}
-,{"LOAD", R"RAW(LOAD "bas*folder/*.bas")RAW"}
+,{"LOAD", R"RAW(LOAD "basic*folder/*.bas")RAW"}
 ,{"MOVSPR", R"RAW(MOVSPR number, x25, y50)RAW"}
 ,{"NEW", R"RAW(NEW)RAW"}
 ,{"MODULE", R"RAW(MODULE name)RAW"}
@@ -39,7 +39,7 @@
 ,{"NEXT", R"RAW(NEXT [var])RAW"}
 ,{"ON", R"RAW(ON expr GOTO/GOSUB line1, line2, ...)RAW"}
 ,{"OPEN", R"RAW(OPEN fileno, device=1, secondary=0, "filename , MODE_RW")RAW"}
-,{"PLAY", R"RAW(PLAY abc_notation$)RAW"}
+,{"PLAY", R"RAW(PLAY ABC_notation$)RAW"}
 ,{"POKE", R"RAW(POKE address, value)RAW"}
 ,{"PRINT", R"RAW(PRINT expr [[,|;| ] expr ...])RAW"}
 ,{"PRINT USING", R"RAW(PRINT USING format; expr [, expr ...])RAW"}

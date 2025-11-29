@@ -2,6 +2,9 @@
 #ifdef _WIN32
     #include "os.h"
 class OsWindowsConsole : public Os {
+public:
+    OsWindowsConsole() = default;
+
     uint64_t tick() const override;
 
     bool init(Basic* basic, SoundSystem* ss) override;

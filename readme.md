@@ -19,6 +19,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
   - [Files](#files)
     - [Filesystem](#filesystem)
     - [Supported file formats](#supported-file-formats)
+    - [D64 file storage](#d64-file-storage)
     - [Cloud file storage](#cloud-file-storage)
     - [boot.bas](#boot-bas)
     - [PETCAT](#petcat)
@@ -289,7 +290,7 @@ The editor imitates the C64/C128 text editor. Use the `ESC`
 key to abort a program execution or the listing of `CATALOG`
 or `LIST`.
 
-The F1 .. F12 keys are preprogrammed with some BASIC keywords
+The F1 .. F12 keys are pre-assigned with some BASIC keywords
 and can be configured using the KEY command.
 
 Use Alt+INS key to toggle between insert mode and overwrite
@@ -393,7 +394,7 @@ graphical characters are mapped to Unicode and cannot be
 mapped back to PETSCII properly, yet.
 
 You can, however, save as a '.prg' file that you can load
-in your emulator (try drag&drop) or edit it with
+in your emulator (try drag & drop) or edit it with
 [DirMaster](https://style64.org/dirmaster).
 
 All other files are loaded as UTF-8 text files. a UTF-8
@@ -405,8 +406,22 @@ as your development format!), the Unicode characters in
 strings are mapped back to PETSCII. See [Annex G](#annex)
 for details.
 
+### D64 file storage
+Using `CHDIR "filename.d64` you can use a D64 file as if
+it was a directory. You can load ans save files to the d64
+disk. Beware, the support is very limited. Some files will
+not be restored. Deleted files really get deleted.
+The d64 file is not updated. Rather, it will be completely
+written from scratch using the file data that was read from
+the disk file before writing to it.
+
+Saving files is always as type PRG which is the tokenized
+BASIC file format. You might lose data from your BA67 file
+because not all Unicode code points can be converted,
+obviously.
+
 ### Cloud file storage
-With `CLOUD` you can specify a webserver, that BA67 can use
+With `CLOUD` you can specify a web server, that BA67 can use
 as a remote drive. There are no subdirectories on a cloud
 storage.
 You simply `CHDIR "CLOUD"` to navigate the current directory
@@ -441,7 +456,7 @@ The line `1 REMBA67` also can add more keywords. These are
             characters. Use e.g.
             `petcat -70 -f -o "output.bas" -- "input.prg"`
 
-After loading, the parser returns to the default behaviour.
+After loading, the parser returns to the default behavior.
 Don't forget to backup and remove line `1` before saving.
 
 See [Annex G](#annex) for mapping PETSCII to Unicode.
@@ -491,7 +506,7 @@ The `BAKE` command finds such GOTO/GOSUB line numbers and
 replaces them with the correct line numbers.
 
 In order to provide a label, just use a line with a `REM`
-comment, that only includes the label sourraounded by two
+comment, that only includes the label surrounded by two
 minus characters like this:
 ```
 REM --LABEL--
@@ -919,7 +934,7 @@ will be listed again.
 [BAKE](#bake).
 
 ### LOAD
-**Usage:** `LOAD "bas*folder/*.bas"`
+**Usage:** `LOAD "basic*folder/*.bas"`
 
 Loads a program from the disk drive. You can use the forward
 slash character to specify directories like `dir/file.bas`.
@@ -1004,7 +1019,7 @@ IN MAIN 1
 ***Usage:** `NETGET url$, c$`
 
 Downloads a website and stores the returned bytes in c$,
-which is interpreted as a UTF-8 string when `PRINT`ing.
+which is interpreted as a UTF-8 string when `PRINT-ing`.
 
 It's best to provide the protocol (https:// or http://)
 at the beginning of the URL. If it's omitted, https://
@@ -1054,12 +1069,12 @@ Use `PRINT#1` to print to the opened fileno #1.
 Don't forget to `CLOSE` the file afterwards.
 
 ### PLAY
-**Usage:** `PLAY abc_notation$`
+**Usage:** `PLAY ABC_notation$`
 
 The PLAY command plays a music score in the background of
 your program. The music string is in ABC music notation.
 
-See the [annex] for details.
+See the [annex](#annex) for details.
 
 
 #### Technical Background
@@ -1270,13 +1285,13 @@ Saves the BASIC program of the current module to a file on
 the disk drive. The file extension ".BA67" is recommended.
 If no file extension is given, ".BAS" will be appended.
 
-If you're saving to the cloud, you can wirte-protect your
+If you're saving to the cloud, you can write-protect your
 file with the ",P" parameter in the file name. Once set,
 the file can not be overwritten or deleted without this
 password.
 
 Example:
-`SAVE "EXAMPLE.BAS,Pput-your-password-here"`
+`SAVE "EXAMPLE.BAS,P-your-password-here-"`
 
 This parameter has no effect on the C128 and is, thus,
 backwards compatible.
@@ -1483,7 +1498,7 @@ Returns the ASCII code of a character.
 ### ATN
 **Usage:** `ATN(expr)`
 
-Returns the arctangent of a number.
+Returns the arc-tangent of a number.
 
 ### CHR$
 **Usage:** `CHR$(code)`
@@ -1890,7 +1905,7 @@ can provide a password. Once set, the file can not be
 overwritten or deleted without this password.
 
 Example:
-`SAVE "EXAMPLE.BAS,Pput-your-password-here"`
+`SAVE "EXAMPLE.BAS,P-your-password-here-"`
 
 
 **Rules for www.ba67.org/cloud/ are:**
@@ -1917,7 +1932,7 @@ this chapter will be filled.
 
 Keywords, Commands, Functions:
 Keywords and commands are the same from the BASIC point of
-view, but internally keywords get the unparsed tokens
+view, but internally keywords get the tokens not parsed yet
 as parameters, where commands already get evaluated
 arguments as arguments.
 Beware: In either case, you will get the comma separators
@@ -2069,7 +2084,7 @@ BA68 can emulate the code you `POKE'd` into the memory.
 When you hit a RTS $60, command gets returned to the
 BASIC code.
 
-The C64 kernal and basic rom is loaded to $E000 and $B000.
+The C64 KERNAL and BASIC rom is loaded to $E000 and $B000.
 
 Using `SYS $FCE2` you can actually start the BASIC V2.
 

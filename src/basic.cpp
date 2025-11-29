@@ -5115,8 +5115,11 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
     doNEW();
     std::vector<char> buff;
 
-
-    if (inOutFilenameUtf8.length() > 4 && Unicode::toLowerAscii(inOutFilenameUtf8.substr(inOutFilenameUtf8.length() - 4).c_str()) == ".prg") {
+    std::string fileExt;
+    if (inOutFilenameUtf8.length() > 4) {
+        Unicode::toLowerAscii(inOutFilenameUtf8.substr(inOutFilenameUtf8.length() - 4).c_str());
+    }
+    if (os->dirIsInD64() || (fileExt == ".prg")) {
         // load PRG
         FilePtr fprg(os);
         if (!fprg.open(foundname, "rb")) {
@@ -5283,7 +5286,11 @@ bool Basic::saveProgram(std::string filenameUtf8) {
         return false;
     }
 
-    if (filenameUtf8.length() > 4 && Unicode::toLowerAscii(filenameUtf8.substr(filenameUtf8.length() - 4).c_str()) == ".prg") {
+    std::string fileExt;
+    if (filenameUtf8.length() > 4) {
+        Unicode::toLowerAscii(filenameUtf8.substr(filenameUtf8.length() - 4).c_str());
+    }
+    if (os->dirIsInD64() || (fileExt == ".prg")) {
         std::string all;
         for (auto& ln : currentModule().listing) {
             if (ln.first < 0) {
