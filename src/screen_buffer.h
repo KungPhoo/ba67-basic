@@ -174,6 +174,13 @@ private:
     MEMCELL blankChar    = U' ';
     MEMCELL defaultColor = 1;
 
+    struct LineOverflow {
+        std::vector<MEMCELL> line;
+        MEMCELL lineLink;
+    };
+    std::vector<LineOverflow> overflowTop, overflowBottom;
+
+
     inline void assertCursor() {
 #if defined(_DEBUG)
         const auto* ptr = getCursorPtr();
@@ -194,6 +201,9 @@ public:
 
     void insertSpace();
     void scrollUpOne();
+    void scrollDownOne();
+
+    void clearHistory();
 
     inline bool isOwnerRow(size_t r) const { return (lineLinkTable[r] & 0x80) == 0; }
     inline bool isContinuationRow(size_t r) const { return (lineLinkTable[r] & 0x80) != 0; }

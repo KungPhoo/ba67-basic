@@ -2762,6 +2762,8 @@ void Basic::handleRUN(const std::vector<Token>& tokens) {
         // debug("MODULE LISTING "); debug(moduleListingStack.back()->first.c_str()); debug("\n");
     }
 
+    os->screen.clearHistory();
+
     handleCLR();
     currentModule().forceTokenizing();
     currentModule().restoreDataPosition();
@@ -4705,6 +4707,22 @@ std::string Basic::inputLine(bool allowVertical) {
                         continue;
                     case uint32_t(Os::KeyConstant::CRSR_DOWN):
                         os->screen.moveCursorPos(0, 1);
+                        startSel();
+                        movedVertical = true;
+                        continue;
+                    case uint32_t(Os::KeyConstant::PG_UP):
+                        for (size_t i = 1; i < os->screen.height; ++i) {
+                            os->screen.moveCursorPos(0, -1);
+                            os->screen.scrollDownOne();
+                        }
+                        startSel();
+                        movedVertical = true;
+                        continue;
+                    case uint32_t(Os::KeyConstant::PG_DOWN):
+                        for (size_t i = 1; i < os->screen.height; ++i) {
+                            os->screen.moveCursorPos(0, 1);
+                            os->screen.scrollUpOne();
+                        }
                         startSel();
                         movedVertical = true;
                         continue;

@@ -181,8 +181,7 @@ but also features some improvements.
 Here are the key features:
 - Compatible with the famous Commodore BASIC
 - Can even run 6502 assembler subroutines
-- Can load .prg files
-- Can save .prg files
+- Can load and save .prg files. Even in .d64 files.
 - GOTO/GOSUB labels (backwards compatible!)
 - Variable names can be longer than 2 characters
 - Dictionaries (key/value pair lookup tables)
@@ -190,6 +189,7 @@ Here are the key features:
 - Full Unicode character set (even emoji end stuff)
 - 64 bit precision for numbers
 - 64 bit integers
+- Supports scrolling through text beyond the visible screen area
 - Modular programming (See keyword [MODULE](#module))
 - Direct access to your local file system
 - Easy access to proprietary cloud storage (See [CLOUD](#cloud))
@@ -289,6 +289,10 @@ these, you'd have to print `CHR$(34)`.
 The editor imitates the C64/C128 text editor. Use the `ESC`
 key to abort a program execution or the listing of `CATALOG`
 or `LIST`.
+
+The editor retains a scroll-back history of off-screen lines,
+which you can scroll through.
+It is cleared by RUN or by printing a screen-clear character.
 
 The F1 .. F12 keys are pre-assigned with some BASIC keywords
 and can be configured using the KEY command.

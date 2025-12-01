@@ -34,6 +34,8 @@ void ScreenBuffer::clear() {
     }
     memset(lineLinkTable, 0, sizeof(lineLinkTable[0]) * height);
     setCursorPos({ 0, 0 });
+    overflowTop.clear();
+    overflowBottom.clear();
 }
 
 // blank out current line, reset line link table flag
@@ -57,22 +59,16 @@ void ScreenBuffer::cleanCurrentLine() {
 void ScreenBuffer::moveCursorPos(int dx, int dy) {
     dirtyFlag       = true;
     MEMCELL* newPos = getCursorPtr() + (dy * width + dx);
-    if (newPos < charRam) {
-        auto crsr = getCursorPos();
-        crsr.y    = 0;
-        setCursorPos(crsr);
-        return;
+    while (newPos < charRam) {
+        scrollDownOne(); // moves cursor one down, so movement must be done
+        newPos = getCursorPtr() + (dy * width + dx);
     }
 
     if (newPos >= charRam + width * height) {
-        scrollUpOne();
-
-        // setCursorPtr(newPos);
-        // auto crsr = getCursorPos();
-        // crsr.y    = height - 1;
-        setCursorPos({ colOf(newPos), height - 1 });
-        return;
+        scrollUpOne(); // moves cursor down
+        newPos = getCursorPtr() + (dy * width + dx);
     }
+
     setCursorPtr(newPos);
 }
 
@@ -119,6 +115,7 @@ ScreenBuffer::Cursor ScreenBuffer::getEndOfLineAt(Cursor crsr) {
 
 ScreenBuffer::ScreenBuffer() {
     charMap(); // load bitmaps
+    palette = {};
 }
 
 void ScreenBuffer::initMemory(MEMCELL* mem) {
@@ -133,6 +130,9 @@ void ScreenBuffer::initMemory(MEMCELL* mem) {
     resetDefaultColors();
     setColors(1, 0);
     setBorderColor(1);
+
+    overflowTop.reserve(0x10000);
+    overflowBottom.reserve(0x10000);
 }
 
 
@@ -392,6 +392,7 @@ void ScreenBuffer::insertSpace() {
     setAt(getCursorPos().y, getCursorPos().x, blankChar, currentColor());
 }
 
+// print '\n'
 void ScreenBuffer::hardNewline() {
     size_t r = getCursorPos().y;
     // in case we're at x=0, the newline just breaks continuation of the line
@@ -411,6 +412,7 @@ void ScreenBuffer::hardNewline() {
     makeRowOwner(getCursorPos().y);
 }
 
+// typed character at last screen character.
 void ScreenBuffer::softWrapToNextRow() {
     size_t r = getCursorPos().y;
     if (r + 1 >= height) {
@@ -480,29 +482,100 @@ size_t ScreenBuffer::lastUsedColumn(size_t r) const {
 }
 
 void ScreenBuffer::scrollUpOne() {
+    const size_t rowCellCount = width;
+
+    // keep in overflow buffer
+    LineOverflow ovr;
+    ovr.line.resize(width);
+    for (size_t c = 0; c < width; ++c) {
+        ovr.line[c] = charRam[c];
+    }
+    ovr.lineLink = lineLinkTable[0];
+    overflowTop.push_back(ovr);
+
     ++scrollCount;
-    size_t rowBytes = width;
-    std::memmove(charRam, charRam + rowBytes, (height - 1) * rowBytes * sizeof(MEMCELL));
+    std::memmove(charRam, charRam + rowCellCount, (height - 1) * rowCellCount * sizeof(MEMCELL));
     if (colRam) {
-        std::memmove(colRam, colRam + rowBytes, (height - 1) * rowBytes * sizeof(MEMCELL));
+        std::memmove(colRam, colRam + rowCellCount, (height - 1) * rowCellCount * sizeof(MEMCELL));
     }
     MEMCELL curCol = currentColor();
     for (size_t c = 0; c < width; ++c) {
-        charRam[(height - 1) * width + c] = blankChar;
+        if (!overflowBottom.empty() && c < overflowBottom.back().line.size()) {
+            charRam[(height - 1) * width + c] = overflowBottom.back().line[c];
+        } else {
+            charRam[(height - 1) * width + c] = blankChar;
+        }
+
         if (colRam) {
             colRam[(height - 1) * width + c] = curCol;
         }
     }
+
     for (size_t r = 0; r + 1 < height; ++r) {
         lineLinkTable[r] = lineLinkTable[r + 1];
     }
     makeRowOwner(height - 1);
+    if (!overflowBottom.empty()) {
+        lineLinkTable[height - 1] = overflowBottom.back().lineLink;
+        overflowBottom.pop_back();
+    }
+
     auto crsr  = getCursorPos();
     size_t col = std::min(crsr.x, width - 1);
 
     setCursorPos({ col, crsr.y - 1 });
     // cursorPosition = ptrAt(height - 1, col);
     assertCursor();
+}
+
+void ScreenBuffer::scrollDownOne() {
+    const size_t rowCellCount = width;
+    // keep in overflow buffer
+    LineOverflow ovr;
+    ovr.line.resize(width);
+    for (size_t c = 0; c < width; ++c) {
+        ovr.line[c] = charRam[c + ((height - 1) * rowCellCount)];
+    }
+    ovr.lineLink = lineLinkTable[height - 1];
+    overflowBottom.push_back(ovr);
+
+    ++scrollCount;
+    std::memmove(charRam + rowCellCount, charRam, (height - 1) * rowCellCount * sizeof(MEMCELL));
+    if (colRam) {
+        std::memmove(colRam + rowCellCount, colRam, (height - 1) * rowCellCount * sizeof(MEMCELL));
+    }
+    MEMCELL curCol = currentColor();
+    for (size_t c = 0; c < width; ++c) {
+        if (!overflowTop.empty() && c < overflowTop.back().line.size()) {
+            charRam[c] = overflowTop.back().line[c];
+        } else {
+            charRam[c] = blankChar;
+        }
+        if (colRam) {
+            colRam[c] = curCol;
+        }
+    }
+
+    for (size_t r = 0; r + 1 < height; ++r) {
+        lineLinkTable[r] = lineLinkTable[r + 1];
+    }
+    makeRowOwner(height - 1);
+    if (!overflowTop.empty()) {
+        lineLinkTable[0] = overflowTop.back().lineLink;
+        overflowTop.pop_back();
+    }
+
+    auto crsr  = getCursorPos();
+    size_t col = std::min(crsr.x, width - 1);
+
+    setCursorPos({ col, crsr.y + 1 });
+    // cursorPosition = ptrAt(height - 1, col);
+    assertCursor();
+}
+
+void ScreenBuffer::clearHistory() {
+    overflowTop.clear();
+    overflowBottom.clear();
 }
 
 // draw character pixels at given pixel position
