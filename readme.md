@@ -45,6 +45,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [FAST](#fast)
     - [FIND](#find)
     - [FN](#fn)
+    - [FNEND](#fnend)
     - [FOR](#for)
     - [GET](#get)
     - [GO](#go)
@@ -145,6 +146,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [More Features](#more-features)
   - [B - Build, Using the Source Code](#b---build--using-the-source-code)
     - [CHARDEF](#chardef)
+    - [HTML5](#html5)
   - [C - Cloud](#c---cloud)
   - [D - Developers](#d---developers)
   - [E - Escape (Control) Characters](#e---escape--control--characters)
@@ -275,12 +277,14 @@ longer than 80 characters - which is not supported by the
 ### Quotes
 You can use double and single quotes. This way it's easier
 You can use double and single quotes. This way it's easier
-to use quotes in a string. The following is perfectly legal,
-but breaks compatibility with Commodore BASIC V7.0 code:
+to use quotes in a string. The following is perfectly legal:
 ```
 PRINT "Print 'single quotes' is easy"
 PRINT 'but: "double quotes" is, too.'
 ```
+
+> ! Single quotes break compatibility with Commodore BASIC V7.0
+
 In BASIC V7.0, only double quotes are accepted. To escape
 these, you'd have to print `CHR$(34)`.
 
@@ -372,7 +376,7 @@ each statement is evaluated. These are:
 | --------- | ----------------------------------------------------------- |
 | TI        | current system time in 1/60 sec.                            |
 | TI$       | current time in format HHMMSS. (Can be set. Will affect TI) |
-| ST        | file I/O status (currently not set)|
+| ST        | file I/O status (currently not set)                         |
 
 In CBM BASIC, the variable `TI, TIME` and `TIMER`, even 
 `TIMEGOESBYSOSLOWLY` are the same variable! When importing
@@ -727,6 +731,28 @@ Internally, the function name always starts with FN, so this
 is the only place, where `FN FOO` and `FNFOO` are valid and
 equal.
 
+BA67 allows Dartmouth-style multiline-BASIC functions
+and multiple arguments for functions. Variable names that
+that match argument names are restored after the function call.
+
+Here's an example:
+```
+10 REM == MAIN PROGRAM ==
+20 A=33: X=44: Y=55
+30 REM == FUNCTION DEFINITION ==
+40 DEF FN A(X,Y)
+50     PRINT "XxY=";X;"x";Y;"=";X*Y
+60     FNA=X*Y
+70 FNEND
+80 REM == MAIN PROGRAM CONTINUES ==
+90 PRINT "CALLING FUNCTION..."
+100 PRINT FNA(3,4)
+110 PRINT "RESTORE AFTER CALL: A";A;" X";X;" Y";Y
+```
+> ! Multiple arguments and
+>   multi-line function bodies
+>   break compatibility with Commodore BASIC V7.0
+
 ### DELETE
 **Usage:** `DELETE from [- to]`
 
@@ -788,6 +814,10 @@ The command will act as `LIST`, but only list the lines where
 the search string was matches.
 
 ### FN
+See the `DEF FN` description, please.
+
+### FNEND
+Used to end a multi-line function definition.
 See the `DEF FN` description, please.
 
 ### FOR
@@ -1880,6 +1910,47 @@ If you re-implement BA67 in your own project and your
 character height is defined to 16, but you only pass
 8 lines, each line will be duplicated.
 See `ScreenInfo` structure in the code.
+
+### HTML5
+Here's a Windows build script you can use to build the HTML
+port using Emscripten.
+
+```
+rem @echo off
+rem Path to root folder of BA67 the git project
+set BA67=%~dp0..\..
+
+rem path to where emscripten is installed
+set EMSDK=%USERPROFILE%\emsdk
+
+rem add you path to CMake, here
+set PATH=%PATH%;C:\Qt\Tools\CMake_64\bin
+
+rem add you path to Ninja, here
+set PATH=%PATH%;C:\Qt\Tools\Ninja
+
+rem assume you installed emscripten to "%USERPROFILE%\emsdk
+call "%EMSDK%\emsdk_env.bat"
+pushd "%~dp0"
+
+
+mkdir "%BA67%\bin\"             2> nul
+mkdir "%BA67%\bin\html\"        2> nul
+del "%BA67%\bin\html\BA67.html" 2> nul
+
+
+call emcmake cmake "%BA67%"
+rem optionally force a rebuild
+rem call cmake --build . --target clean
+call cmake --build . --
+
+if exist "%BA67%\bin\html\BA67.html" (
+call emrun "%BA67%\bin\html\BA67.html"
+)
+popd
+pause
+```
+
 
 -------------------------------------------------------------
 ## C - Cloud

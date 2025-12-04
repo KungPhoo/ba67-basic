@@ -375,6 +375,12 @@ void ScreenBuffer::insertSpace() {
             dstC = 0;
         }
 
+#if DEBUG
+        if (c > width || r > height) {
+            throw "(c,r) is out of screen memory";
+        }
+#endif
+
         MEMCELL ch = charAt(r, c);
         MEMCELL co = colorAt(r, c);
         setAt(dstR, dstC, ch, co);

@@ -42,6 +42,7 @@ Os* getOsConsole() {
 #ifdef _WIN32
     static OsWindowsConsole os;
 #else
+    Os& os = *getOsGraphics();
 #endif
     return &os;
 }

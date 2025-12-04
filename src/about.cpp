@@ -6,29 +6,31 @@ const char* about::text() {
     static const char* buffer = R"(
        BA67 - BASIC Interpreter
        =========================
+       Version {VERSION}
+       Build   {BUILD}
        Copyright (c) 2025
        Dream Design Entertainment
 .
 BA67 (pronounced  "BASIC  SEVEN")  is  a
 modern  BASIC  interpreter  designed for
 full   backward    compatibility    with
-**Commodore   BASIC   V7.0**   from  the
-**C128**,  while  bringing it to  modern
-hardware and technology.
+      ** Commodore BASIC V7.0 **
+while  bringing it to   modern  hardware
+and technology.
 For  more  details,   see **README.md**.
 .
 .
-            **License:**
+           ** License: **
        -------------------------
 You  may  use,  modify,  and  distribute
 any     part    of     this      project
-         **free of charge**,
+        ** free of charge **,
 provided   that  this   ABOUT    message
 remains   included   and  is   displayed
 when   running   the  "ABOUT"   command.
 .
 .
-          **Disclaimer:**
+         ** Disclaimer: **
        -------------------------
 .
 This  software  is  provided  **as is**,
@@ -41,7 +43,7 @@ software,    you    agree    that    you
 issues that may occur.
 .
 .
-            **Challenge:**
+           ** Challenge: **
        -------------------------
 If  you like  this project,  please take
 some  time to  read  these  two  verses:

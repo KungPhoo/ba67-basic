@@ -17,7 +17,8 @@ class SoundSystem;
 
 class Basic {
 public:
-    std::string version() const { return "7.02"; }
+    static const std::string version() { return "7.02"; }
+    static const std::string buildVersion();
 
     Os* os;
     Basic(Os* os, SoundSystem* ss = nullptr);
@@ -108,6 +109,7 @@ public:
         UNDEFD_MODULE,
         ARGUMENT_COUNT = 101,
         VARIABLE_UNDEFINED,
+        DEF_WITHOUT_FNEND,
         READY_COMMAND // easter egg: press enter on "READY."
     };
 
@@ -143,6 +145,7 @@ public:
                 {         ErrorId::UNDEFD_MODULE,         "UNDEFD MODULE ERROR" },
                 {        ErrorId::ARGUMENT_COUNT,        "ARGUMENT COUNT ERROR" },
                 {    ErrorId::VARIABLE_UNDEFINED,    "VARIABLE UNDEFINED ERROR" },
+                {     ErrorId::DEF_WITHOUT_FNEND,           "DEF WITHOUT FNEND" },
                 {         ErrorId::READY_COMMAND,                "YES, I AM..." }
             };
 
@@ -173,6 +176,26 @@ protected:
     struct Token {
         TokenType type;
         std::string_view value;
+
+        // returns '#', '%', '$'
+        char valuePostfix() const {
+            if (value.ends_with('$')) {
+                return '$';
+            }
+            if (value.ends_with('%')) {
+                return '%';
+            }
+            if (type == TokenType::INTEGER) {
+                return '%';
+            }
+            if (type == TokenType::NUMBER) {
+                return '#';
+            }
+            if (type == TokenType::STRING) {
+                return '$';
+            }
+            return '#';
+        }
     };
 
 
@@ -189,7 +212,7 @@ public:
         [[nodiscard]] size_t operator()(const char* txt) const {
             return std::hash<std::string_view> {}(txt);
         }
-        [[nodiscard]] size_t operator()(std::string_view txt) const {
+        [[nodiscard]] size_t operator()(const std::string_view& txt) const {
             return std::hash<std::string_view> {}(txt);
         }
         [[nodiscard]] size_t operator()(const std::string& txt) const {
@@ -301,13 +324,18 @@ public:
 
     // Def Fn
     struct FunctionDefinition {
+        std::string fnName; // FNA e.g.
         std::string lineCopy; // because Token has string_views
         std::vector<Token> parameters;
-        std::vector<Token> body;
+
+        std::vector<Token> body; // if this has values, the function was defined with =
+        int32_t gotoLine = 0; // if body is empty, goto the end of this line, return when hitting FNEND
         void clear() {
+            fnName.clear();
             lineCopy.clear();
             parameters.clear();
             body.clear();
+            gotoLine = 0;
         }
     };
 
@@ -324,8 +352,14 @@ public:
         // listing[-1] = "END"
         std::string filenameQSAVE;
         std::map<int32_t, ProgramLine> listing; // [basic number] = line
-        std::unordered_map<std::string, Value, string_hash, std::equal_to<>> variables;
-        std::unordered_map<std::string, Array, string_hash, std::equal_to<>> arrays;
+
+        using VariableMap      = std::unordered_map<std::string, Value, string_hash, std::equal_to<>>;
+        using ArrayVariableMap = std::unordered_map<std::string, Array, string_hash, std::equal_to<>>;
+
+        VariableMap variables;
+        ArrayVariableMap arrays;
+
+        VariableMap::iterator findOrCreateVariable(const std::string_view& variableName);
 
         std::vector<LoopItem> loopStack;
         // std::vector<ProgramCounter> gosubStack;
@@ -452,8 +486,6 @@ protected:
     void handleKEY(const std::vector<Token>& tokens);
     void handleRCHARDEF(const std::vector<Token>& tokens);
 
-    char valuePostfix(const Token& t) const; // returns '#', '%', '$'
-
     // find assignable value from 'a' or arr(1+3). returns nullptr on error
     Value* findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr, bool allowDimArray = false);
 
@@ -503,6 +535,7 @@ public:
 
     void handleEscapeKey(bool allowPauseWithShift = false);
     void runInterpreter();
+    void runToEnd();
 
     void waitForKeypress();
 

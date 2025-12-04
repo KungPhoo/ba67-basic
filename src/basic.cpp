@@ -38,7 +38,36 @@
 
 // Built In Commands
 void cmdABOUT(Basic* basic, const std::vector<Basic::Value>&) {
-    auto lines   = StringHelper::split(about::text(), "\r\n");
+
+    std::string raw = about::text();
+    StringHelper::replace(raw, "{VERSION}", Basic::version());
+    StringHelper::replace(raw, "{BUILD}", Basic::buildVersion());
+
+    const char* utf8 = raw.c_str();
+    for (;;) {
+        char32_t c = Unicode::parseNextUtf8(utf8);
+        if (c == 0) {
+            break;
+        }
+
+
+        basic->os->screen.setTextColor(1); // white
+        basic->os->screen.putC(c);
+        basic->os->presentScreen();
+        basic->os->delay(16);
+        basic->os->screen.setTextColor(13); // lt green
+        basic->handleEscapeKey();
+        if (c != U'\r' && c != '\n') {
+            basic->os->screen.moveCursorPos(-1, 0);
+            basic->os->screen.putC(c);
+        }
+    }
+
+    return;
+
+
+
+    auto lines   = StringHelper::split(raw, "\r\n");
     int ntoPause = 23;
     for (auto& ln : lines) {
         if (ln == ".") {
@@ -1363,6 +1392,8 @@ Basic::Value& Basic::Array::at(const Basic::ArrayIndex& ix) {
 
 Basic::Options Basic::options; // static instance
 
+inline const std::string Basic::buildVersion() { return __DATE__; }
+
 Basic::Basic(Os* os, SoundSystem* ss) {
     memory.resize(0x20000);
 
@@ -1474,7 +1505,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     // hard coded keywords
     // common words first, slow keywords to the back
     keywords = { "GOTO", "GOSUB", "RETURN", "IF", "THEN", "FOR", "TO", "NEXT", "STEP", "LET",
-                 "PRINT", "?", "GET", "FN",
+                 "PRINT", "?", "GET", "FN", "FNEND",
                  "REM", "RCHARDEF", "READ", "DATA", "RESTORE",
                  "END", "RUN", "DIM", "NETGET", "HELP", "INPUT", "CLR", "ON", "SCNCLR",
                  "NEW", "LIST", "MODULE", "KEY", "GETKEY", "DEF", "DELETE", "USING",
@@ -2113,9 +2144,48 @@ inline int Basic::precedence(const std::string_view& op) {
 Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::vector<Basic::Value>& arguments) {
     auto& mod = currentModule();
 
-    if (1 + arguments.size() / 2 != fn.parameters.size()) {
+    // arguments are comma separated
+    if (1 + arguments.size() != fn.parameters.size() * 2) {
         throw Error(ErrorId::ARGUMENT_COUNT);
     }
+
+    // multiline FN body
+    if (fn.body.empty()) {
+        std::vector<Value> functionCallVariableStack;
+
+        for (size_t i = 0; i < fn.parameters.size(); ++i) {
+            auto& para = fn.parameters[i];
+            auto varIt = mod.findOrCreateVariable(para.value);
+            functionCallVariableStack.push_back(varIt->second);
+
+            varIt->second = arguments[i * 2 /* skip comma*/];
+        }
+
+        // GOSUB but FNEND instead of RETURN
+        auto pc = mod.programCounter;
+        // set PC to DEF FN code
+        executeCommands(("GOTO " + valueToString(fn.gotoLine)).c_str());
+        // run
+        runToEnd();
+        // reset PC to FN call
+        mod.programCounter = pc;
+
+        // extract variable of function name
+        auto varIt   = mod.findOrCreateVariable(fn.fnName);
+        Value retval = varIt->second;
+        // remove the temporary FNX variable
+        mod.variables.erase(varIt);
+
+        // restore argument parameters
+        for (auto& para : fn.parameters) {
+            varIt         = mod.findOrCreateVariable(para.value);
+            varIt->second = functionCallVariableStack.back();
+            functionCallVariableStack.pop_back();
+        }
+        return retval;
+    }
+
+    // inline function body
 
     // Create a local token list with argument substitution
     std::vector<Token> substitutedBody = fn.body;
@@ -2124,13 +2194,14 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
 
     for (size_t i = 0; i < fn.parameters.size(); ++i) {
         TokenType valType = TokenType::NUMBER;
-        char c            = valuePostfix(fn.parameters[i]);
+        char c            = fn.parameters[i].valuePostfix();
         if (c == '$') {
             valType = TokenType::STRING;
         } else if (c == '%') {
             valType = TokenType::INTEGER;
         }
 
+        // replace the variable tokens with the passed arguments
         for (auto& token : substitutedBody) {
             if (token.type == TokenType::IDENTIFIER && token.value == fn.parameters[i].value) {
                 argumentStrings.emplace_back(valueToString(arguments[i * 2 /* every other arg is the comma operator*/]));
@@ -2708,7 +2779,7 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
             throw Error(ErrorId::SYNTAX);
         }
 
-        switch (valuePostfix(tokens[ivarname])) {
+        switch (tokens[ivarname].valuePostfix()) {
         case '%':
             *pval = valueToInt(values[0]);
             break;
@@ -3110,7 +3181,7 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
                 }
             }
 
-            switch (valuePostfix(tk)) {
+            switch (tk.valuePostfix()) {
             case '%':
                 *pval = valueToInt(str);
                 break;
@@ -3158,7 +3229,7 @@ void Basic::handleINPUT(const std::vector<Token>& tokens) {
 
                     // printUtf8String("\n");
 
-                    switch (valuePostfix(tk)) {
+                    switch (tk.valuePostfix()) {
                     case '%':
                         *pval = valueToInt(s);
                         break;
@@ -3208,7 +3279,7 @@ void Basic::handleNETGET(const std::vector<Token>& tokens) {
                 throw Error(ErrorId::SYNTAX);
             }
 
-            switch (valuePostfix(tk)) {
+            switch (tk.valuePostfix()) {
             case '$':
                 *pval = response.toString();
                 break;
@@ -3240,7 +3311,7 @@ inline void Basic::handleDIM(const std::vector<Token>& tokens) {
             throw Error(ErrorId::SYNTAX);
         }
         std::string varName(tokens[i].value);
-        varnamePostfix = valuePostfix(tokens[i]);
+        varnamePostfix = tokens[i].valuePostfix();
         ++i;
         if (i >= tokens.size() || tokens[i].type != TokenType::PARENTHESIS || tokens[i].value != "(") {
             Value* value = findLeftValue(currentModule(), tokens, i - 1, &i);
@@ -3556,7 +3627,7 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
                 }
             }
 
-            switch (valuePostfix(tk)) {
+            switch (tk.valuePostfix()) {
             case '%':
                 *pval = v;
                 break;
@@ -3573,24 +3644,6 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
     }
 }
 
-char Basic::valuePostfix(const Token& t) const {
-    if (t.value.ends_with('$')) {
-        return '$';
-    }
-    if (t.value.ends_with('%')) {
-        return '%';
-    }
-    if (t.type == TokenType::INTEGER) {
-        return '%';
-    }
-    if (t.type == TokenType::NUMBER) {
-        return '#';
-    }
-    if (t.type == TokenType::STRING) {
-        return '$';
-    }
-    return '#';
-}
 
 // put endPtr to the next token to process
 // returns nullptr on error
@@ -3675,27 +3728,8 @@ Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tok
         }
 
 
-        auto& variables = module.variables;
-        auto varit      = variables.find(variableName);
-        if (varit == variables.end()) {
-            std::string varNameStr(variableName); // TODO why this copy
 
-            // create new variable
-            switch (valuePostfix(tokens[i])) {
-            case '%':
-                variables[varNameStr] = 0LL;
-                break;
-            case '$':
-                variables[varNameStr] = "";
-                break;
-            default:
-            case '#':
-                variables[varNameStr] = 0.0;
-                break;
-            }
-            varit = variables.find(variableName);
-        }
-
+        auto varit = module.findOrCreateVariable(variableName);
         return &varit->second;
     }
 
@@ -3801,8 +3835,11 @@ void Basic::handleDEFFN(const std::vector<Token>& intokens) {
         fname = intokens[1].value;
     }
 
-    FunctionDefinition& def = currentModule().functionTable[fname];
+    auto& module = currentModule();
+
+    FunctionDefinition& def = module.functionTable[fname];
     def.clear();
+    def.fnName = fname;
 
     def.lineCopy = fname;
     for (size_t i = startParsing; i < intokens.size(); ++i) {
@@ -3811,47 +3848,68 @@ void Basic::handleDEFFN(const std::vector<Token>& intokens) {
     }
 
     std::vector<Token>& bodyTokens = def.body;
-    tokenizeNextCommand(def.lineCopy.c_str(), bodyTokens);
+    tokenizeNextCommand(def.lineCopy.c_str(), def.body);
 
-    // tokens =   0    1  2  3  4  5+
-    //         { name, (, X, ), =, code...}
-    if (bodyTokens.size() < 5 || bodyTokens[1].type != TokenType::PARENTHESIS
-        || bodyTokens[2].type != TokenType::IDENTIFIER) {
+    // tokens =   0    1  2  ... 3  4  5+
+    //         { name, (, X, ... ), =, code...}
+    if (def.body.size() < 3 || def.body[1].type != TokenType::PARENTHESIS
+        || def.body[2].type != TokenType::IDENTIFIER) {
         throw Error(ErrorId::SYNTAX);
     }
-    // fname += tokens[0].value;
 
-    // FunctionDefinition def;
     size_t i;
     size_t iStartBody = 0;
-    for (i = 2; i + 3 < bodyTokens.size(); i += 2) {
-        if (bodyTokens[i].type != TokenType::IDENTIFIER) {
+    for (i = 2; i + 1 < def.body.size(); i += 2) {
+        if (def.body[i].type != TokenType::IDENTIFIER) {
             throw Error(ErrorId::SYNTAX);
         }
-        def.parameters.push_back(bodyTokens[i]);
-        if (bodyTokens[i + 1].type != TokenType::COMMA
-            && bodyTokens[i + 1].type != TokenType::PARENTHESIS) {
+        def.parameters.push_back(def.body[i]);
+        if (def.body[i + 1].type != TokenType::COMMA
+            && def.body[i + 1].type != TokenType::PARENTHESIS) {
             throw Error(ErrorId::SYNTAX);
         }
 
-        if (bodyTokens[i + 1].type == TokenType::PARENTHESIS) {
-            if (bodyTokens[i + 2].value != "=") {
-                throw Error(ErrorId::SYNTAX);
+        if (def.body[i + 1].type == TokenType::PARENTHESIS) {
+            if (i + 2 < def.body.size() && def.body[i + 2].value == "=") {
+                // definition continues with equals (=) sign:
+
+                // store the function definition:
+                iStartBody = i + 3; // drop args, ), =
+                def.body.erase(def.body.begin(), def.body.begin() + iStartBody);
+
+                if (def.body.empty()) {
+                    throw Error(ErrorId::SYNTAX);
+                }
+
+            } else {
+                // no equals (=) after closing brace
+                // BA67 allows Dartmouth BASIC's multiline DEF FN
+                def.body.clear();
+
+                // skip DEF FN line
+                module.programCounter.line++;
+                def.gotoLine = module.programCounter.line->first;
+
+                // skip to find FNEND
+                for (;;) {
+                    if (module.programCounter.line == module.listing.end()) {
+                        throw Error(ErrorId::DEF_WITHOUT_FNEND);
+                    }
+                    const char* code = module.programCounter.line->second.code.c_str();
+                    skipWhite(code);
+                    if (strncmp(code, "FNEND", 5) == 0) {
+                        module.programCounter.line++;
+                        module.programCounter.cmdpos = 0;
+                        break;
+                    }
+                    module.programCounter.line++;
+                }
             }
-            iStartBody = i + 3; // drop args, ), =
             break;
         }
     }
 
-    if (bodyTokens.empty()) {
-        throw Error(ErrorId::SYNTAX);
-    }
-
-    // store the function definition:
-    bodyTokens.erase(bodyTokens.begin(), bodyTokens.begin() + iStartBody);
-
-    def.body                             = bodyTokens;
-    currentModule().functionTable[fname] = def;
+    // module.functionTable[fname] = def;
 }
 
 // Handle FOR statement
@@ -4170,7 +4228,7 @@ void Basic::handleREAD(const std::vector<Token>& tokens) {
             if (pval == nullptr) {
                 throw Error(ErrorId::SYNTAX);
             }
-            readNextData(pval, valuePostfix(tk));
+            readNextData(pval, tk.valuePostfix());
 
             // std::string dbg = valueToString(programCounter().line->first) + ": " + valueToString(*pval) + "\n";
             // printUtf8String(dbg);
@@ -4252,6 +4310,9 @@ void Basic::executeParsedTokens(const std::vector<Token>& tokens) {
             }
             programCounter() = modl.loopStack.back().jump;
             modl.loopStack.pop_back();
+        } else if (tokens[0].value == "FNEND") {
+            ASSERT(moduleListingStack.size() == moduleVariableStack.size());
+            modl.setProgramCounterToEnd(); // return to function call
         } else if (tokens[0].value == "FOR") {
             handleFOR(tokens);
         } else if (tokens[0].value == "NEXT") {
@@ -4907,83 +4968,7 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
         }
 
         // execute listing code
-        bool programWasRunning = false; // still in immediate mode
-        int lastTraceLine      = -1;
-        for (;;) {
-            if (programCounter().line == currentListing().end()) {
-                break;
-            }
-
-            if (moduleListingStack.back()->second.traceOn && programCounter().line->first >= 0) {
-                int line = programCounter().line->first;
-                if (lastTraceLine != line) {
-                    lastTraceLine = line;
-                    os->screen.cleanCurrentLine();
-                    printUtf8String("[" + valueToString(line) + "]");
-                }
-            }
-
-            // debug("MODULE VARS "); debug(moduleVariableStack.back()->first.c_str()); debug("\n");
-            // debug("MODULE CODE "); debug(moduleListingStack.back()->first.c_str()); debug("\n");
-
-#if 0
-            std::cout << "                                     LINE ";
-            std::cout << valueToString(int64_t(programCounter().line->first)).c_str();
-            std::cout << "\n";
-#endif
-            auto& pc = programCounter();
-
-            // might need to tokenize when first encountering a loaded program line.
-            ensureTokenized(moduleListingStack.back()->second, pc);
-            // if (pc.line != currentListing().end() && pc.line->second.tokens.empty()) {
-            //     tokenizeLine(pc.line->second);
-            // }
-
-            if (pc.cmdpos >= pc.line->second.tokens.size()) { // next line
-                ++pc.line;
-                pc.cmdpos = 0;
-                // end of program or immediate mode
-                if (pc.line == currentListing().end() || pc.line->first == -1) {
-                    if (programWasRunning) {
-                        EndAndPopModule(); // pop module, continue with calling module
-                        continue;
-                    }
-                    break; // end immediate
-                }
-                programWasRunning = true; // now, RUN or GOTO must have been called. We're running
-                continue;
-            }
-
-            auto& tokens = pc.line->second.tokens[pc.cmdpos];
-
-            ++pc.cmdpos; // next command
-
-            executeParsedTokens(tokens);
-
-
-            // std::vector<Token> tokens = tokenizeNextCommand();
-            // if (tokens.empty()) { // next line
-            //     pc.line++;
-            //     pc.position = 0;
-            //
-            //     // end of program or immediate mode
-            //     if (pc.line == currentListing().end() || pc.line->first == -1) {
-            //         if (programWasRunning) {
-            //             EndAndPopModule(); // pop module, continue with calling module
-            //             continue;
-            //         }
-            //         break; // end immediate
-            //     }
-            //
-            //     programWasRunning = true; // now, RUN or GOTO must have been called. We're running
-            //     continue;
-            // } else {
-            //     executeTokens(tokens);
-            // }
-            os->updateEvents();
-            os->presentScreen();
-            handleEscapeKey();
-        }
+        runToEnd();
     } catch (const Error& e) {
         currentFileNo = 0;
         // dumpVariables();
@@ -5103,6 +5088,67 @@ void Basic::runInterpreter() {
     }
 }
 
+// run from current program counter until END is hit
+void Basic::runToEnd() {
+    bool programWasRunning = false; // still in immediate mode
+    int lastTraceLine      = -1;
+    for (;;) {
+        if (programCounter().line == currentListing().end()) {
+            break;
+        }
+
+        if (moduleListingStack.back()->second.traceOn && programCounter().line->first >= 0) {
+            int line = programCounter().line->first;
+            if (lastTraceLine != line) {
+                lastTraceLine = line;
+                os->screen.cleanCurrentLine();
+                printUtf8String("[" + valueToString(line) + "]");
+            }
+        }
+
+        // debug("MODULE VARS "); debug(moduleVariableStack.back()->first.c_str()); debug("\n");
+        // debug("MODULE CODE "); debug(moduleListingStack.back()->first.c_str()); debug("\n");
+
+#if 0
+            std::cout << "                                     LINE ";
+            std::cout << valueToString(int64_t(programCounter().line->first)).c_str();
+            std::cout << "\n";
+#endif
+        auto& pc = programCounter();
+
+        // might need to tokenize when first encountering a loaded program line.
+        ensureTokenized(moduleListingStack.back()->second, pc);
+        // if (pc.line != currentListing().end() && pc.line->second.tokens.empty()) {
+        //     tokenizeLine(pc.line->second);
+        // }
+
+        if (pc.cmdpos >= pc.line->second.tokens.size()) { // next line
+            ++pc.line;
+            pc.cmdpos = 0;
+            // end of program or immediate mode
+            if (pc.line == currentListing().end() || pc.line->first == -1) {
+                if (programWasRunning) {
+                    EndAndPopModule(); // pop module, continue with calling module
+                    continue;
+                }
+                break; // end immediate
+            }
+            programWasRunning = true; // now, RUN or GOTO must have been called. We're running
+            continue;
+        }
+
+        auto& tokens = pc.line->second.tokens[pc.cmdpos];
+
+        ++pc.cmdpos; // next command
+
+        executeParsedTokens(tokens);
+
+        os->updateEvents();
+        os->presentScreen();
+        handleEscapeKey();
+    }
+}
+
 void Basic::waitForKeypress() {
     for (;;) {
         this->handleEscapeKey();
@@ -5111,6 +5157,7 @@ void Basic::waitForKeypress() {
         }
         os->delay(100);
         os->updateEvents();
+        os->presentScreen();
     }
 }
 
@@ -5426,4 +5473,29 @@ bool Basic::loadState(std::string& filenameUtf8) {
     mod.forceTokenizing();
     os->screen.dirtyFlag = true;
     return true;
+}
+
+Basic::Module::VariableMap::iterator Basic::Module::findOrCreateVariable(const std::string_view& variableName) {
+    auto varit = variables.find(variableName);
+    if (varit == variables.end()) {
+        Token tok;
+        tok.type  = TokenType::IDENTIFIER;
+        tok.value = variableName;
+
+        // create new variable
+        switch (tok.valuePostfix()) {
+        case '%':
+            variables[std::string(tok.value)] = 0LL;
+            break;
+        case '$':
+            variables[std::string(tok.value)] = "";
+            break;
+        default:
+        case '#':
+            variables[std::string(tok.value)] = 0.0;
+            break;
+        }
+        varit = variables.find(variableName);
+    }
+    return varit;
 }

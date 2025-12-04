@@ -639,7 +639,7 @@ std::string Os::findFirstFileNameWildcard(std::string filenameUtf8, bool isDirec
     StringHelper::trimRight(filenameUtf8, this->lockSymbol().c_str()); // here, call the overloaded function
 
     std::string fixedDirs;
-    if (!currentDir == Os::IsCloud) {
+    if (currentDir != Os::IsCloud && currentDir != Os::IsD64) {
         for (;;) {
             size_t endOfDir = filenameUtf8.find('/');
             if (endOfDir == std::string::npos) {
