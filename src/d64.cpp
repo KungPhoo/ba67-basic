@@ -6,6 +6,7 @@
 #include "unicode.h"
 #include "fileptr.h"
 #include <set>
+#include <cstring>
 
 static const int TRACKS      = 35; // standard image
 static const int SECTOR_SIZE = 256;
@@ -376,6 +377,7 @@ bool D64::save(std::string path) const {
     }
     f.write(&img[0], img.size());
     f.close();
+    return true;
 }
 
 bool D64::removeFile(std::string filename) {

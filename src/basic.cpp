@@ -5,7 +5,7 @@
 #include "string_helper.h"
 #include "unicode.h"
 #include <cmath>
-// #include <cstring>
+#include <cstring>
 #include <iostream>
 #include <regex>
 #include <variant>
