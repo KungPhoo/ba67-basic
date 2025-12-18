@@ -24,9 +24,10 @@ public:
     Basic(Os* os, SoundSystem* ss = nullptr);
 
     struct Options {
-        bool spacingRequired = true; // 'false' allows FORI=1TO10 without spaces
-        bool dotAsZero       = true; // 'true' allows a=. instead of a=0
-        bool uppercaseInput  = false; // 'true' returns only upper-case characters in GET/INPUT
+        bool spacingRequired  = true; // 'false' allows FORI=1TO10 without spaces
+        bool dotAsZero        = true; // 'true' allows a=. instead of a=0
+        bool uppercaseInput   = false; // 'true' returns only upper-case characters in GET/INPUT
+        bool colorzizeListing = true;
     };
     static Options options;
 
@@ -403,7 +404,7 @@ public:
     std::vector<moduleT::iterator> moduleVariableStack; // entered modules - this is for the variable space
     std::vector<moduleT::iterator> moduleListingStack; // entered modules - this is for the listing and program counter
 
-    int colorForModule(const std::string& str) const;
+    uint8_t colorForModule(const std::string& str) const;
 
     // pointer to the current program counter
     // this one might differ from the currentModule().programCounter!
@@ -437,6 +438,7 @@ public:
     static bool valueIsDouble(const Value& v);
 
     static bool isEndOfWord(char c);
+    inline static bool isWhiteSpace(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
     static const char* skipWhite(const char*& str);
     static bool parseDouble(const char*& str, double* number = nullptr);
     static bool parseInt(const char*& str, int64_t* number = nullptr); // int - not a double! "1.23" returns false
@@ -446,6 +448,7 @@ public:
 protected:
     bool parseKeyword(const char*& str, std::string_view* keyword = nullptr);
     bool parseCommand(const char*& str, std::string_view* command = nullptr);
+    bool parseFunction(const char*& str, std::string_view* command = nullptr);
     bool parseString(const char*& str, std::string_view* stringUnquoted);
     bool parseOperator(const char*& str, std::string_view* op);
     bool parseIdentifier(const char*& str, std::string_view* identifier);

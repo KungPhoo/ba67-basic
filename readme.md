@@ -183,12 +183,13 @@ but also features some improvements.
 Here are the key features:
 - Compatible with the famous Commodore BASIC
 - Can even run 6502 assembler subroutines
-- Can load and save .prg files. Even in .d64 files.
+- Can load and save .prg files. Even in .d64 files
 - GOTO/GOSUB labels (backwards compatible!)
 - Variable names can be longer than 2 characters
 - Dictionaries (key/value pair lookup tables)
 - Unicode strings (no PETSCII or other exotic char sets)
 - Full Unicode character set (even emoji end stuff)
+- LIST provides syntax highlighting
 - 64 bit precision for numbers
 - 64 bit integers
 - Supports scrolling through text beyond the visible screen area
@@ -1245,6 +1246,8 @@ are implemented:
 | ZERODOT   | The dot is interpreted as 0.0               |
 +-----------+---------------------------------------------+
 | UPPERCASE | GET and INPUT return only upper-case strings|
++-----------+---------------------------------------------+
+| COLORLIST | Syntax highlighting for LIST command        |
 +-----------+---------------------------------------------+
 
 

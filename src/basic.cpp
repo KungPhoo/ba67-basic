@@ -12,6 +12,7 @@
 #include "prg_tool.h"
 #include "minifetch.h"
 #include "petscii.h"
+#include "control_characters.h"
 
 #include "rawconfig.h"
 #include "rom.h"
@@ -803,6 +804,8 @@ void cmdREMODEL(Basic* basic, const std::vector<Basic::Value>& values) {
         basic->options.dotAsZero = (val != 0);
     } else if (key == "UPPERCASE") {
         basic->options.uppercaseInput = (val != 0);
+    } else if (key == "COLORLIST") {
+        basic->options.colorzizeListing = (val != 0);
     } else {
         throw Basic::Error(Basic::ErrorId::UNDEFD_STATEMENT);
     }
@@ -1617,7 +1620,8 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         std::string(centerx, ' ') + strmem + "\n" + std::string(centerx, ' ') + "       (C)2025 DREAM DESIGN.\n");
 }
 
-int Basic::colorForModule(const std::string& str) const {
+// color index (base 0) for highlighting current module
+uint8_t Basic::colorForModule(const std::string& str) const {
 
     // main module: light green
     if (str.empty()) {
@@ -1625,13 +1629,13 @@ int Basic::colorForModule(const std::string& str) const {
     }
 
     // others: guess a color by the name
-    int col = 0;
+    uint8_t col = 0;
     for (auto c : str) {
-        col += (unsigned char)c;
+        col += c;
         ++col;
     }
 
-    std::vector<int> colsToUse = { /* 13,*/ 7, 14, 3, 1, 10 };
+    std::vector<uint8_t> colsToUse = { /* 13,*/ 7, 14, 3, 1, 10 };
     return colsToUse[col % colsToUse.size()];
 }
 
@@ -1743,7 +1747,7 @@ inline bool Basic::isEndOfWord(char c) {
 }
 
 inline const char* Basic::skipWhite(const char*& str) {
-    while (*str == ' ' || *str == '\t' || *str == '\r' || *str == '\n') {
+    while (isWhiteSpace(*str)) {
         ++str;
     }
     return str;
@@ -1838,7 +1842,7 @@ int64_t Basic::strToInt(const std::string_view& str) {
     return 0;
 }
 
-inline bool Basic::parseKeyword(const char*& str, std::string_view* keyword) {
+bool Basic::parseKeyword(const char*& str, std::string_view* keyword) {
     skipWhite(str);
     for (auto& k : keywords) {
         if (StringHelper::strncmp(str, k.c_str(), k.length()) == 0
@@ -1853,7 +1857,7 @@ inline bool Basic::parseKeyword(const char*& str, std::string_view* keyword) {
     return false;
 }
 
-inline bool Basic::parseCommand(const char*& str, std::string_view* command) {
+bool Basic::parseCommand(const char*& str, std::string_view* command) {
     skipWhite(str);
     for (auto& k : commands) {
         if (StringHelper::strncmp(str, k.first.c_str(), k.first.length()) == 0
@@ -1868,8 +1872,27 @@ inline bool Basic::parseCommand(const char*& str, std::string_view* command) {
     }
     return false;
 }
+bool Basic::parseFunction(const char*& str, std::string_view* function) {
+    skipWhite(str);
+    for (auto& k : functions) {
+        if (StringHelper::strncmp(str, k.first.c_str(), k.first.length()) == 0
+            && (isEndOfWord(str[k.first.length()])) /*this differs from MS BASIC*/
+        ) {
+            const char* fndBrace = str + k.first.length();
+            skipWhite(fndBrace);
+            if (*fndBrace == '(') {
+                if (function != nullptr) {
+                    *function = std::string_view(str, str + k.first.length());
+                }
+                str = fndBrace; // str += k.first.length();
+            }
+            return true;
+        }
+    }
+    return false;
+}
 
-inline bool Basic::parseString(const char*& str, std::string_view* stringUnquoted) {
+bool Basic::parseString(const char*& str, std::string_view* stringUnquoted) {
     skipWhite(str);
     if (*str == '\"' || *str == '\'') {
         // char quoteChar = *str;
@@ -1886,7 +1909,7 @@ inline bool Basic::parseString(const char*& str, std::string_view* stringUnquote
     return false;
 }
 
-inline bool Basic::parseOperator(const char*& str, std::string_view* op) {
+bool Basic::parseOperator(const char*& str, std::string_view* op) {
     skipWhite(str);
     const char* start = str;
 
@@ -2042,7 +2065,7 @@ const char* Basic::tokenizeNextCommand(const char* pc, std::vector<Basic::Token>
             ++pc;
         } else if (parseFileHandle(pc, &str)) {
             tokens.push_back({ TokenType::FILEHANDLE, str });
-        } else if (parseIdentifier(pc, &str)) {
+        } else if (parseIdentifier(pc, &str)) { // TODO parse function before identifier
             skipWhite(pc);
             std::string_view str2;
             const char* pcdot = pc;
@@ -3417,7 +3440,25 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
     lastTo   = to;
 
     std::string sline;
-    for (auto& ln : currentModule().listing) {
+
+
+    std::string moduleName = moduleListingStack.back()->first;
+    std::string colLN;
+    Unicode::appendAsUtf8(colLN, ControlCharacters::textColor1_White);
+    std::string colKW;
+    Unicode::appendAsUtf8(colKW, ControlCharacters::charForColor(colorForModule(moduleName)));
+    std::string colQU;
+    Unicode::appendAsUtf8(colQU, ControlCharacters::textColor15_Light_Gray);
+
+    // now, that's a hack
+    if (!options.colorzizeListing) {
+        colKW.clear();
+        colLN.clear();
+        colQU.clear();
+    }
+
+    auto& module = currentModule();
+    for (auto& ln : module.listing) {
         if (ln.first < from) {
             continue;
         }
@@ -3425,15 +3466,60 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
             break;
         }
 
-        sline = std::to_string(ln.first);
+        // line number
+        sline = colLN + std::to_string(ln.first);
         for (size_t s = sline.length(); s < 3; ++s) {
             sline += ' ';
         }
         sline += ' ';
-        sline += ln.second;
+
+        bool inQuotes = false, inQuotes2 = false;
+
+        for (const char* ptr = ln.second.code.c_str(); *ptr != '\0'; ++ptr) {
+            char c = *ptr;
+            if (!inQuotes && c == '\"') {
+                sline += colQU;
+            }
+            if (!inQuotes2 && c == '\'') {
+                sline += colQU;
+            }
+
+            const char* peek = ptr;
+            std::string_view range;
+            if (!inQuotes
+                && !inQuotes2
+                && !isWhiteSpace(*ptr)
+                && (parseCommand(peek, &range)
+                    || parseKeyword(peek, &range)
+                    || parseFunction(peek, &range))) {
+                sline += colKW;
+                sline += range;
+                sline += colLN;
+                ptr += range.length();
+                --ptr; // for loop increments
+                continue;
+            }
+
+            sline += c;
+            if (inQuotes && c == '\"') {
+                sline += colLN;
+            }
+            if (inQuotes2 && c == '\'') {
+                sline += colLN;
+            }
+            if (c == '\"') {
+                inQuotes = !inQuotes;
+            }
+            if (c == '\'') {
+                inQuotes2 = !inQuotes;
+            }
+        }
+        sline += colKW;
+
+        // sline += ln.second;
         sline += '\n';
         os->screen.cleanCurrentLine();
-        printUtf8String(sline);
+        printUtf8String(sline, true);
 
         handleEscapeKey(true);
         os->delay(50);
@@ -4411,6 +4497,11 @@ void Basic::uppercaseProgram(std::string& codeline) {
         throw Error(ErrorId::SYNTAX);
     }
 }
+
+
+
+
+
 /*
         { 0x9a,  color (light blue)
         { 0x9b,  color (light gray)
@@ -4429,31 +4520,31 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
             while (utf8 < pend) {
                 char32_t c = Unicode::parseNextUtf8(utf8);
                 switch (c) {
-                case 0x11: os->screen.moveCursorPos(0, 1); break; // cursor down
-                case 0x1d: os->screen.moveCursorPos(1, 0); break; // cursor right
-                case 0x91: os->screen.moveCursorPos(0, -1); break; // cursor up
-                case 0x9d: os->screen.moveCursorPos(-1, 0); break; // cursor left
-                case 0x13: os->screen.setCursorPos({ 0, 0 }); break; // home
-                case 0x14: os->screen.backspaceChar(); break; // delete
-                case 0x93: os->screen.clear(); break; // clear
-                case 0x12: os->screen.setReverseMode(true); break; // reverse on
-                case 0x92: os->screen.setReverseMode(false); break; // reverse off
-                case 0x90: os->screen.setTextColor(0); break; // Black
-                case 0x05: os->screen.setTextColor(1); break; // White
-                case 0x1c: os->screen.setTextColor(2); break; // Red
-                case 0x9f: os->screen.setTextColor(3); break; // Cyan
-                case 0x9c: os->screen.setTextColor(4); break; // Purple
-                case 0x1e: os->screen.setTextColor(5); break; // Green
-                case 0x1f: os->screen.setTextColor(6); break; // Blue
-                case 0x9e: os->screen.setTextColor(7); break; // Yellow
-                case 0x81: os->screen.setTextColor(8); break; // Orange
-                case 0x95: os->screen.setTextColor(9); break; // Brown
-                case 0x96: os->screen.setTextColor(10); break; // Light Red
-                case 0x97: os->screen.setTextColor(11); break; // Dark Gray
-                case 0x98: os->screen.setTextColor(12); break; // Medium Gray
-                case 0x99: os->screen.setTextColor(13); break; // Light Green
-                case 0x9a: os->screen.setTextColor(14); break; // Light Blue
-                case 0x9b: os->screen.setTextColor(15); break; // Light Gray
+                case ControlCharacters::cursorDown /*0x11*/:              os->screen.moveCursorPos(0, 1); break; // cursor down
+                case ControlCharacters::cursorRight /*0x1d*/:             os->screen.moveCursorPos(1, 0); break; // cursor right
+                case ControlCharacters::cursorUp /*0x91*/:                os->screen.moveCursorPos(0, -1); break; // cursor up
+                case ControlCharacters::cursorLeft /*0x9d*/:              os->screen.moveCursorPos(-1, 0); break; // cursor left
+                case ControlCharacters::cursorHome /*0x13*/:              os->screen.setCursorPos({ 0, 0 }); break; // home
+                case ControlCharacters::backspaceChar /*0x14*/:           os->screen.backspaceChar(); break; // delete
+                case ControlCharacters::clearScreen /*0x93*/:             os->screen.clear(); break; // clear
+                case ControlCharacters::reverseModeOn /*0x12*/:           os->screen.setReverseMode(true); break; // reverse on
+                case ControlCharacters::reverseModeeOff /*0x92*/:         os->screen.setReverseMode(false); break; // reverse off
+                case ControlCharacters::textColor0_Black /*0x90*/:        os->screen.setTextColor(0); break; // Black
+                case ControlCharacters::textColor1_White /*0x05*/:        os->screen.setTextColor(1); break; // White
+                case ControlCharacters::textColor2_Red /*0x1c*/:          os->screen.setTextColor(2); break; // Red
+                case ControlCharacters::textColor3_Cyan /*0x9f*/:         os->screen.setTextColor(3); break; // Cyan
+                case ControlCharacters::textColor4_Purple /*0x9c*/:       os->screen.setTextColor(4); break; // Purple
+                case ControlCharacters::textColor5_Green /*0x1e*/:        os->screen.setTextColor(5); break; // Green
+                case ControlCharacters::textColor6_Blue /*0x1f*/:         os->screen.setTextColor(6); break; // Blue
+                case ControlCharacters::textColor7_Yellow /*0x9e*/:       os->screen.setTextColor(7); break; // Yellow
+                case ControlCharacters::textColor8_Orange /*0x81*/:       os->screen.setTextColor(8); break; // Orange
+                case ControlCharacters::textColor9_Brown /*0x95*/:        os->screen.setTextColor(9); break; // Brown
+                case ControlCharacters::textColor10_Light_Red /*0x96*/:   os->screen.setTextColor(10); break; // Light Red
+                case ControlCharacters::textColor11_Dark_Gray /*0x97*/:   os->screen.setTextColor(11); break; // Dark Gray
+                case ControlCharacters::textColor12_Medium_Gray /*0x98*/: os->screen.setTextColor(12); break; // Medium Gray
+                case ControlCharacters::textColor13_Light_Green /*0x99*/: os->screen.setTextColor(13); break; // Light Green
+                case ControlCharacters::textColor14_Light_Blue /*0x9a*/:  os->screen.setTextColor(14); break; // Light Blue
+                case ControlCharacters::textColor15_Light_Gray /*0x9b*/:  os->screen.setTextColor(15); break; // Light Gray
                 default:
                     os->screen.putC(c);
                 }
@@ -5417,6 +5508,7 @@ bool Basic::saveState(std::string& filenameUtf8) {
     cfg.set("options.spacingRequired", options.spacingRequired);
     cfg.set("options.dotAsZero", options.dotAsZero);
     cfg.set("options.uppercaseInput", options.uppercaseInput);
+    cfg.set("options.colorizeListing", options.colorzizeListing);
     cfg.set("memory", &memory[0], memory.size(), sizeof(memory[0]));
     cfg.set("time0", time0);
 
