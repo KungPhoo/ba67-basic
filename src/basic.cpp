@@ -792,6 +792,17 @@ void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 void cmdREMODEL(Basic* basic, const std::vector<Basic::Value>& values) {
+    auto& opt = basic->options;
+    if (values.empty()) {
+        // sort alphabetically, here
+        basic->printUtf8String("REMODEL \"COLORLIST\", " + basic->valueToString(opt.colorzizeListing) + "\n");
+        basic->printUtf8String("REMODEL \"SPACING\", " + basic->valueToString(opt.spacingRequired) + "\n");
+        basic->printUtf8String("REMODEL \"UPPERCASE\", " + basic->valueToString(opt.uppercaseInput) + "\n");
+        basic->printUtf8String("REMODEL \"ZERODOT\", " + basic->valueToString(opt.dotAsZero) + "\n");
+        // basic->printUtf8String("REMODEL \"\", " + basic->valueToString(0));
+        return;
+    }
+
     if (values.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -799,13 +810,13 @@ void cmdREMODEL(Basic* basic, const std::vector<Basic::Value>& values) {
     std::string key = basic->valueToString(values[0]);
     int64_t val     = basic->valueToInt(values[2]);
     if (key == "SPACING") {
-        basic->options.spacingRequired = (val != 0);
+        opt.spacingRequired = (val != 0);
     } else if (key == "ZERODOT") {
-        basic->options.dotAsZero = (val != 0);
+        opt.dotAsZero = (val != 0);
     } else if (key == "UPPERCASE") {
-        basic->options.uppercaseInput = (val != 0);
+        opt.uppercaseInput = (val != 0);
     } else if (key == "COLORLIST") {
-        basic->options.colorzizeListing = (val != 0);
+        opt.colorzizeListing = (val != 0);
     } else {
         throw Basic::Error(Basic::ErrorId::UNDEFD_STATEMENT);
     }
@@ -907,7 +918,6 @@ void runAssemblerCode(Basic* basic) {
                 break;
             }
 
-            //
             // overwrite the jiffy clock
             int64_t TI          = (basic->os->tick() * 60LL) / 1000LL;
             basic->memory[0xA2] = TI & 0xff;
@@ -1424,28 +1434,21 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         }
     }
 
-
-    // start C64 BASIC with SYS $FCE2 (TODO GO 64)
+    // start C64 BASIC with SYS $FCE2 or GO 64
     memory[0xE739 + 1] = 0xff; // don't convert PETSCII to screen code
     memory[0xE73D + 1] = 0xff; // don't convert PETSCII to screen code
 
-    // memory[0xE640 + 0] = 0xea; // NOP-out conversion of screen code to PETSCII
-    // memory[0xE640 + 1] = 0xea;
-    // memory[0xE640 + 2] = 0xea;
-    // memory[0xE640 + 3] = 0xea;
-    // memory[0xE640 + 4] = 0xea;
-    // memory[0xE640 + 5] = 0xea;
-    // memory[0xE652]     = 0xea;
-    // memory[0xE653]     = 0xea;
     memory[0xE640 + 0] = 0x4c; // JMP $E654 skips conversion of screen code to PETSCII
     memory[0xE640 + 1] = 0x54;
     memory[0xE640 + 2] = 0xe6;
 
 
-
-    memory[0xE48D + 0] = '-'; // COMMODORE BASIC V2 -> BA67
-    memory[0xE48D + 1] = '6';
-    memory[0xE48D + 2] = '7';
+    // COMMODORE BASIC V2 -> COMMODORE+BA67  V2
+    memory[0xE48A] = '+';
+    // BA..
+    memory[0xE48D] = '6'; // make sure $E48D is '6' as stated in the readme.md
+    memory[0xE48E] = '7';
+    memory[0xE48F] = ' ';
 
 
 #if defined(_DEBUG)
@@ -1478,17 +1481,17 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 
     this->os             = os;
     time0                = os->tick();
-    std::string charLogo = Unicode::toUtf8String(U"🌈"); // 1f308
+    std::string charLogo = Unicode::toUtf8String(U"🌈"); // rainbow - 1F308
     cmdCHARDEF(this, {
                          Value(charLogo),
-                         Value(int64_t(0x2222222222222222LL)), // red
-                         Value(int64_t(0x8888888888888888LL)), // orange
-                         Value(int64_t(0x8888888888888888LL)), // orange
-                         Value(int64_t(0x7777777777777777LL)), // yellow
-                         Value(int64_t(0x7777777777777777LL)), // yellow
-                         Value(int64_t(0xddddddddddddddddLL)), // green
-                         Value(int64_t(0xddddddddddddddddLL)), // green
-                         Value(int64_t(0xeeeeeeeeeeeeeeeeLL)), // blue
+                         Value(int64_t(0xbbbbb222LL)), // red
+                         Value(int64_t(0xbbb22888LL)), // orange
+                         Value(int64_t(0xbb288888LL)), // orange
+                         Value(int64_t(0xb2888777LL)), // yellow
+                         Value(int64_t(0xb2887777LL)), // yellow
+                         Value(int64_t(0x22877dddLL)), // green
+                         Value(int64_t(0x287dddeeLL)), // green
+                         Value(int64_t(0x287ddeeeLL)), // blue
                      });
 
     os->init(this, ss);
@@ -1612,7 +1615,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     printUtf8String(
         std::string(centerx, ' ') + std::string(" ****    BA67 BASIC") + charLogo + " V" + version() + ("   ****\n"));
 
-    std::string strmem = " " + valueToString(int64_t(os->getFreeMemoryInBytes()) / (1024 * 1024)) + std::string(" BASIC MEGA BYTES FREE");
+    std::string strmem = "   " + valueToString(int64_t(os->getFreeMemoryInBytes()) / (1024 * 1024)) + std::string(" BASIC MBYTES FREE");
     while (strmem.length() < 31) {
         strmem.insert(strmem.begin(), ' ');
     }
@@ -2918,7 +2921,7 @@ void Basic::doPrintValue(Value& v) {
         // }
     } else {
         if (valueIsString(v)) {
-            printUtf8String(Basic::valueToString(v), true /* apply control characters */);
+            printUtf8String(Basic::valueToString(v), true /* apply control characters */, true /*even in quotes*/);
         } else {
             printUtf8String((" " + Basic::valueToString(v) + " "));
         }
@@ -3121,7 +3124,7 @@ void Basic::handlePRINT_USING(const std::vector<Token>& tokens) {
     if (forceNewline) {
         output += '\n';
     }
-    printUtf8String(output, true /* apply control characters */);
+    printUtf8String(output, true /* apply control characters */, true /* even in quotes*/);
 }
 
 void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
@@ -3443,12 +3446,15 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
 
 
     std::string moduleName = moduleListingStack.back()->first;
+    uint8_t colForMod      = colorForModule(moduleName);
     std::string colLN;
     Unicode::appendAsUtf8(colLN, ControlCharacters::textColor1_White);
     std::string colKW;
-    Unicode::appendAsUtf8(colKW, ControlCharacters::charForColor(colorForModule(moduleName)));
+    Unicode::appendAsUtf8(colKW, ControlCharacters::charForColor(colForMod));
     std::string colQU;
     Unicode::appendAsUtf8(colQU, ControlCharacters::textColor15_Light_Gray);
+    std::string colREM;
+    Unicode::appendAsUtf8(colREM, ControlCharacters::charForColor(ScreenBuffer::buddyColor(colForMod)));
 
     // now, that's a hack
     if (!options.colorzizeListing) {
@@ -3474,7 +3480,6 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
         sline += ' ';
 
         bool inQuotes = false, inQuotes2 = false;
-
         for (const char* ptr = ln.second.code.c_str(); *ptr != '\0'; ++ptr) {
             char c = *ptr;
             if (!inQuotes && c == '\"') {
@@ -3494,8 +3499,16 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
                     || parseFunction(peek, &range))) {
                 sline += colKW;
                 sline += range;
-                sline += colLN;
                 ptr += range.length();
+
+                if (range == "REM") {
+                    sline += colREM;
+                    sline += ptr;
+                    sline += colLN;
+                    break;
+                }
+
+                sline += colLN;
                 --ptr; // for loop increments
                 continue;
             }
@@ -3519,7 +3532,7 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
         // sline += ln.second;
         sline += '\n';
         os->screen.cleanCurrentLine();
-        printUtf8String(sline, true);
+        printUtf8String(sline, true /*ctrl*/, false /*but not in quotes*/);
 
         handleEscapeKey(true);
         os->delay(50);
@@ -4507,7 +4520,9 @@ void Basic::uppercaseProgram(std::string& codeline) {
         { 0x9b,  color (light gray)
         { 0x9f,  color (cyan)
 * */
-void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCodes) {
+void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCodes, bool ctrlInQuotes) {
+    bool quotes1 = false, quotes2 = false;
+
     if (pend == nullptr) {
         pend = utf8;
         while (*pend != '\0') {
@@ -4519,33 +4534,47 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
         if (applyCtrlCodes) {
             while (utf8 < pend) {
                 char32_t c = Unicode::parseNextUtf8(utf8);
-                switch (c) {
-                case ControlCharacters::cursorDown /*0x11*/:              os->screen.moveCursorPos(0, 1); break; // cursor down
-                case ControlCharacters::cursorRight /*0x1d*/:             os->screen.moveCursorPos(1, 0); break; // cursor right
-                case ControlCharacters::cursorUp /*0x91*/:                os->screen.moveCursorPos(0, -1); break; // cursor up
-                case ControlCharacters::cursorLeft /*0x9d*/:              os->screen.moveCursorPos(-1, 0); break; // cursor left
-                case ControlCharacters::cursorHome /*0x13*/:              os->screen.setCursorPos({ 0, 0 }); break; // home
-                case ControlCharacters::backspaceChar /*0x14*/:           os->screen.backspaceChar(); break; // delete
-                case ControlCharacters::clearScreen /*0x93*/:             os->screen.clear(); break; // clear
-                case ControlCharacters::reverseModeOn /*0x12*/:           os->screen.setReverseMode(true); break; // reverse on
-                case ControlCharacters::reverseModeeOff /*0x92*/:         os->screen.setReverseMode(false); break; // reverse off
-                case ControlCharacters::textColor0_Black /*0x90*/:        os->screen.setTextColor(0); break; // Black
-                case ControlCharacters::textColor1_White /*0x05*/:        os->screen.setTextColor(1); break; // White
-                case ControlCharacters::textColor2_Red /*0x1c*/:          os->screen.setTextColor(2); break; // Red
-                case ControlCharacters::textColor3_Cyan /*0x9f*/:         os->screen.setTextColor(3); break; // Cyan
-                case ControlCharacters::textColor4_Purple /*0x9c*/:       os->screen.setTextColor(4); break; // Purple
-                case ControlCharacters::textColor5_Green /*0x1e*/:        os->screen.setTextColor(5); break; // Green
-                case ControlCharacters::textColor6_Blue /*0x1f*/:         os->screen.setTextColor(6); break; // Blue
-                case ControlCharacters::textColor7_Yellow /*0x9e*/:       os->screen.setTextColor(7); break; // Yellow
-                case ControlCharacters::textColor8_Orange /*0x81*/:       os->screen.setTextColor(8); break; // Orange
-                case ControlCharacters::textColor9_Brown /*0x95*/:        os->screen.setTextColor(9); break; // Brown
-                case ControlCharacters::textColor10_Light_Red /*0x96*/:   os->screen.setTextColor(10); break; // Light Red
-                case ControlCharacters::textColor11_Dark_Gray /*0x97*/:   os->screen.setTextColor(11); break; // Dark Gray
-                case ControlCharacters::textColor12_Medium_Gray /*0x98*/: os->screen.setTextColor(12); break; // Medium Gray
-                case ControlCharacters::textColor13_Light_Green /*0x99*/: os->screen.setTextColor(13); break; // Light Green
-                case ControlCharacters::textColor14_Light_Blue /*0x9a*/:  os->screen.setTextColor(14); break; // Light Blue
-                case ControlCharacters::textColor15_Light_Gray /*0x9b*/:  os->screen.setTextColor(15); break; // Light Gray
-                default:
+
+                if (!ctrlInQuotes) {
+                    if (c == '\"') {
+                        quotes1 = !quotes1;
+                    }
+                    if (c == '\'') {
+                        quotes1 = !quotes1;
+                    }
+                }
+
+                if (!quotes1 && !quotes2) {
+                    switch (c) {
+                    case ControlCharacters::cursorDown /*0x11*/:              os->screen.moveCursorPos(0, 1); break; // cursor down
+                    case ControlCharacters::cursorRight /*0x1d*/:             os->screen.moveCursorPos(1, 0); break; // cursor right
+                    case ControlCharacters::cursorUp /*0x91*/:                os->screen.moveCursorPos(0, -1); break; // cursor up
+                    case ControlCharacters::cursorLeft /*0x9d*/:              os->screen.moveCursorPos(-1, 0); break; // cursor left
+                    case ControlCharacters::cursorHome /*0x13*/:              os->screen.setCursorPos({ 0, 0 }); break; // home
+                    case ControlCharacters::backspaceChar /*0x14*/:           os->screen.backspaceChar(); break; // delete
+                    case ControlCharacters::clearScreen /*0x93*/:             os->screen.clear(); break; // clear
+                    case ControlCharacters::reverseModeOn /*0x12*/:           os->screen.setReverseMode(true); break; // reverse on
+                    case ControlCharacters::reverseModeeOff /*0x92*/:         os->screen.setReverseMode(false); break; // reverse off
+                    case ControlCharacters::textColor0_Black /*0x90*/:        os->screen.setTextColor(0); break; // Black
+                    case ControlCharacters::textColor1_White /*0x05*/:        os->screen.setTextColor(1); break; // White
+                    case ControlCharacters::textColor2_Red /*0x1c*/:          os->screen.setTextColor(2); break; // Red
+                    case ControlCharacters::textColor3_Cyan /*0x9f*/:         os->screen.setTextColor(3); break; // Cyan
+                    case ControlCharacters::textColor4_Purple /*0x9c*/:       os->screen.setTextColor(4); break; // Purple
+                    case ControlCharacters::textColor5_Green /*0x1e*/:        os->screen.setTextColor(5); break; // Green
+                    case ControlCharacters::textColor6_Blue /*0x1f*/:         os->screen.setTextColor(6); break; // Blue
+                    case ControlCharacters::textColor7_Yellow /*0x9e*/:       os->screen.setTextColor(7); break; // Yellow
+                    case ControlCharacters::textColor8_Orange /*0x81*/:       os->screen.setTextColor(8); break; // Orange
+                    case ControlCharacters::textColor9_Brown /*0x95*/:        os->screen.setTextColor(9); break; // Brown
+                    case ControlCharacters::textColor10_Light_Red /*0x96*/:   os->screen.setTextColor(10); break; // Light Red
+                    case ControlCharacters::textColor11_Dark_Gray /*0x97*/:   os->screen.setTextColor(11); break; // Dark Gray
+                    case ControlCharacters::textColor12_Medium_Gray /*0x98*/: os->screen.setTextColor(12); break; // Medium Gray
+                    case ControlCharacters::textColor13_Light_Green /*0x99*/: os->screen.setTextColor(13); break; // Light Green
+                    case ControlCharacters::textColor14_Light_Blue /*0x9a*/:  os->screen.setTextColor(14); break; // Light Blue
+                    case ControlCharacters::textColor15_Light_Gray /*0x9b*/:  os->screen.setTextColor(15); break; // Light Gray
+                    default:
+                        os->screen.putC(c);
+                    }
+                } else {
                     os->screen.putC(c);
                 }
             }
@@ -5444,7 +5473,7 @@ bool Basic::saveProgram(std::string filenameUtf8) {
 
     std::string fileExt;
     if (filenameUtf8.length() > 4) {
-        Unicode::toLowerAscii(filenameUtf8.substr(filenameUtf8.length() - 4).c_str());
+        fileExt = Unicode::toLowerAscii(filenameUtf8.substr(filenameUtf8.length() - 4).c_str());
     }
     if (os->dirIsInD64() || (fileExt == ".prg")) {
         std::string all;

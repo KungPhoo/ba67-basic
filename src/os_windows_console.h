@@ -18,7 +18,7 @@ public:
 
     void setCaretPos(int x, int y);
     // --- KEYBOARD ---
-    const bool isKeyPressed(uint32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false) const override;
+    const bool isKeyPressed(char32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false) const override;
     KeyPress getFromKeyboardBuffer() override;
     void setCursorVisibility(bool visible);
 

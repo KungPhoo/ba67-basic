@@ -91,11 +91,12 @@ const char* PrgTool::gettoken(const uint8_t*& prg) {
         {   0xC8,    "LEFT$" },
         {   0xC9,   "RIGHT$" },
         {   0xCA,     "MID$" },
-        //    {   0xCB,       "GO" },
 
         // Commodore 128, BASIC V7.0
+        //    {   0xCB,       "GO" },
         {   0xcc,      "RGR" },
         {   0xcd,      "RCL" },
+
         // 0xce     PREFIX
         {   0xcf,      "JOY" },
         {   0xd0,     "RDOT" },
@@ -255,6 +256,7 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8, std::vector<std:
     std::vector<uint8_t> prg;
     prg.reserve(StringHelper::strlen(basicUtf8));
 
+    // build token map
     std::map<std::string, int> tokens;
     for (int i = 0; i < 256; ++i) {
         uint8_t tk[4]      = { uint8_t(i & 0xff), 0, 0, 0 };

@@ -25,8 +25,8 @@ public:
             } else if (count == ScreenInfo::charPixY * ScreenInfo::charPixY / 2) {
                 isMono = false; // multicolor - every pixel given
                 for (size_t i = 0; i < count; ++i) {
-                    setMulti(i * 2, bytes[i] & 0x0f);
-                    setMulti(i * 2 + 1, bytes[i] >> 4);
+                    setMulti(i * 2, bytes[i] >> 4);
+                    setMulti(i * 2 + 1, bytes[i] & 0x0f);
                 }
             }
         } else {

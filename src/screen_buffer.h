@@ -175,7 +175,7 @@ private:
     MEMCELL defaultColor = 1;
 
     struct LineOverflow {
-        std::vector<MEMCELL> line;
+        std::vector<MEMCELL> line; // TODO add color ram, too
         MEMCELL lineLink;
     };
     std::vector<LineOverflow> overflowTop, overflowBottom;
@@ -271,5 +271,7 @@ protected:
     void drawCharPal(std::vector<uint8_t>& pixels, size_t x, size_t y, char32_t ch, uint8_t colText, uint8_t colBack, bool inverse);
     void drawSprPal(std::vector<uint8_t>& pixels, int64_t x, int64_t y, char32_t chimg, int8_t color);
     void drawLineContinuationPal(std::vector<uint8_t>& pixels, size_t yline);
-    uint8_t buddyColor(uint8_t colorindex);
+
+public:
+    static uint8_t buddyColor(uint8_t colorindex);
 };

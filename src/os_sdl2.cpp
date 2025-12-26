@@ -206,11 +206,21 @@ void ba67_push_sdl_textinput(const char* txt, bool withShift, bool withAlt, bool
 }
     #endif
 
-const bool OsSDL2::isKeyPressed(uint32_t index, bool withShift, bool withAlt, bool withCtrl) const {
+const bool OsSDL2::isKeyPressed(char32_t index, bool withShift, bool withAlt, bool withCtrl) const {
     auto peek = Os::peekKeyboardBuffer();
     if (peek.code == index && peek.holdAlt == withAlt && peek.holdShift == withShift && peek.holdCtrl == withCtrl) {
         return true;
     }
+
+    // find cached (even shifted) escape key in keyboard buffer
+    if (index == char32_t(KeyConstant::ESCAPE)) {
+        for (auto& k : keyboardBuffer) {
+            if (k.code == char32_t(KeyConstant::ESCAPE)) {
+                return true;
+            }
+        }
+    }
+
 
     const Uint8* state = SDL_GetKeyboardState(nullptr);
     SDL_Keycode key    = SDLKeyFromIndex(index);

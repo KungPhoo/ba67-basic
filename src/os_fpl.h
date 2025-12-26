@@ -20,7 +20,7 @@ private:
     void renderOpenGL();
 
 public:
-    const bool isKeyPressed(uint32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false) const override;
+    const bool isKeyPressed(char32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false) const override;
 
 
     std::string getClipboardData() override;

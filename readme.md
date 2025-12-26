@@ -1,29 +1,29 @@
 ﻿# BA67 - 80s BASIC Interpreter
 Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
 
-## Contents
+# Contents
 <!-- do not edit TOC_START and TOC_END lines. -->
 <!-- See markdown_parser.h -->
 <!-- TOC_START -->
-  - [Contents](#contents)
-  - [About](#about)
+- [Contents](#contents)
+- [About](#about)
   - [Goal](#goal)
-  - [Syntax](#syntax)
-    - [Case Sensitive](#case-sensitive)
-    - [Spacing](#spacing)
-    - [Quotes](#quotes)
-  - [Editor](#editor)
+- [Syntax](#syntax)
+  - [Case Sensitive](#case-sensitive)
+  - [Spacing](#spacing)
+  - [Quotes](#quotes)
   - [Numbers](#numbers)
   - [Unicode](#unicode)
   - [Variables](#variables)
-  - [Files](#files)
-    - [Filesystem](#filesystem)
-    - [Supported file formats](#supported-file-formats)
-    - [D64 file storage](#d64-file-storage)
-    - [Cloud file storage](#cloud-file-storage)
-    - [boot.bas](#boot-bas)
-    - [PETCAT](#petcat)
-  - [Keywords, Commands, Functions](#keywords--commands--functions)
+- [Files](#files)
+  - [Filesystem](#filesystem)
+  - [Supported file formats](#supported-file-formats)
+  - [D64 file storage](#d64-file-storage)
+  - [Cloud file storage](#cloud-file-storage)
+  - [boot.bas](#boot-bas)
+  - [PETCAT](#petcat)
+- [Editor](#editor)
+- [Keywords, Commands, Functions](#keywords--commands--functions)
   - [Commands and Keywords](#commands-and-keywords)
     - [ABOUT](#about)
     - [AUTO](#auto)
@@ -158,7 +158,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
 
-## About
+# About
 BA67 (pronounced BASIC SEVEN) is a standalone BASIC interpreter,
 that can be used as a daily tool on a personal computer.
 
@@ -252,15 +252,15 @@ effects, DrPetter's SFXR is used. See [PLAY](#play) and
 [SOUND](#sound).
 
 -------------------------------------------------------------
-## Syntax
+# Syntax
 This interpreter tries to imitate and extend
 COMMODORE's BASIC V7.
 
-### Case Sensitive
+## Case Sensitive
 The parser is case sensitive, but the line input uppercases
 everything outside of quotes for convenience.
 
-### Spacing
+## Spacing
 Keywords must be separated with spaces, operators or braces.
 The COMMODORE allowed `LETTER=1`, which was interpreted as
 `LET TER=1` instead of `LET LETTER=1`. Also `PRINT LETTER`
@@ -275,7 +275,7 @@ automatically. Attention: This might cause lines to be
 longer than 80 characters - which is not supported by the
 8 bit computers.
 
-### Quotes
+## Quotes
 You can use double and single quotes. This way it's easier
 You can use double and single quotes. This way it's easier
 to use quotes in a string. The following is perfectly legal:
@@ -288,43 +288,6 @@ PRINT 'but: "double quotes" is, too.'
 
 In BASIC V7.0, only double quotes are accepted. To escape
 these, you'd have to print `CHR$(34)`.
-
--------------------------------------------------------------
-## Editor
-The editor imitates the C64/C128 text editor. Use the `ESC`
-key to abort a program execution or the listing of `CATALOG`
-or `LIST`.
-
-The editor retains a scroll-back history of off-screen lines,
-which you can scroll through.
-It is cleared by RUN or by printing a screen-clear character.
-
-The F1 .. F12 keys are pre-assigned with some BASIC keywords
-and can be configured using the KEY command.
-
-Use Alt+INS key to toggle between insert mode and overwrite
-mode. Use the INS key alone to insert a single character
-space.
-
-When you press `CTRL+1..8` or `SHIFT+CTRL+1..8`, a special
-character is printed, that advices the interpreter to change
-the text color.
-Pressing `ALT+CRSR` or `ALT+HOME` prints a character that
-moves the cursor.
-
-`ALT+END` is a character to clear the screen.
-
-Annex D shows the list of control characters.
-
-The Scroll Lock and the Shift keys can be used to pause
-commands, that list large texts to the screen. Try the `LIST`
-command or `CATALOG` on large directories.
-
-When you press Ctrl+'.', the BA67 starts the emoji-panel
-program if it can find it. Here you can pick an emoji or
-Unicode character and insert it at the current cursor
-position. You can find that program as well on
-[github](https://github.com/KungPhoo/stdout-emoji-panel).
 
 
 -------------------------------------------------------------
@@ -385,8 +348,8 @@ In CBM BASIC, the variable `TI, TIME` and `TIMER`, even
 You need to manually adjust the code.
 
 -------------------------------------------------------------
-## Files
-### Filesystem
+# Files
+## Filesystem
 Internally, the file system is no case sensitive. Even on
 operating systems that are! So you can load "GAME.BAS", even
 if the file is names "game.bas" on the drive. Same goes for
@@ -395,7 +358,7 @@ overwriting existing files.
 In most cases you can use wildcard characters `*` and `?`
 for loading existing files.
 
-### Supported file formats
+## Supported file formats
 BA67 can load .prg files from the C64 (BASIC V2)and
 C128 (BASIC 7.0) natively. The filename foe `QSAVE` is
 changed to a '.bas' file extension, though, since some
@@ -415,7 +378,7 @@ as your development format!), the Unicode characters in
 strings are mapped back to PETSCII. See [Annex G](#annex)
 for details.
 
-### D64 file storage
+## D64 file storage
 Using `CHDIR "filename.d64` you can use a D64 file as if
 it was a directory. You can load ans save files to the d64
 disk. Beware, the support is very limited. Some files will
@@ -429,7 +392,7 @@ BASIC file format. You might lose data from your BA67 file
 because not all Unicode code points can be converted,
 obviously.
 
-### Cloud file storage
+## Cloud file storage
 With `CLOUD` you can specify a web server, that BA67 can use
 as a remote drive. There are no subdirectories on a cloud
 storage.
@@ -437,7 +400,7 @@ You simply `CHDIR "CLOUD"` to navigate the current directory
 to the previously defined cloud storage.
 See the [CLOUD](#cloud) command for details.
 
-### boot.bas
+## boot.bas
 The C++ class that derives from the C++ class `Os` should
 set the start directory to a location, where BASIC programs
 are to be saved.
@@ -452,7 +415,7 @@ adjust the `KEY` shortcuts etc.
 The interpreter can load files without line numbers and will
 numerate them automatically.
 
-### PETCAT
+## PETCAT
 !! TODO do not use this anymore - BA67 can load .prg files !!
 
 If you add the line number 1 and start with the comment
@@ -471,7 +434,47 @@ Don't forget to backup and remove line `1` before saving.
 See [Annex G](#annex) for mapping PETSCII to Unicode.
 
 -------------------------------------------------------------
-## Keywords, Commands, Functions
+# Editor
+The editor imitates the C64/C128 text editor. Use the `ESC`
+key to abort a program execution or the listing of `CATALOG`
+or `LIST`.
+
+The editor retains a scroll-back history of off-screen lines,
+which you can scroll through.
+It is cleared by RUN or by printing a screen-clear character.
+
+The F1 .. F12 keys are pre-assigned with some BASIC keywords
+and can be configured using the KEY command.
+
+Use Alt+INS key to toggle between insert mode and overwrite
+mode. Use the INS key alone to insert a single character
+space.
+
+When you press `CTRL+1..8` or `SHIFT+CTRL+1..8`, a special
+character is printed, that advices the interpreter to change
+the text color.
+Pressing `ALT+CRSR` or `ALT+HOME` prints a character that
+moves the cursor.
+
+`ALT+END` is a character to clear the screen.
+
+The `Pause` key saves the current state to a snapshot file.
+You can recover that state any time with `Shift-Pause`.
+
+Annex D shows the list of control characters.
+
+The Scroll Lock and the Shift keys can be used to pause
+commands, that list large texts to the screen. Try the `LIST`
+command or `CATALOG` on large directories.
+
+When you press Ctrl+'.', the BA67 starts the emoji-panel
+program if it can find it. Here you can pick an emoji or
+Unicode character and insert it at the current cursor
+position. You can find that program as well on
+[github](https://github.com/KungPhoo/stdout-emoji-panel).
+
+-------------------------------------------------------------
+# Keywords, Commands, Functions
 The following is a list of the BASIC hard-coded language
 tokens you can use to write programs. They are split in 3
 groups, where the first two can be considered as one - only
@@ -526,6 +529,7 @@ are case sensitive! Better only use uppercase letters.
 
 Attention: The does not work with `ON..GOTO/GOSUB` in
 CBM BASIC, so BA67 does not support it either.
+**Usage:** `REM COMMENT. --LABEL-- FOR BAKE`
 
 
 ### CATALOG
@@ -1232,7 +1236,6 @@ REM This is a comment
 ```
 
 ### REMODEL
-**Usage:** `REMODEL option, value`
 
 This is treated as a `REM` in classic BASIC, but BA67
 uses it to set internal options. The following options
@@ -1250,11 +1253,17 @@ are implemented:
 | COLORLIST | Syntax highlighting for LIST command        |
 +-----------+---------------------------------------------+
 
+If you omit the parameters, a list of all options and their
+current value will be printed.
+
+**Usage:** `REMODEL option, value`
+
 
 ### RENUMBER
+Renumbers the program lines.
+
 **Usage:** `RENUMBER [new__start, increment, old__start, milestone]`
 
-Renumbers the program lines.
 Where `new__start` specifies the first new line number to
 use. The `old__start` parameter is the first line of the
 current listing you want to start renumbering from.
@@ -1265,6 +1274,7 @@ you want to keep and restart incrementing from this
 number, then. The default is zero - no milestone.
 
 *DO SAVE YOUR WORK* before you renumber the listing.
+At least save a snapshot with the `Pause`-key .
 
 Please also see the [BAKE](#bake) command for using labels
 instead of line numbers.
@@ -2190,6 +2200,7 @@ memory address to display Unicode characters
 instead of PETSCII characters on the screen.
 
 These memory addresses are directly used:
+
 +--------------+---------------------------+
 | $00A0   (10) | Jiffy Clock               |
 +--------------+---------------------------+
@@ -2215,10 +2226,26 @@ These memory addresses are directly used:
 |              | foreground+16*background  |
 +--------------+---------------------------+
 
+
 See `kernal.h` for more used locations.
 
 See also Annex H for assembler routines.
 
+The memory address `$E48B` contains the string
+`BASIC V2` on the C64. On the C128, it's part
+of a routine that sends data to the serial bus.
+In BA67, the `BASIC V2` is overwritten with
+`BA67  V2`.
+
+Thus, peeking $E48D(58509) yields:
+
++-------+-------+-----+-----+------+------+
+| PLUS4 | VIC20 | PET | C64 | C128 | BA67 |
++-------+-------+-----+-----+------+------+
+| 0     | 255   | 249 | 83  |  173 | 54   |
++-------+-------+-----+-----+------+------+
+| $00   | $FF   | $F9 | $53 | $AD  | $36  |
++-------+-------+-----+-----+------+------+
 
 ## Z Known bugs
 `PRINT "X"; IF ` - no colon! but no error, yet

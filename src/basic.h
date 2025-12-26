@@ -519,9 +519,13 @@ public:
 
     void uppercaseProgram(std::string& line);
 
-    void printUtf8String(const char* utf8, const char* pend = nullptr, bool applyCtrlCodes = false);
-    inline void printUtf8String(const std::string& utf8, bool applyCtrlCodes = false) { printUtf8String(utf8.c_str(), utf8.c_str() + utf8.length(), applyCtrlCodes); }
-    void printUtf8String(std::string_view utf8, bool applyCtrlCodes = false) { printUtf8String(utf8.data(), utf8.data() + utf8.length(), applyCtrlCodes); }
+    void printUtf8String(const char* utf8, const char* pend = nullptr, bool applyCtrlCodes = false, bool ctrlInQuotes = false);
+    inline void printUtf8String(const std::string& utf8, bool applyCtrlCodes = false, bool ctrlInQuotes = false) {
+        printUtf8String(utf8.c_str(), utf8.c_str() + utf8.length(), applyCtrlCodes, ctrlInQuotes);
+    }
+    void printUtf8String(std::string_view utf8, bool applyCtrlCodes = false, bool ctrlInQuotes = false) {
+        printUtf8String(utf8.data(), utf8.data() + utf8.length(), applyCtrlCodes, ctrlInQuotes);
+    }
     // inline void printUtf8String(const char8_t* utf8, bool applyCtrlCodes = false) { printUtf8String((const char*)utf8, applyCtrlCodes); }
 
     enum class ParseStatus {

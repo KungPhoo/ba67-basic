@@ -316,95 +316,95 @@ void OsWindowsConsole::setCaretPos(int x, int y) {
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
 }
 
-const bool OsWindowsConsole::isKeyPressed(uint32_t index, bool withShift, bool withAlt, bool withCtrl) const {
+const bool OsWindowsConsole::isKeyPressed(char32_t index, bool withShift, bool withAlt, bool withCtrl) const {
     size_t bitmask = 0x8000;
     switch (index) {
-    case uint32_t(Os::KeyConstant::ESCAPE):
+    case char32_t(Os::KeyConstant::ESCAPE):
         index = VK_ESCAPE;
         break;
-    case uint32_t(Os::KeyConstant::RETURN):
+    case char32_t(Os::KeyConstant::RETURN):
         index = VK_RETURN;
         break;
-    case uint32_t(Os::KeyConstant::NUM_ENTER):
+    case char32_t(Os::KeyConstant::NUM_ENTER):
         index = VK_RETURN;
         break;
-    case uint32_t(Os::KeyConstant::F1):
+    case char32_t(Os::KeyConstant::F1):
         index = VK_F1;
         break;
-    case uint32_t(Os::KeyConstant::F2):
+    case char32_t(Os::KeyConstant::F2):
         index = VK_F2;
         break;
-    case uint32_t(Os::KeyConstant::F3):
+    case char32_t(Os::KeyConstant::F3):
         index = VK_F3;
         break;
-    case uint32_t(Os::KeyConstant::F4):
+    case char32_t(Os::KeyConstant::F4):
         index = VK_F4;
         break;
-    case uint32_t(Os::KeyConstant::F5):
+    case char32_t(Os::KeyConstant::F5):
         index = VK_F5;
         break;
-    case uint32_t(Os::KeyConstant::F6):
+    case char32_t(Os::KeyConstant::F6):
         index = VK_F6;
         break;
-    case uint32_t(Os::KeyConstant::F7):
+    case char32_t(Os::KeyConstant::F7):
         index = VK_F7;
         break;
-    case uint32_t(Os::KeyConstant::F8):
+    case char32_t(Os::KeyConstant::F8):
         index = VK_F8;
         break;
-    case uint32_t(Os::KeyConstant::F9):
+    case char32_t(Os::KeyConstant::F9):
         index = VK_F9;
         break;
-    case uint32_t(Os::KeyConstant::F10):
+    case char32_t(Os::KeyConstant::F10):
         index = VK_F10;
         break;
-    case uint32_t(Os::KeyConstant::F11):
+    case char32_t(Os::KeyConstant::F11):
         index = VK_F11;
         break;
-    case uint32_t(Os::KeyConstant::F12):
+    case char32_t(Os::KeyConstant::F12):
         index = VK_F12;
         break;
-    case uint32_t(Os::KeyConstant::HOME):
+    case char32_t(Os::KeyConstant::HOME):
         index = VK_HOME;
         break;
-    case uint32_t(Os::KeyConstant::END):
+    case char32_t(Os::KeyConstant::END):
         index = VK_END;
         break;
-    case uint32_t(Os::KeyConstant::PG_UP):
+    case char32_t(Os::KeyConstant::PG_UP):
         index = VK_PRIOR;
         break; // Page Up
-    case uint32_t(Os::KeyConstant::PG_DOWN):
+    case char32_t(Os::KeyConstant::PG_DOWN):
         index = VK_NEXT;
         break; // Page Down
-    case uint32_t(Os::KeyConstant::INSERT):
+    case char32_t(Os::KeyConstant::INSERT):
         index = VK_INSERT;
         break;
-    case uint32_t(Os::KeyConstant::DEL):
+    case char32_t(Os::KeyConstant::DEL):
         index = VK_DELETE;
         break;
-    case uint32_t(Os::KeyConstant::CRSR_UP):
+    case char32_t(Os::KeyConstant::CRSR_UP):
         index = VK_UP;
         break;
-    case uint32_t(Os::KeyConstant::CRSR_DOWN):
+    case char32_t(Os::KeyConstant::CRSR_DOWN):
         index = VK_DOWN;
         break;
-    case uint32_t(Os::KeyConstant::CRSR_LEFT):
+    case char32_t(Os::KeyConstant::CRSR_LEFT):
         index = VK_LEFT;
         break;
-    case uint32_t(Os::KeyConstant::CRSR_RIGHT):
+    case char32_t(Os::KeyConstant::CRSR_RIGHT):
         index = VK_RIGHT;
         break;
-    case uint32_t(Os::KeyConstant::SCROLL):
+    case char32_t(Os::KeyConstant::SCROLL):
         index   = VK_SCROLL;
         bitmask = 0x0001;
         break;
-    case uint32_t(Os::KeyConstant::PAUSE):
+    case char32_t(Os::KeyConstant::PAUSE):
         index = VK_PAUSE;
         break;
-    case uint32_t(Os::KeyConstant::SHIFT_LEFT):
+    case char32_t(Os::KeyConstant::SHIFT_LEFT):
         index = VK_LSHIFT;
         break;
-    case uint32_t(Os::KeyConstant::SHIFT_RIGHT):
+    case char32_t(Os::KeyConstant::SHIFT_RIGHT):
         index = VK_RSHIFT;
         break;
     }

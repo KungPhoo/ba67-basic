@@ -688,12 +688,22 @@ void OsFPL::updateEvents() {
     updateGamepadState();
 }
 
-const bool OsFPL::isKeyPressed(uint32_t index, bool withShift, bool withAlt, bool withCtrl) const {
+const bool OsFPL::isKeyPressed(char32_t index, bool withShift, bool withAlt, bool withCtrl) const {
     static fplKeyboardState keyboardState = {};
 
     if (!hasFocus) {
         return false;
     }
+
+    // find cached (even shifted) escape key in keyboard buffer
+    if (index == char32_t(KeyConstant::ESCAPE)) {
+        for (auto& k : keyboardBuffer) {
+            if (k.code == char32_t(KeyConstant::ESCAPE)) {
+                return true;
+            }
+        }
+    }
+
 
     static auto lastTick = tick();
     auto tickNow         = tick();

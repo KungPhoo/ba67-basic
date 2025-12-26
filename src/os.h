@@ -70,7 +70,7 @@ public:
 
 public:
     // --- KEYBOARD ---
-    enum class KeyConstant : uint32_t {
+    enum class KeyConstant : char32_t /* char32_t is unsigned */ {
         ESCAPE    = 27,
         BACKSPACE = '\b', // 8
         RETURN    = '\r', // 13
@@ -109,9 +109,9 @@ public:
         // no more than 255
     };
     // query non-blocking keyboard status. The index is either the Unicode code point
-    // one of KeyConstant.
-    virtual const bool isKeyPressed(uint32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false) const = 0;
-    virtual const bool isKeyPressed(KeyConstant k, bool withShift = false, bool withAlt = false, bool withCtrl = false) const { return isKeyPressed(uint32_t(k), withShift, withAlt, withCtrl); }
+    // or one of KeyConstant.
+    virtual const bool isKeyPressed(char32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false) const = 0;
+    virtual const bool isKeyPressed(KeyConstant k, bool withShift = false, bool withAlt = false, bool withCtrl = false) const { return isKeyPressed(char32_t(k), withShift, withAlt, withCtrl); }
 
     // check, if there is a character in the keyboard buffer.
     // (recursively) calls updateEvents()
@@ -122,7 +122,7 @@ public:
         KeyPress()                           = default;
         KeyPress(const KeyPress&)            = default;
         KeyPress& operator=(const KeyPress&) = default;
-        KeyPress(uint32_t character)
+        KeyPress(char32_t character)
             : KeyPress() {
             code      = character;
             printable = true;
