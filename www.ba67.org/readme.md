@@ -336,11 +336,11 @@ as non-array variables and are treated as separate variables.
 There are built-in variables, that will be updated before
 each statement is evaluated. These are:
 
-| Variable  |  Value                                                      |
-| --------- | ----------------------------------------------------------- |
-| TI        | current system time in 1/60 sec.                            |
-| TI$       | current time in format HHMMSS. (Can be set. Will affect TI) |
-| ST        | file I/O status (currently not set)                         |
+| Variable   |  Value                                                      |
+| ---------- | ----------------------------------------------------------- |
+| TI         | current system time in 1/60 sec.                            |
+| TI$        | current time in format HHMMSS. (Can be set. Will affect TI) |
+| ST, STATUS | file I/O status. Memory at address $0090(144)               |
 
 In CBM BASIC, the variable `TI, TIME` and `TIMER`, even 
 `TIMEGOESBYSOSLOWLY` are the same variable! When importing
@@ -858,10 +858,19 @@ the return stack in one of four ways:
     return stack.
 
 ### GET
-**Usage:** `GET a$ [, b$, ...]`
+**Usage:** `GET [file-number#, ] a$ [, b$, ...]`
 
-Gets a key press from the keyboard buffer. Will return
-an empty string, if the buffer is empty.
+Gets a key press from the keyboard buffer or a file.
+Will return an empty string, if the buffer is empty
+or the end of the file was reached. (ATTENTION: The
+original BASIC would repeat the last read character)
+You have to test the `STATUS` variable for the
+end-of-file indicator `STATUS AND 64` or any file
+error `STATUS <> 0`.
+
+Using a file indicator `#N,`, you can write
+to a file or the printer etc. See `OPEN` command.
+
 
 ### GO
 **Usage:** `GO 64`
@@ -932,9 +941,16 @@ IF X = 10 THEN PRINT "Hello"
 ```
 
 ### INPUT
-**Usage:** `INPUT var`
+**Usage:** `INPUT [file-number# , ] var [, var, ...]`
 
-Prompts for user input.
+Prompts for user input. You can use the file number
+to read strings from a file. The separators ,;: and 
+CHR$(13), CHR$(10) will break a string. The separators
+are not part of the returned strings.
+
+If the first character of the string is a quote ("),
+everything up to the newline character is read. The
+starting and ending quote characters are not returned.
 
 Example:
 ```basic
@@ -1086,7 +1102,7 @@ ON X GOTO 100, 200, 300
 ```
 
 ### OPEN
-**Usage:** `OPEN fileno, device=1, secondary=0, "filename , MODE_RW"`
+**Usage:** `OPEN fileno, device=1, secondary=0, "filename , FILETYPE , MODE_RW"`
 
 Opens a file for reading or writing.
 
@@ -1096,14 +1112,22 @@ The device has the following meanings:
 - 5: printer (print to stderr)
 
 The secondary parameter is currently only for backwards
-compatibility.
+compatibility and is ignored.
 
 When reading, wild-card characters are supported for the
 filename. The mode "R" for reading or "W"
 for writing must be part of the filename argument and
 separated from the file name with an comma character.
 
-Use `PRINT#1` to print to the opened fileno #1.
+Optional, you can specify a file type with a comma at
+the file name. The file type is appended to the file-
+path as the file extension, then. The following file
+extensions are supported: PRG, SEQ, USR and REL.
+Only the first character must be specified.
+
+REL files currently are not supported (random access files).
+
+Use `PRINT#1, "TEXT"` to print to the opened fileno #1.
 
 Don't forget to `CLOSE` the file afterwards.
 
@@ -1160,10 +1184,14 @@ POKE 1234, 128
 ```
 
 ### PRINT
-Outputs text or values to the screen. You can use special
-control characters. See the Annex D for more details.
+Outputs text or values to the screen or a device.
+You can use special control characters.
+See the Annex D for more details.
 
-**Usage:** `PRINT expr [[,|;| ] expr ...]`
+Using a file indicator `#N,`, you can write
+to a file or the printer etc. See `OPEN` command.
+
+**Usage:** `PRINT [file-number#, ] expr [[,|;| ] expr ...]`
 
 Example:
 ```basic
@@ -2201,30 +2229,32 @@ instead of PETSCII characters on the screen.
 
 These memory addresses are directly used:
 
-+--------------+---------------------------+
-| $00A0   (10) | Jiffy Clock               |
-+--------------+---------------------------+
-| $00C6        | NDX Number of Characters  |
-|              | in Keyboard Buffer (Queue)|
-+--------------+---------------------------+
-| $00D9  (217) | Line Link Table           |
-|              |                           |
-|              | each line has 0 or 0x80   |
-|              | to indicate it belongs    |
-|              | to the previous line.     |
-|              |                           |
-|              | Compatible with C64.      |
-|              | C128 does this at         |
-|              | $035E-$0361 bits.         |
-+--------------+---------------------------+
-| $0277        | Keyboard buffer (9 bytes) |
-+--------------+---------------------------+
-| $0400 (2048) | Screen characters (80x25!)|
-+--------------+---------------------------+
-| $D800(55296) | Color Ram                 |
-|              |                           |
-|              | foreground+16*background  |
-+--------------+---------------------------+
++--------------+--------------------------------------+
+| $00A0   (10) | Jiffy Clock                          |
++--------------+--------------------------------------+
+| $0090  (144) | STATUS BASIC Variable ST and STATUS  |
++--------------+--------------------------------------+
+| $00C6        | NDX Number of Characters             |
+|              | in Keyboard Buffer (Queue)           |
++--------------+--------------------------------------+
+| $00D9  (217) | Line Link Table                      |
+|              |                                      |
+|              | each line has 0 or 0x80              |
+|              | to indicate it belongs               |
+|              | to the previous line.                |
+|              |                                      |
+|              | Compatible with C64.                 |
+|              | C128 does this at                    |
+|              | $035E-$0361 bits.                    |
++--------------+--------------------------------------+
+| $0277        | Keyboard buffer (9 bytes)            |
++--------------+--------------------------------------+
+| $0400 (2048) | Screen characters (80x25!)           |
++--------------+--------------------------------------+
+| $D800(55296) | Color Ram                            |
+|              |                                      |
+|              | foreground+16*background             |
++--------------+--------------------------------------+
 
 
 See `kernal.h` for more used locations.

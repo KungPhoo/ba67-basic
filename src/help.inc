@@ -21,14 +21,14 @@
 ,{"FAST", R"RAW(FAST)RAW"}
 ,{"FIND", R"RAW(FIND "print*hello world")RAW"}
 ,{"FOR", R"RAW(FOR var = start TO end [STEP increment])RAW"}
-,{"GET", R"RAW(GET a$ [, b$, ...])RAW"}
+,{"GET", R"RAW(GET [file-number#, ] a$ [, b$, ...])RAW"}
 ,{"GO", R"RAW(GO 64)RAW"}
 ,{"GRAPHIC", R"RAW(GRAPHIC mode5)RAW"}
 ,{"GOSUB", R"RAW(GOSUB line)RAW"}
 ,{"GOTO", R"RAW(GOTO line)RAW"}
 ,{"HELP", R"RAW(HELP command)RAW"}
 ,{"IF", R"RAW(IF condition THEN statement|line_number_)RAW"}
-,{"INPUT", R"RAW(INPUT var)RAW"}
+,{"INPUT", R"RAW(INPUT [file-number# , ] var [, var, ...])RAW"}
 ,{"KEY", R"RAW(KEY [index, string])RAW"}
 ,{"LET", R"RAW(LET var = expr)RAW"}
 ,{"LIST", R"RAW(LIST [from][-][to][MODULE])RAW"}
@@ -39,10 +39,10 @@
 ,{"NETGET", R"RAW(NETGET url$, c$)RAW"}
 ,{"NEXT", R"RAW(NEXT [var])RAW"}
 ,{"ON", R"RAW(ON expr GOTO/GOSUB line1, line2, ...)RAW"}
-,{"OPEN", R"RAW(OPEN fileno, device=1, secondary=0, "filename , MODE_RW")RAW"}
+,{"OPEN", R"RAW(OPEN fileno, device=1, secondary=0, "filename , FILETYPE , MODE_RW")RAW"}
 ,{"PLAY", R"RAW(PLAY ABC_notation$)RAW"}
 ,{"POKE", R"RAW(POKE address, value)RAW"}
-,{"PRINT", R"RAW(PRINT expr [[,|;| ] expr ...])RAW"}
+,{"PRINT", R"RAW(PRINT [file-number#, ] expr [[,|;| ] expr ...])RAW"}
 ,{"PRINT USING", R"RAW(PRINT USING format; expr [, expr ...])RAW"}
 ,{"QUIT", R"RAW(QUIT)RAW"}
 ,{"QSAVE", R"RAW(QSAVE)RAW"}

@@ -645,50 +645,85 @@ void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     int64_t device    = intparams[1];
     int64_t secondary = intparams[2];
 
-    if (ifile < 1 || size_t(ifile) >= basic->openFiles.size()) {
+    if (ifile < 1 || size_t(ifile) >= basic->fileHandles.size()) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
     // file slot is already open
-    if (basic->openFiles[ifile]) {
+    if (basic->fileHandles[ifile]) {
         {
+            basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
             throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
         }
     }
 
     // printer -> stdout and stderr
     if (device == 4 || device == 5) {
-        basic->openFiles[ifile].openStdOut();
+        basic->fileHandles[ifile].openStdOut();
     } else {
         // assume disk device
         const char* iomode = "r";
-        std::string path   = basic->valueToString(values[2]); // "name*, R", "name, W"
-        size_t comma       = path.rfind(',');
-        if (comma != std::string::npos) {
-            std::string strmode = path.substr(comma + 1);
-            path                = path.substr(0, comma);
-            StringHelper::trimRight(path, " ");
-            StringHelper::trimLeft(strmode, " ");
-            if (strmode.empty()) {
+
+        std::string filepath(path);
+        // std::string filepath   = basic->valueToString(values[2]); // "name*, R", "name, W"
+
+
+        std::string fileExt = "";
+        for (int iComma = 0; iComma < 2; ++iComma) {
+            size_t comma = filepath.rfind(',');
+            if (comma == std::string::npos) {
+                break;
+            }
+
+            std::string strpara = filepath.substr(comma + 1);
+            filepath            = filepath.substr(0, comma);
+            StringHelper::trimRight(filepath, " ");
+            StringHelper::trimLeft(strpara, " ");
+            if (strpara.empty()) {
                 throw Basic::Error(Basic::ErrorId::SYNTAX);
             }
-            if (strmode[0] == 'r' || strmode[0] == 'R') {
-                iomode = "r";
-                path   = basic->os->findFirstFileNameWildcard(path);
-            } else if (strmode[0] == 'w' || strmode[0] == 'W') {
-                iomode = "w";
-            } else {
-                throw Basic::Error(Basic::ErrorId::INTERNAL);
+
+            switch (iComma) {
+            case 1: // TYPE PRG,SEQ,USR,REL
+            {
+                char t = char(Unicode::toUpperAscii(char32_t(strpara[0])));
+                switch (t) {
+                case 'P': fileExt = ".PRG"; break;
+                case 'S': fileExt = ".SEQ"; break;
+                case 'U': fileExt = ".USR"; break;
+                case 'R': fileExt = ".REL"; break;
+                default:
+                    throw Basic::Error(Basic::ErrorId::SYNTAX);
+                }
+
+                filepath += fileExt;
+                break;
+            }
+            case 0: // MODE R/W/A/M
+                if (strpara[0] == 'r' || strpara[0] == 'R') {
+                    iomode = "r";
+                } else if (strpara[0] == 'w' || strpara[0] == 'W') {
+                    iomode = "w";
+                } else {
+                    basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
+                    throw Basic::Error(Basic::ErrorId::INTERNAL);
+                }
+                break;
             }
         }
 
-        basic->openFiles[ifile].open(path, iomode);
+        if (iomode[0] == 'r' || iomode[0] == 'a') {
+            filepath = basic->os->findFirstFileNameWildcard(filepath);
+        }
+
+        basic->fileHandles[ifile].open(filepath, iomode);
     }
 
 
-
-    if (!basic->openFiles[ifile]) {
+    if (!basic->fileHandles[ifile]) {
+        basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
         throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
     }
+    basic->memory[krnl.STATUS] = Basic::FS_OK;
 }
 
 void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
@@ -697,15 +732,23 @@ void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 
     int64_t ifile = basic->valueToInt(values[0]);
-    if (ifile < 1 || size_t(ifile) >= basic->openFiles.size()) {
+    if (ifile < 1 || size_t(ifile) >= basic->fileHandles.size()) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
-    if (!basic->openFiles[ifile]) {
+    if (!basic->fileHandles[ifile]) {
         {
+            basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
             throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
         }
     }
-    basic->openFiles[ifile].close();
+    basic->fileHandles[ifile].close();
+    basic->memory[krnl.STATUS] = Basic::FS_OK;
+    basic->currentFileNo       = 0;
+
+    // TODO currentFileNo should not be a member variable at all
+    if (basic->currentFileNo == ifile) {
+        basic->currentFileNo = 0;
+    }
 }
 
 void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
@@ -1451,7 +1494,11 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memory[0xE48F] = ' ';
 
 
-#if defined(_DEBUG)
+    // ST
+    memory[krnl.STATUS] = Basic::FS_OK;
+
+
+#if 0 // defined(_DEBUG)
     auto savemem = [&](size_t from, size_t len, std::string path) {
         std::vector<uint8_t> by(len);
         for (size_t n = 0; n < len; ++n) {
@@ -1471,7 +1518,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     os->screen.initMemory(&memory[0]);
 
     for (int i = 0; i < 256; ++i) {
-        openFiles.emplace_back(FilePtr(os));
+        fileHandles.emplace_back(FilePtr(os));
     }
 
     Module mainmodule;
@@ -2930,10 +2977,12 @@ void Basic::doPrintValue(Value& v) {
 
 void Basic::handlePRINT(const std::vector<Token>& tokens) {
     size_t istart = 1;
+
+    currentFileNo = 0;
     if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
         currentFileNo = strToInt(tokens[1].value);
         // tokens.erase(tokens.begin() + 1);
-        ++istart;
+        istart += 2; // handle and comma
     }
 
     if (tokens.size() < 1 + istart) {
@@ -3128,8 +3177,21 @@ void Basic::handlePRINT_USING(const std::vector<Token>& tokens) {
 }
 
 void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
+
+    size_t istart = 1;
+    currentFileNo = 0;
+    if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
+        currentFileNo = strToInt(tokens[1].value);
+        istart += 2; // handle and comma
+    }
+
+    if (currentFileNo != 0) {
+        memory[krnl.STATUS] = Basic::FS_OK;
+    }
+
     bool firstInput = true;
-    for (size_t itk = 1; itk < tokens.size(); ++itk) {
+    std::string str;
+    for (size_t itk = istart; itk < tokens.size(); ++itk) {
         auto& tk = tokens[itk];
         if (tk.type != TokenType::COMMA) {
             Value* pval = findLeftValue(currentModule(), tokens, itk, &itk);
@@ -3137,73 +3199,84 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
                 throw Error(ErrorId::SYNTAX);
             }
 
-            Os::KeyPress key {};
-            if (waitForKeypress) {
-                key = os->getFromKeyboardBuffer();
-                handleEscapeKey();
-            } else {
-                if (os->keyboardBufferHasData()) {
-                    key = os->getFromKeyboardBuffer();
-                }
-            }
+            str.clear();
 
-            std::string str;
-            if (key.printable) {
-                if (options.uppercaseInput) {
-                    key.code = Unicode::toUpper(key.code);
+            if (currentFileNo == 0) {
+                Os::KeyPress key {};
+                if (waitForKeypress) {
+                    key = os->getFromKeyboardBuffer();
+                    handleEscapeKey();
+                } else {
+                    if (os->keyboardBufferHasData()) {
+                        key = os->getFromKeyboardBuffer();
+                    }
                 }
-                Unicode::appendAsUtf8(str, key.code);
-            } else {
-                // https://www.commodore.ca/manuals/128_system_guide/app-i.htm
-                switch (key.code) {
-                case uint32_t(Os::KeyConstant::CRSR_LEFT):
-                    Unicode::appendAsUtf8(str, 0x009d);
-                    break; // L    157 9d
-                case uint32_t(Os::KeyConstant::CRSR_RIGHT):
-                    Unicode::appendAsUtf8(str, 0x001d);
-                    break; // R     29 1d
-                case uint32_t(Os::KeyConstant::CRSR_UP):
-                    Unicode::appendAsUtf8(str, 0x0091);
-                    break; // U    145 91
-                case uint32_t(Os::KeyConstant::CRSR_DOWN):
-                    Unicode::appendAsUtf8(str, 0x0011);
-                    break; // D     17 11
-                case uint32_t(Os::KeyConstant::F1):
-                    Unicode::appendAsUtf8(str, 0x0085);
-                    break; // F1   133 85
-                case uint32_t(Os::KeyConstant::F2):
-                    Unicode::appendAsUtf8(str, 0x0086);
-                    break;
-                case uint32_t(Os::KeyConstant::F3):
-                    Unicode::appendAsUtf8(str, 0x0087);
-                    break;
-                case uint32_t(Os::KeyConstant::F4):
-                    Unicode::appendAsUtf8(str, 0x0088);
-                    break;
-                case uint32_t(Os::KeyConstant::F5):
-                    Unicode::appendAsUtf8(str, 0x0089);
-                    break;
-                case uint32_t(Os::KeyConstant::F6):
-                    Unicode::appendAsUtf8(str, 0x008a);
-                    break;
-                case uint32_t(Os::KeyConstant::F7):
-                    Unicode::appendAsUtf8(str, 0x008b);
-                    break;
-                case uint32_t(Os::KeyConstant::F8):
-                    Unicode::appendAsUtf8(str, 0x008c);
-                    break; // F8   140 8c
-                case uint32_t(Os::KeyConstant::HOME):
-                    Unicode::appendAsUtf8(str, 0x0093);
-                    break; // home 147 93
-                case uint32_t(Os::KeyConstant::DEL):
-                    Unicode::appendAsUtf8(str, 0x0014);
-                    break; // delete   20 14
-                case uint32_t(Os::KeyConstant::ESCAPE):
-                    Unicode::appendAsUtf8(str, 0x001b);
-                    break; // ESC   27 1b
-                case 0x00a3:
-                    Unicode::appendAsUtf8(str, 0x005c);
-                    break; // pound Unicode 163
+                if (key.printable) {
+                    if (options.uppercaseInput) {
+                        key.code = Unicode::toUpper(key.code);
+                    }
+                    Unicode::appendAsUtf8(str, key.code);
+                } else {
+                    // https://www.commodore.ca/manuals/128_system_guide/app-i.htm
+                    switch (key.code) {
+                    case uint32_t(Os::KeyConstant::CRSR_LEFT):
+                        Unicode::appendAsUtf8(str, 0x009d);
+                        break; // L    157 9d
+                    case uint32_t(Os::KeyConstant::CRSR_RIGHT):
+                        Unicode::appendAsUtf8(str, 0x001d);
+                        break; // R     29 1d
+                    case uint32_t(Os::KeyConstant::CRSR_UP):
+                        Unicode::appendAsUtf8(str, 0x0091);
+                        break; // U    145 91
+                    case uint32_t(Os::KeyConstant::CRSR_DOWN):
+                        Unicode::appendAsUtf8(str, 0x0011);
+                        break; // D     17 11
+                    case uint32_t(Os::KeyConstant::F1):
+                        Unicode::appendAsUtf8(str, 0x0085);
+                        break; // F1   133 85
+                    case uint32_t(Os::KeyConstant::F2):
+                        Unicode::appendAsUtf8(str, 0x0086);
+                        break;
+                    case uint32_t(Os::KeyConstant::F3):
+                        Unicode::appendAsUtf8(str, 0x0087);
+                        break;
+                    case uint32_t(Os::KeyConstant::F4):
+                        Unicode::appendAsUtf8(str, 0x0088);
+                        break;
+                    case uint32_t(Os::KeyConstant::F5):
+                        Unicode::appendAsUtf8(str, 0x0089);
+                        break;
+                    case uint32_t(Os::KeyConstant::F6):
+                        Unicode::appendAsUtf8(str, 0x008a);
+                        break;
+                    case uint32_t(Os::KeyConstant::F7):
+                        Unicode::appendAsUtf8(str, 0x008b);
+                        break;
+                    case uint32_t(Os::KeyConstant::F8):
+                        Unicode::appendAsUtf8(str, 0x008c);
+                        break; // F8   140 8c
+                    case uint32_t(Os::KeyConstant::HOME):
+                        Unicode::appendAsUtf8(str, 0x0093);
+                        break; // home 147 93
+                    case uint32_t(Os::KeyConstant::DEL):
+                        Unicode::appendAsUtf8(str, 0x0014);
+                        break; // delete   20 14
+                    case uint32_t(Os::KeyConstant::ESCAPE):
+                        Unicode::appendAsUtf8(str, 0x001b);
+                        break; // ESC   27 1b
+                    case 0x00a3:
+                        Unicode::appendAsUtf8(str, 0x005c);
+                        break; // pound Unicode 163
+                    }
+                }
+
+            } else { // read from file
+                auto& fp       = fileHandles[currentFileNo];
+                char buffer[4] = { 0, 0, 0, 0 };
+                if (fp.read(&buffer[0], 1) == 1) {
+                    str = buffer;
+                } else {
+                    memory[krnl.STATUS] = Basic::FS_EOF;
                 }
             }
 
@@ -3223,7 +3296,90 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
     }
 }
 
+// INPUT from file
+void Basic::handleINPUTFile(const std::vector<Token>& tokens) {
+    currentFileNo = 0;
+    currentFileNo = strToInt(tokens[1].value);
+    size_t istart = 3; // INPUT handle and comma
+
+    auto& fp = fileHandles[currentFileNo];
+    if (!fp) {
+        memory[krnl.STATUS] = Basic::FS_ERROR_READ;
+        throw Error(ErrorId::ILLEGAL_DEVICE);
+    }
+
+    if ((memory[krnl.STATUS] & Basic::FS_EOF) == 0) {
+        memory[krnl.STATUS] = Basic::FS_OK;
+    }
+
+    for (size_t itk = istart; itk < tokens.size(); ++itk) {
+        auto& tk = tokens[itk];
+        if (tk.type != TokenType::COMMA && tk.type != TokenType::OPERATOR) {
+            Value* pval = findLeftValue(currentModule(), tokens, itk, &itk);
+            if (pval == nullptr) {
+                throw Error(ErrorId::SYNTAX);
+            }
+
+            char firstChar = '\0';
+            std::string s;
+            if (memory[krnl.STATUS] & Basic::FS_EOF) {
+                // CBM BASIC sets ST to EOF after the last read.
+                // if there is no more data, it adds the ERROR_READ flag
+                // the last read string is repeatedly returned, though.
+                // I decided to return an empty string instead.
+                memory[krnl.STATUS] |= Basic::FS_ERROR_READ;
+            } else {
+                for (;;) {
+                    char buffer[4] = { 0, 0, 0, 0 };
+                    if (!(fp.read(&buffer[0], 1) == 1)) {
+                        memory[krnl.STATUS] |= Basic::FS_EOF;
+                        buffer[0] = '\0';
+                    }
+
+                    if (s.empty()) {
+                        firstChar = buffer[0];
+                        if (firstChar == '\"') {
+                            continue;
+                        }
+                    }
+
+                    if (
+                        firstChar != '\"' && (buffer[0] == ',' || buffer[0] == ';' || buffer[0] == ':')
+                        || buffer[0] == '\0'
+                        || buffer[0] == '\r'
+                        || buffer[0] == '\n') {
+                        break;
+                    }
+                    s += buffer;
+                }
+                // trim closing quotes when started with quotes
+                if (firstChar == '\"' && s.ends_with("\"")) {
+                    s = s.substr(0, s.length() - 1);
+                }
+            }
+
+            switch (tk.valuePostfix()) {
+            case '%':
+                *pval = valueToInt(s);
+                break;
+            case '$':
+                *pval = s;
+                break;
+            default:
+            case '#':
+                *pval = valueToDouble(s);
+                break;
+            }
+        }
+    }
+}
+
 void Basic::handleINPUT(const std::vector<Token>& tokens) {
+    if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
+        handleINPUTFile(tokens);
+        return;
+    }
+
     bool firstInput = true;
     for (size_t itk = 1; itk < tokens.size(); ++itk) {
         auto& tk = tokens[itk];
@@ -3798,13 +3954,16 @@ Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tok
         }
 
         const std::string_view variableName = tokens[i].value;
-        const std::string_view svTI("TI");
-        if (variableName.starts_with(svTI)) { //  TI or TI$
+        static const std::string_view svTI("TI");
+        static const std::string_view svTI$("TI$");
+        static const std::string_view svST("ST");
+        static const std::string_view svSTATUS("STATUS");
+        if (variableName == svTI || variableName == svTI$) { //  TI or TI$
             int64_t ti_ms = os->tick() - time0;
             int64_t ti    = int64_t((ti_ms) * 60LL) / 1000LL; // jiffies
             TIvariable    = Basic::Value(ti);
 
-            if (variableName == "TI$") {
+            if (variableName == svTI$) {
                 int64_t secs  = ti_ms / 1000;
                 int64_t mins  = secs / 60;
                 int64_t hours = mins / 60;
@@ -3824,9 +3983,10 @@ Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tok
             // #error not working ti$="000100":?ti$
 
             return &TIvariable; // jiffies (1/60th seconds)
+        } else if (variableName == svST || variableName == svSTATUS) {
+            STvariable = int64_t(memory[krnl.STATUS]);
+            return &STvariable;
         }
-
-
 
         auto varit = module.findOrCreateVariable(variableName);
         return &varit->second;
@@ -4586,7 +4746,7 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
 
         os->presentScreen();
     } else {
-        auto& pf = openFiles[currentFileNo];
+        auto& pf = fileHandles[currentFileNo];
         if (!pf) {
             currentFileNo = 0;
             throw Error(ErrorId::ILLEGAL_DEVICE);

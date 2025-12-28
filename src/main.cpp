@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
 
 
     basic.runInterpreter();
-    return 0;
+    return int(basic.memory[krnl.STATUS]);
 }
 
 void printfHelp() {

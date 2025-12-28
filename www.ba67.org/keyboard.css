@@ -1,0 +1,72 @@
+@font-face {font-family: BA67; src: url("BA67-square.woff2");}
+
+.keyboard {
+    position: fixed;
+    bottom: 0px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    width: 100vw;
+    /* start hidden*/
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(300px);
+    transition: max-height 0.5s ease, opacity 0.5s ease, transform 0.5s ease;
+}
+
+    .keyboard.visible {
+        max-height: 9999px; /* large enough to fit your content */
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+.key {
+    touch-action: manipulation; /* prevent double-tap to zoom */
+}
+
+/*
+from https://upload.wikimedia.org/wikipedia/commons/8/8d/Commodore-128.png
+normal keys:
+#4d4541 - text
+#f8f8f8 - top
+#b9b5b0 - side
+
+function keys
+#3f3939 - text
+#b3b0ac - top
+#938c85 - side
+
+gaps
+#1d130e
+*/
+
+
+.keyboard button {
+    font-family: BA67,'Segoe UI Symbol','Noto Emoji Regular','Noto Emoji Regular','Arial Unicode MS',Arial; font-size: 4vw; width: 10vw;
+    height: 10vw;
+    padding: 0;
+    border: 1px solid #1d130e;
+    color: #4d4541;
+    background: #f8f8f8;
+    cursor: pointer;
+}
+
+.keyboard button:hover {
+    text-shadow: 0 0 4px #1d1d1d;
+    background: #ebebe9;
+}
+/*pressed*/
+.keyboard button:active {
+    background: #b9b5b0;
+}
+
+/*toggled*/
+.keyboard button.active {
+    color: #3f3939;
+    background: #b3b0ac;
+}
+/*toggled+pressed*/
+.keyboard button.active:active {
+    background: #938c85;
+}

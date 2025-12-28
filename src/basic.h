@@ -230,6 +230,7 @@ public:
 
     Value TIvariable;
     Value TI$variable;
+    Value STvariable;
     uint64_t time0; // time to subtract from tick() to get TI.
 
     // Arrays
@@ -341,9 +342,16 @@ public:
     };
 
     // Files
-    std::vector<FilePtr> openFiles;
+    std::vector<FilePtr> fileHandles;
     size_t currentFileNo = 0;
-
+    // memory[krnl.STATUS]
+    enum FileStatus {
+        FS_OK           = 0,
+        FS_ERROR_WRITE  = 1, // TODO OK?
+        FS_ERROR_READ   = 2,
+        FS_EOF          = 64,
+        FS_DEVICE_ERROR = 128,
+    };
 
 
     // Modules
@@ -480,6 +488,11 @@ protected:
     void handlePRINT(const std::vector<Token>& tokens);
     void handlePRINT_USING(const std::vector<Token>& tokens);
     void handleGET(const std::vector<Token>& tokens, bool waitForKeypress);
+
+private:
+    void handleINPUTFile(const std::vector<Token>& tokens);
+
+protected:
     void handleINPUT(const std::vector<Token>& tokens);
     void handleNETGET(const std::vector<Token>& tokens);
     void handleDIM(const std::vector<Token>& tokens);
@@ -519,6 +532,7 @@ public:
 
     void uppercaseProgram(std::string& line);
 
+    // print to current device
     void printUtf8String(const char* utf8, const char* pend = nullptr, bool applyCtrlCodes = false, bool ctrlInQuotes = false);
     inline void printUtf8String(const std::string& utf8, bool applyCtrlCodes = false, bool ctrlInQuotes = false) {
         printUtf8String(utf8.c_str(), utf8.c_str() + utf8.length(), applyCtrlCodes, ctrlInQuotes);
@@ -527,6 +541,8 @@ public:
         printUtf8String(utf8.data(), utf8.data() + utf8.length(), applyCtrlCodes, ctrlInQuotes);
     }
     // inline void printUtf8String(const char8_t* utf8, bool applyCtrlCodes = false) { printUtf8String((const char*)utf8, applyCtrlCodes); }
+
+
 
     enum class ParseStatus {
         PS_ERROR = 0,
