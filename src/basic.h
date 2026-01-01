@@ -230,7 +230,8 @@ public:
 
     Value TIvariable;
     Value TI$variable;
-    Value STvariable;
+    Value STvariable; // set with memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
+
     uint64_t time0; // time to subtract from tick() to get TI.
 
     // Arrays

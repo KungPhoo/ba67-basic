@@ -5,6 +5,8 @@
 ,{"AUTO", R"RAW(AUTO [n])RAW"}
 ,{"BAKE", R"RAW(BAKE)RAW"}
 ,{"BAKE", R"RAW(REM COMMENT. --LABEL-- FOR BAKE)RAW"}
+,{"BLOAD", R"RAW(BLOAD filename$, address)RAW"}
+,{"BSAVE", R"RAW(BSAVE filename$, startAddress, endAddress+1)RAW"}
 ,{"CATALOG", R"RAW(CATALOG [filter$])RAW"}
 ,{"CLOSE", R"RAW(CLOSE fileno)RAW"}
 ,{"CLR", R"RAW(CLR)RAW"}

@@ -571,6 +571,7 @@ void cmdSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->currentModule().filenameQSAVE = filename;
 }
 
+
 void cmdQSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 0) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -585,6 +586,58 @@ void cmdQSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->printUtf8String("\" \n");
     cmdSAVE(basic, { filename });
 }
+
+
+void cmdBLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() != 3) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    std::string path     = basic->valueToString(values[0]);
+    int64_t startAddress = basic->valueToInt(values[2]);
+
+
+    FilePtr file(basic->os);
+    file.open(path, "rb");
+    if (!file) {
+        basic->memory[krnl.STATUS] = Basic::FS_ERROR_READ;
+        throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
+    }
+    auto bytes = file.readAll();
+    file.close();
+
+    for (size_t i = 0; i < bytes.size(); ++i) {
+        if (startAddress < 0 || startAddress >= basic->memory.size()) {
+            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        }
+        basic->memory[startAddress++] = bytes[i];
+    }
+}
+
+void cmdBSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() != 5) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    std::string path     = basic->valueToString(values[0]);
+    int64_t startAddress = basic->valueToInt(values[2]);
+    int64_t endAddress   = basic->valueToInt(values[4]);
+
+    if (startAddress < 0 || startAddress >= endAddress || endAddress > basic->memory.size()) {
+        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+    }
+
+    FilePtr file(basic->os);
+    file.open(path, "wb");
+    if (!file) {
+        basic->memory[krnl.STATUS] = Basic::FS_ERROR_WRITE;
+        throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
+    }
+    for (size_t i = startAddress; i < endAddress; ++i) {
+        uint8_t b = uint8_t(basic->memory[i] & 0xff);
+        file.write(&b, 1);
+    }
+    file.close();
+}
+
 
 void cmdSCRATCH(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 1) {
@@ -736,14 +789,17 @@ void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
     if (!basic->fileHandles[ifile]) {
-        {
-            basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
-        }
+        basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
+        throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
     }
-    basic->fileHandles[ifile].close();
+
     basic->memory[krnl.STATUS] = Basic::FS_OK;
-    basic->currentFileNo       = 0;
+
+    if (!basic->fileHandles[ifile].close()) {
+        basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
+        basic->printUtf8String(basic->fileHandles[ifile].status());
+        throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
+    }
 
     // TODO currentFileNo should not be a member variable at all
     if (basic->currentFileNo == ifile) {
@@ -911,6 +967,11 @@ void runAssemblerCode(Basic* basic) {
     basic->cpu.cpuJam = false;
     uint16_t raster   = 0;
     bool stoppedByEsc = false;
+
+#if _DEBUG
+    printf("---Run Machine Code---\n");
+#endif
+
     for (;;) {
         auto PC = basic->cpu.PC;
         switch (PC) {
@@ -993,17 +1054,37 @@ void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 
 
-    // TODO:
-    // TXTPTR    $7A/$7B    Pointer to current position in BASIC program text
-    // GETARG  (JSR $B79B) uses $7A/$7B to know where it currently is in the BASIC text.
-    // 10 PRINT PEEK(122),PEEK(123) prints 13,8 which is $080d - printed, seems correct!
-    // $0808 seems a perfect spot to copy the current BASIC line to. Beware! commands
-    //       must be compressed to 2-byte form.
-
 
     // address specified
     if (!basic->valueIsString(values[0])) {
-        // TODO POKE 214, (Zeile): POKE 211, (Spalte): SYS 58640 : PRINT "TEXT"
+
+        // you can use BASIC commands after SYS in your machine code.
+        // TXTPTR    $7A/$7B    Pointer to current position in BASIC program text
+        // GETARG  (JSR $B79B)  uses $7A/$7B to know where it currently is in the BASIC text.
+        // 10 PRINT PEEK(122),PEEK(123) prints 13,8 which is $080d - printed, seems correct!
+        // BUF       $0200      89 bytes is the text input buffer. Robin/8-bit-show-and-tell puts code at $0202.
+
+        MEMCELL* ptr = &basic->memory[krnl.BUF];
+        for (size_t i = 1; i < values.size(); ++i) {
+            if (basic->valueIsOperator(values[i])) {
+                *ptr++ = U',';
+                continue;
+            }
+            if (basic->valueIsString(values[i])) {
+                *ptr++ = U'\"';
+            }
+            std::string str = basic->valueToString(values[i]);
+            for (char c : str) {
+                *ptr++ = c;
+            }
+            if (basic->valueIsString(values[i])) {
+                *ptr++ = U'\"';
+            }
+            *ptr = U'\0';
+        }
+        basic->memory[krnl.TXTPTR + 0] = (krnl.BUF) & 0xff;
+        basic->memory[krnl.TXTPTR + 1] = ((krnl.BUF) >> 8) & 0xff;
+
 
         basic->cpu.memory = &basic->memory[0];
         int64_t address   = basic->valueToInt(values[0]);
@@ -1453,17 +1534,21 @@ inline const std::string Basic::buildVersion() { return __DATE__; }
 Basic::Basic(Os* os, SoundSystem* ss) {
     memory.resize(0x20000);
 
-    auto memcellcpy = [](void* dst, const void* src, size_t count) {
-        const uint8_t* s = static_cast<const uint8_t*>(src);
-        MEMCELL* d       = static_cast<MEMCELL*>(dst);
+    static auto memcellcpy8 = [](MEMCELL* dst, const uint8_t* src, size_t count) {
         while (count != 0) {
             --count;
-            *d++ = *s++;
+            *dst++ = *src++;
+        }
+    };
+    auto memcellcpycell = [this](size_t dst, size_t src, size_t count) {
+        for (size_t i = 0; i < count; ++i) {
+            memory[dst + i] = memory[src + i];
         }
     };
 
-    memcellcpy(&memory[0xA000], RomImage::BASIC_V2(), 0x2000);
-    memcellcpy(&memory[0xE000], RomImage::KERNAL_C64(), 0x2000);
+    memcellcpy8(&memory[0xA000], RomImage::BASIC_V2(), 0x2000);
+    memcellcpy8(&memory[0xE000], RomImage::KERNAL_C64(), 0x2000);
+    memcellcpy8(&memory[0x0000], RomImage::LOW_RAM(), 0x1000);
 
     // copy the BA67 font to the CHARROM memory.
     for (size_t i = 0; i < 0x100; ++i) {
@@ -1485,6 +1570,11 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memory[0xE640 + 1] = 0x54;
     memory[0xE640 + 2] = 0xe6;
 
+    // return from a BASIC error back to BA67.
+    memory[0xA43A] = 0x00; // brk
+    memory[0xA47D] = 0x00; // brk
+
+
 
     // COMMODORE BASIC V2 -> COMMODORE+BA67  V2
     memory[0xE48A] = '+';
@@ -1492,6 +1582,27 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memory[0xE48D] = '6'; // make sure $E48D is '6' as stated in the readme.md
     memory[0xE48E] = '7';
     memory[0xE48F] = ' ';
+
+    // set screen page
+    memory[krnl.HIBASE] = 0x04;
+
+#if 0
+    // CHRGET: copy BASIC's MOVCHG to zero page
+    memcellcpycell(0x0073, 0xE3A2, 24);
+
+    // prepare BASIC Indirect Vectors
+    uint8_t basic_ptr[] = { 0x8b, 0xe3, 0x83, 0xa4, 0x7c, 0xa5, 0x1a, 0xa7, 0xe4, 0xa7, 0x86, 0xae };
+    memcellcpy8(&memory[0x0300], &basic_ptr[0], 12);
+
+
+    // copy and prepare Kernal Indirect Vectors
+    memcellcpycell(0x0314, 0xFD30, 34);
+#endif
+
+
+    memory[krnl.DFLTI] = 0; // input = keyboard
+    memory[krnl.DFLTO] = 3; // ouput = screen
+
 
 
     // ST
@@ -1587,6 +1698,8 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "CLOSE", cmdCLOSE },
         { "SAVE", cmdSAVE },
         { "QSAVE", cmdQSAVE },
+        { "BLOAD", cmdBLOAD },
+        { "BSAVE", cmdBSAVE },
         { "RENUMBER", cmdRENUMBER },
         { "SCRATCH", cmdSCRATCH },
         { "SYS", cmdSYS },
@@ -4633,7 +4746,6 @@ void Basic::executeParsedTokens(const std::vector<Token>& tokens) {
         if (tokens.size() > 1 && tokens[0].value == "READY") {
             throw Error(ErrorId::READY_COMMAND);
         }
-
 
         throw Error(ErrorId::SYNTAX);
     }

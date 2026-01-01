@@ -69,7 +69,8 @@ if($filename){
     // trim the lock symbol, in case someone copied it. (BA67 should do this)
     $filename = rtrim($filename, $lockSymbol);
 
-    if (!preg_match('/^[a-zA-Z0-9._-]+\.bas$/i', $filename)) {
+    // /i - case insensitive
+    if (!preg_match('/^[a-zA-Z0-9._-]+\.(bas|seq)$/i', $filename)) {
         http_response_code(400);
         echo "?CLOUD INVALID FILENAME ERROR";
         exit;
@@ -96,7 +97,7 @@ switch ($method) {
         $files = array_values(array_diff(scandir($dataDir), ['.', '..']));
         header('Content-Type: application/octet-stream');
         foreach($files as $fn){
-            if(!str_ends_with($fn, ".BAS")){continue;}
+            if(!str_ends_with($fn, ".BAS") && !str_ends_with($fn, ".SEQ")){continue;}
 
             $disp = $fn;
             if(hasPassword("$dataDir/$fn")){
@@ -126,12 +127,13 @@ switch ($method) {
             exit;
         }
 
+        // file extension checked above
         // Check extension (optionally with password)
-        if (!preg_match('/\.bas$/i', $filename)) {
-            http_response_code(400);
-            echo "?CLOUD ONLY .BAS FILES ARE ALLOWED ERROR";
-            exit;
-        }
+        // if (!preg_match('/\.bas$/i', $filename)) {
+        //     http_response_code(400);
+        //     echo "?CLOUD ONLY .BAS AND .SEQ FILES ARE ALLOWED ERROR";
+        //     exit;
+        // }
 
         // Limit to 128 KB
         // $rawData = file_get_contents('php://input', false, null, 0, 131072); // Read up to 128 KB + 1 byte

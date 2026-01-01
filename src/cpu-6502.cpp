@@ -4,6 +4,8 @@
 
 #include "cpu-6502.h"
 #include <functional>
+#include <map>
+#include <string>
 
 void CPU6502::reset() {
     cpuJam = false;
@@ -236,6 +238,265 @@ enum Opcode : uint8_t {
     TXS = 0x9A
 };
 
+const char* OpCodeName(uint8_t op) {
+    static const char* nm[256] = {};
+    if (nm[0] == nullptr) {
+        nm[0x00] = "BRK";
+        nm[0x01] = "ORA_INDX";
+        nm[0x05] = "ORA_ZP";
+        nm[0x06] = "ASL_ZP";
+        nm[0x08] = "PHP";
+        nm[0x09] = "ORA_IMM";
+        nm[0x0A] = "ASL_ACC";
+        nm[0x0D] = "ORA_ABS";
+        nm[0x0E] = "ASL_ABS";
+        nm[0x10] = "BPL";
+        nm[0x11] = "ORA_INDY";
+        nm[0x15] = "ORA_ZPX";
+        nm[0x16] = "ASL_ZPX";
+        nm[0x18] = "CLC";
+        nm[0x19] = "ORA_ABSY";
+        nm[0x1D] = "ORA_ABSX";
+        nm[0x1E] = "ASL_ABSX";
+        nm[0x20] = "JSR";
+        nm[0x21] = "AND_INDX";
+        nm[0x24] = "BIT_ZP";
+        nm[0x25] = "AND_ZP";
+        nm[0x26] = "ROL_ZP";
+        nm[0x28] = "PLP";
+        nm[0x29] = "AND_IMM";
+        nm[0x2A] = "ROL_ACC";
+        nm[0x2C] = "BIT_ABS";
+        nm[0x2D] = "AND_ABS";
+        nm[0x2E] = "ROL_ABS";
+        nm[0x30] = "BMI";
+        nm[0x31] = "AND_INDY";
+        nm[0x35] = "AND_ZPX";
+        nm[0x36] = "ROL_ZPX";
+        nm[0x38] = "SEC";
+        nm[0x39] = "AND_ABSY";
+        nm[0x3D] = "AND_ABSX";
+        nm[0x3E] = "ROL_ABSX";
+        nm[0x40] = "RTI";
+        nm[0x41] = "EOR_INDX";
+        nm[0x45] = "EOR_ZP";
+        nm[0x46] = "LSR_ZP";
+        nm[0x48] = "PHA";
+        nm[0x49] = "EOR_IMM";
+        nm[0x4A] = "LSR_ACC";
+        nm[0x4C] = "JMP_ABS";
+        nm[0x4D] = "EOR_ABS";
+        nm[0x4E] = "LSR_ABS";
+        nm[0x50] = "BVC";
+        nm[0x51] = "EOR_INDY";
+        nm[0x55] = "EOR_ZPX";
+        nm[0x56] = "LSR_ZPX";
+        nm[0x58] = "CLI";
+        nm[0x59] = "EOR_ABSY";
+        nm[0x5D] = "EOR_ABSX";
+        nm[0x5E] = "LSR_ABSX";
+        nm[0x60] = "RTS";
+        nm[0x61] = "ADC_INDX";
+        nm[0x65] = "ADC_ZP";
+        nm[0x66] = "ROR_ZP";
+        nm[0x68] = "PLA";
+        nm[0x69] = "ADC_IMM";
+        nm[0x6A] = "ROR_ACC";
+        nm[0x6C] = "JMP_IND";
+        nm[0x6D] = "ADC_ABS";
+        nm[0x6E] = "ROR_ABS";
+        nm[0x70] = "BVS";
+        nm[0x71] = "ADC_INDY";
+        nm[0x75] = "ADC_ZPX";
+        nm[0x76] = "ROR_ZPX";
+        nm[0x78] = "SEI";
+        nm[0x79] = "ADC_ABSY";
+        nm[0x7D] = "ADC_ABSX";
+        nm[0x7E] = "ROR_ABSX";
+        nm[0x81] = "STA_INDX";
+        nm[0x84] = "STY_ZP";
+        nm[0x85] = "STA_ZP";
+        nm[0x86] = "STX_ZP";
+        nm[0x88] = "DEY";
+        nm[0x8A] = "TXA";
+        nm[0x8C] = "STY_ABS";
+        nm[0x8D] = "STA_ABS";
+        nm[0x8E] = "STX_ABS";
+        nm[0x90] = "BCC";
+        nm[0x91] = "STA_INDY";
+        nm[0x94] = "STY_ZPX";
+        nm[0x95] = "STA_ZPX";
+        nm[0x96] = "STX_ZPY";
+        nm[0x98] = "TYA";
+        nm[0x99] = "STA_ABSY";
+        nm[0x9A] = "TXS";
+        nm[0x9D] = "STA_ABSX";
+        nm[0xA0] = "LDY_IMM";
+        nm[0xA1] = "LDA_INDX";
+        nm[0xA2] = "LDX_IMM";
+        nm[0xA4] = "LDY_ZP";
+        nm[0xA5] = "LDA_ZP";
+        nm[0xA6] = "LDX_ZP";
+        nm[0xA8] = "TAY";
+        nm[0xA9] = "LDA_IMM";
+        nm[0xAA] = "TAX";
+        nm[0xAC] = "LDY_ABS";
+        nm[0xAD] = "LDA_ABS";
+        nm[0xAE] = "LDX_ABS";
+        nm[0xB0] = "BCS";
+        nm[0xB1] = "LDA_INDY";
+        nm[0xB4] = "LDY_ZPX";
+        nm[0xB5] = "LDA_ZPX";
+        nm[0xB6] = "LDX_ZPY";
+        nm[0xB8] = "CLV";
+        nm[0xB9] = "LDA_ABSY";
+        nm[0xBA] = "TSX";
+        nm[0xBC] = "LDY_ABSX";
+        nm[0xBD] = "LDA_ABSX";
+        nm[0xBE] = "LDX_ABSY";
+        nm[0xC0] = "CPY_IMM";
+        nm[0xC1] = "CMP_INDX";
+        nm[0xC4] = "CPY_ZP";
+        nm[0xC5] = "CMP_ZP";
+        nm[0xC6] = "DEC_ZP";
+        nm[0xC8] = "INY";
+        nm[0xC9] = "CMP_IMM";
+        nm[0xCA] = "DEX";
+        nm[0xCC] = "CPY_ABS";
+        nm[0xCD] = "CMP_ABS";
+        nm[0xCE] = "DEC_ABS";
+        nm[0xD0] = "BNE";
+        nm[0xD1] = "CMP_INDY";
+        nm[0xD5] = "CMP_ZPX";
+        nm[0xD6] = "DEC_ZPX";
+        nm[0xD8] = "CLD";
+        nm[0xD9] = "CMP_ABSY";
+        nm[0xDD] = "CMP_ABSX";
+        nm[0xDE] = "DEC_ABSX";
+        nm[0xE0] = "CPX_IMM";
+        nm[0xE1] = "SBC_INDX";
+        nm[0xE4] = "CPX_ZP";
+        nm[0xE5] = "SBC_ZP";
+        nm[0xE6] = "INC_ZP";
+        nm[0xE8] = "INX";
+        nm[0xE9] = "SBC_IMM";
+        nm[0xEA] = "NOP";
+        nm[0xEC] = "CPX_ABS";
+        nm[0xED] = "SBC_ABS";
+        nm[0xEE] = "INC_ABS";
+        nm[0xF0] = "BEQ";
+        nm[0xF1] = "SBC_INDY";
+        nm[0xF5] = "SBC_ZPX";
+        nm[0xF6] = "INC_ZPX";
+        nm[0xF8] = "SED";
+        nm[0xF9] = "SBC_ABSY";
+        nm[0xFD] = "SBC_ABSX";
+        nm[0xFE] = "INC_ABSX";
+    }
+
+    const char* c = nm[op];
+    if (c == nullptr) {
+        c = "????";
+    }
+    return c;
+}
+
+const char* kernalRoutineName(uint16_t PC) {
+    static std::map<uint16_t, std::string> jt;
+    if (jt.empty()) {
+        jt[0x0073] = "BASIC_GET_NEXT_TEXT_CHARACTER";
+        jt[0xA43A] = "BASIC_ERR_MSG";
+        jt[0xB78B] = "BASIC_ASC";
+        jt[0xB79B] = "BASIC_ASC(get byte to X)";
+        jt[0xB7AD] = "BASIC_VAL";
+
+        // jump table
+        jt[0xFF81] = "CINT"; // init screen editor
+        jt[0xFF84] = "IOINT"; // init input/output
+        jt[0xFF87] = "RAMTAS"; // init RAM, tape screen
+        jt[0xFF8A] = "RESTOR"; // restore default I/O vector
+        jt[0xFF8D] = "VECTOR"; // read/set I/O vector
+        jt[0xFF90] = "SETMSG"; // control KERNAL messages
+        jt[0xFF93] = "SECOND"; // send SA after LISTEN
+        jt[0xFF96] = "TKSA"; // send SA after TALK
+        jt[0xFF99] = "MEMTOP"; // read/set top of memory
+        jt[0xFF9C] = "MEMBOT"; // read/set bottom of memory
+        jt[0xFF9F] = "SCNKEY"; // scan keyboard
+        jt[0xFFA2] = "SETTMO"; // set IEEE timeout
+        jt[0xFFA5] = "ACPTR"; // input byte from serial bus
+        jt[0xFFA8] = "CIOUT"; // output byte to serial bus
+        jt[0xFFAB] = "UNTALK"; // command serial bus UNTALK
+        jt[0xFFAE] = "UNLSN"; // command serial bus UNLSN
+        jt[0xFFB1] = "LISTEN"; // command serial bus LISTEN
+        jt[0xFFB4] = "TALK"; // command serial bus TALK
+        jt[0xFFB7] = "READST"; // read I/O status word
+        jt[0xFFBA] = "SETLFS"; // set logical file parameters
+        jt[0xFFBD] = "SETNAM"; // set filename
+        jt[0xFFC0] = "OPEN"; // open file
+        jt[0xFFC3] = "CLOSE"; // close file
+        jt[0xFFC6] = "CHKIN"; // prepare channel for input
+        jt[0xFFC9] = "CHKOUT"; // prepare channel for output
+        jt[0xFFCC] = "CLRCHN"; // close all I/O
+        jt[0xFFCF] = "CHRIN"; // input byte from channel
+        jt[0xFFD2] = "CHROUT"; // output byte to channel
+        jt[0xFFD5] = "LOAD"; // load from serial device
+        jt[0xFFD8] = "SAVE"; // save to serial device
+        jt[0xFFDB] = "SETTIM"; // set realtime clock
+        jt[0xFFDE] = "RDTIM"; // read realtime clock
+        jt[0xFFE1] = "STOP"; // check <STOP> key
+        jt[0xFFE4] = "GETIN"; // get input from keyboard
+        jt[0xFFE7] = "CLALL"; // close all files and channels
+        jt[0xFFEA] = "UDTIM"; // increment realtime clock
+        jt[0xFFED] = "SCREEN"; // return screen organisation
+        jt[0xFFF0] = "PLOT"; // read/set cursor X/Y position
+        jt[0xFFF3] = "IOBASE"; // return IOBASE address
+
+        // kernal routines
+        jt[0xEE13] = "ACPTR";
+        jt[0xF20E] = "CHKIN ";
+        jt[0xF250] = "CHKOUT";
+        jt[0xF157] = "CHRIN";
+        jt[0xF1CA] = "CHROUT";
+        jt[0xFF5B] = "CINT";
+        jt[0xEDDD] = "CIOUT";
+        jt[0xF32F] = "CLALL";
+        jt[0xF291] = "CLOSE";
+        jt[0xF333] = "CLRCHN";
+        jt[0xF13E] = "GETIN";
+        jt[0xE500] = "IOBASE";
+        jt[0xFDA3] = "IOINIT";
+        jt[0xED0C] = "LISTEN";
+        jt[0xF49E] = "LOAD";
+        jt[0xFE34] = "MEMBOT";
+        jt[0xFE25] = "MEMTOP";
+        jt[0xF34A] = "OPEN";
+        jt[0xE50A] = "PLOT";
+        jt[0xFD50] = "RAMTAS";
+        jt[0xF6DD] = "RDTIM";
+        jt[0xFE07] = "READST";
+        jt[0xFD15] = "RESTOR";
+        jt[0xF5DD] = "SAVE";
+        jt[0xEA87] = "SCNKEY";
+        jt[0xE505] = "SCREEN";
+        jt[0xEDB9] = "SECOND";
+        jt[0xFE00] = "SETLFS";
+        jt[0xFE18] = "SETMSG";
+        jt[0xFDF9] = "SETNAM";
+        jt[0xF6E4] = "SETTIM";
+        jt[0xFE21] = "SETTMO";
+        jt[0xF6ED] = "STOP";
+        jt[0xED09] = "TALK";
+        jt[0xEDC7] = "TKSA";
+        jt[0xF69B] = "UDTIM";
+        jt[0xEDFE] = "UNLSN";
+        jt[0xEDEF] = "UNTLK";
+        jt[0xFD1A] = "VECTOR";
+    }
+    if (jt.find(PC) != jt.end()) {
+        return jt[PC].c_str();
+    }
+    return nullptr;
+}
 
 
 uint8_t CPU6502::fetchOperand(AddrMode mode) {
@@ -289,12 +550,11 @@ bool CPU6502::executeNext() {
         return false; // back to BASIC
     }
 
-    auto executeOp = [this](AddrMode mode, std::function<void(uint8_t)> op) {
-        uint8_t value = fetchOperand(mode);
-        op(value);
+    static auto executeOp = [this](AddrMode mode, std::function<void(uint8_t)> op) {
+        op(fetchOperand(mode));
     };
 
-    auto executeRMW = [this](AddrMode mode, std::function<uint8_t(uint8_t)> op) {
+    static auto executeRMW = [this](AddrMode mode, std::function<uint8_t(uint8_t)> op) {
         if (mode == IMM) {
             return; // Not used for RMW
         }
@@ -309,26 +569,24 @@ bool CPU6502::executeNext() {
             case ABSX: addr = (fetchWord() + X) & 0xFFFF; break;
             default:   return;
             }
-            uint8_t value = memory[addr];
-            value         = op(value);
-            memory[addr]  = value;
+            setByte(addr, op(memory[addr]));
         }
     };
 
-    auto AND = [this](uint8_t value) {
+    static auto AND = [this](uint8_t value) {
         A &= value;
         setZN(A);
     };
 
-    auto ORA = [this](uint8_t value) {
+    static auto ORA = [this](uint8_t value) {
         A |= value;
         setZN(A);
     };
-    auto EOR = [this](uint8_t value) {
+    static auto EOR = [this](uint8_t value) {
         A ^= value;
         setZN(A);
     };
-    auto ADC = [this](uint8_t value) {
+    static auto ADC = [this](uint8_t value) {
         uint16_t sum = A + value + (P & PF_CARRY ? 1 : 0);
         setFlag(PF_CARRY, sum > 0xFF);
         uint8_t result = sum & 0xFF;
@@ -336,7 +594,7 @@ bool CPU6502::executeNext() {
         A = result;
         setZN(A);
     };
-    auto SBC = [this](uint8_t value) {
+    static auto SBC = [this](uint8_t value) {
         uint16_t temp = A - value - (P & PF_CARRY ? 0 : 1);
         setFlag(PF_CARRY, temp < 0x100); // set if no borrow
         uint8_t result = temp & 0xFF;
@@ -344,47 +602,47 @@ bool CPU6502::executeNext() {
         A = result;
         setZN(A);
     };
-    auto CMP = [this](uint8_t value) {
+    static auto CMP = [this](uint8_t value) {
         uint8_t result = A - value;
         setFlag(PF_CARRY, A >= value);
         setFlag(PF_ZERO, result == 0);
         setFlag(PF_NEGATIVE, result & 0x80);
     };
-    auto CPX = [this](uint8_t value) {
+    static auto CPX = [this](uint8_t value) {
         uint8_t result = X - value;
         setFlag(PF_CARRY, X >= value);
         setFlag(PF_ZERO, result == 0);
         setFlag(PF_NEGATIVE, result & 0x80);
     };
 
-    auto CPY = [this](uint8_t value) {
+    static auto CPY = [this](uint8_t value) {
         uint8_t result = Y - value;
         setFlag(PF_CARRY, Y >= value);
         setFlag(PF_ZERO, result == 0);
         setFlag(PF_NEGATIVE, result & 0x80);
     };
 
-    auto ASL = [this](uint8_t value) -> uint8_t {
+    static auto ASL = [this](uint8_t value) -> uint8_t {
         setFlag(PF_CARRY, value & 0x80);
         value <<= 1;
         setZN(value);
         return value;
     };
 
-    auto LSR = [this](uint8_t value) -> uint8_t {
+    static auto LSR = [this](uint8_t value) -> uint8_t {
         setFlag(PF_CARRY, value & 0x01);
         value >>= 1;
         setZN(value);
         return value;
     };
-    auto ROL = [this](uint8_t value) -> uint8_t {
+    static auto ROL = [this](uint8_t value) -> uint8_t {
         uint8_t oldCarry = (P & PF_CARRY) ? 1 : 0;
         setFlag(PF_CARRY, value & 0x80);
         value = (value << 1) | oldCarry;
         setZN(value);
         return value;
     };
-    auto ROR = [this](uint8_t value) -> uint8_t {
+    static auto ROR = [this](uint8_t value) -> uint8_t {
         uint8_t oldCarry = (P & PF_CARRY) ? 0x80 : 0;
         setFlag(PF_CARRY, value & 0x01);
         value = (value >> 1) | oldCarry;
@@ -392,22 +650,35 @@ bool CPU6502::executeNext() {
         return value;
     };
 
-    auto LDA = [this](uint8_t value) {
+    static auto LDA = [this](uint8_t value) {
         A = value;
         setZN(value);
     };
-    auto LDX = [this](uint8_t value) {
+    static auto LDX = [this](uint8_t value) {
         X = value;
         setZN(value);
     };
-    auto LDY = [this](uint8_t value) {
+    static auto LDY = [this](uint8_t value) {
         Y = value;
         setZN(value);
     };
 
 
-    opcode = fetchByte();
+#if _DEBUG
 
+    const char* kernal = kernalRoutineName(PC);
+    if (kernal != nullptr) {
+        printf("---%s---\n", kernal);
+    }
+    // disassemble
+    printf("%.4X: %.2X %.2X %.2X - %8s A:%.2x X:%.2x Y:%.2x P:%.2x\n",
+           int(PC), int(memory[PC]), int(memory[PC + 1]), int(memory[PC + 2]),
+           OpCodeName(memory[PC]),
+           int(A), int(X), int(Y), int(P));
+#endif
+
+
+    opcode = fetchByte();
     switch (opcode) {
     case LDA_IMM:  executeOp(IMM, LDA); break;
     case LDA_ZP:   executeOp(ZP, LDA); break;
@@ -545,28 +816,28 @@ bool CPU6502::executeNext() {
     // Memory increments
     case INC_ZP: {
         uint8_t addr = fetchByte();
-        memory[addr]++;
+        setByte(addr, 1 + memory[addr]);
         setZN(memory[addr]);
         break;
     }
 
     case INC_ZPX: {
         uint8_t addr = (fetchByte() + X) & 0xFF;
-        memory[addr]++;
+        setByte(addr, 1 + memory[addr]);
         setZN(memory[addr]);
         break;
     }
 
     case INC_ABS: {
         uint16_t addr = fetchWord();
-        memory[addr]++;
+        setByte(addr, 1 + memory[addr]);
         setZN(memory[addr]);
         break;
     }
 
     case INC_ABSX: {
         uint16_t addr = (fetchWord() + X) & 0xFFFF;
-        memory[addr]++;
+        setByte(addr, 1 + memory[addr]);
         setZN(memory[addr]);
         break;
     }
@@ -574,160 +845,70 @@ bool CPU6502::executeNext() {
     // Memory decrements
     case DEC_ZP: {
         uint8_t addr = fetchByte();
-        memory[addr]--;
+        setByte(addr, memory[addr] - 1);
         setZN(memory[addr]);
         break;
     }
 
     case DEC_ZPX: {
         uint8_t addr = (fetchByte() + X) & 0xFF;
-        memory[addr]--;
+        setByte(addr, memory[addr] - 1);
         setZN(memory[addr]);
         break;
     }
 
     case DEC_ABS: {
         uint16_t addr = fetchWord();
-        memory[addr]--;
+        setByte(addr, memory[addr] - 1);
         setZN(memory[addr]);
         break;
     }
 
     case DEC_ABSX: {
         uint16_t addr = (fetchWord() + X) & 0xFFFF;
-        memory[addr]--;
+        setByte(addr, memory[addr] - 1);
         setZN(memory[addr]);
         break;
     }
-
-#if 0
-    // LOAD INSTRUCTIONS
-    case LDA_IMM:
-        A = fetchByte();
-        setZN(A);
-        break;
-    case LDA_ZP:
-        A = memory[fetchByte()];
-        setZN(A);
-        break;
-    case LDA_ZPX:
-        A = memory[(fetchByte() + X) & 0xFF];
-        setZN(A);
-        break;
-    case LDA_ABS:
-        A = memory[fetchWord()];
-        setZN(A);
-        break;
-    case LDA_ABSX: {
-        uint16_t addr = fetchWord();
-        A             = memory[addr + X];
-        setZN(A);
-        break;
-    }
-    case LDA_ABSY: {
-        uint16_t addr = fetchWord();
-        A             = memory[addr + Y];
-        setZN(A);
-        break;
-    }
-    case LDA_INDX: {
-        uint8_t zpAddr = (fetchByte() + X) & 0xFF;
-        uint16_t addr  = memory[zpAddr] | (memory[(zpAddr + 1) & 0xFF] << 8);
-        A              = memory[addr];
-        setZN(A);
-        break;
-    }
-    case LDA_INDY: {
-        uint8_t zpAddr = fetchByte();
-        uint16_t addr  = memory[zpAddr] | (memory[(zpAddr + 1) & 0xFF] << 8);
-        A              = memory[addr + Y];
-        setZN(A);
-        break;
-    }
-
-    case LDX_IMM:
-        X = fetchByte();
-        setZN(X);
-        break;
-    case LDX_ZP:
-        X = memory[fetchByte()];
-        setZN(X);
-        break;
-    case LDX_ZPY:
-        X = memory[(fetchByte() + Y) & 0xFF];
-        setZN(X);
-        break;
-    case LDX_ABS:
-        X = memory[fetchWord()];
-        setZN(X);
-        break;
-    case LDX_ABSY: {
-        uint16_t addr = fetchWord();
-        X             = memory[addr + Y];
-        setZN(X);
-        break;
-    }
-
-    case LDY_IMM:
-        Y = fetchByte();
-        setZN(Y);
-        break;
-    case LDY_ZP:
-        Y = memory[fetchByte()];
-        setZN(Y);
-        break;
-    case LDY_ZPX:
-        Y = memory[(fetchByte() + X) & 0xFF];
-        setZN(Y);
-        break;
-    case LDY_ABS:
-        Y = memory[fetchWord()];
-        setZN(Y);
-        break;
-    case LDY_ABSX: {
-        uint16_t addr = fetchWord();
-        Y             = memory[addr + X];
-        setZN(Y);
-        break;
-    }
-#endif
 
     // STORE INSTRUCTIONS
     case STA_ZP:   memory[fetchByte()] = A; break;
     case STA_ZPX:  memory[(fetchByte() + X) & 0xFF] = A; break;
     case STA_ABS:  memory[fetchWord()] = A; break;
     case STA_ABSX: {
-        uint16_t addr    = fetchWord();
-        memory[addr + X] = A;
+        uint16_t addr = fetchWord();
+        setByte(addr + X, A);
         break;
     }
     case STA_ABSY: {
-        uint16_t addr    = fetchWord();
-        memory[addr + Y] = A;
+        uint16_t addr = fetchWord();
+        setByte(addr + Y, A);
         break;
     }
     case STA_INDX: {
         uint8_t zpAddr = (fetchByte() + X) & 0xFF;
         uint16_t addr  = memory[zpAddr] | (memory[(zpAddr + 1) & 0xFF] << 8);
-        memory[addr]   = A;
+        setByte(addr, A);
         break;
     }
     case STA_INDY: {
-        uint8_t zpAddr   = fetchByte();
-        uint16_t addr    = memory[zpAddr] | (memory[(zpAddr + 1) & 0xFF] << 8);
-        memory[addr + Y] = A;
+        uint8_t zpAddr = fetchByte();
+        uint16_t addr  = memory[zpAddr] | (memory[(zpAddr + 1) & 0xFF] << 8);
+        setByte(addr + Y, A);
         break;
     }
 
-    case STX_ZP:  memory[fetchByte()] = X; break;
-    case STX_ZPY: memory[(fetchByte() + Y) & 0xFF] = X; break;
-    case STX_ABS: memory[fetchWord()] = X; break;
+    case STX_ZP:  setByte(fetchByte(), X); break;
+    case STX_ZPY: setByte((fetchByte() + Y) & 0xFF, X); break;
+    case STX_ABS: setByte(fetchWord(), X); break;
 
-    case STY_ZP:  memory[fetchByte()] = Y; break;
-    case STY_ZPX: memory[(fetchByte() + X) & 0xFF] = Y; break;
-    case STY_ABS: memory[fetchWord()] = Y; break;
+    case STY_ZP:  setByte(fetchByte(), Y); break;
+    case STY_ZPX: setByte((fetchByte() + X) & 0xFF, Y); break;
+    case STY_ABS:
+        setByte(fetchWord(), Y);
+        break;
 
-
+        // JUMPS
     case RTS: rts(); break;
     case RTI:
         P  = pop();

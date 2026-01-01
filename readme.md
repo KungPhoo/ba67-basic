@@ -28,6 +28,8 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [ABOUT](#about)
     - [AUTO](#auto)
     - [BAKE](#bake)
+    - [BLOAD](#bload)
+    - [BSAVE](#bsave)
     - [CATALOG](#catalog)
     - [CLOSE](#close)
     - [CLR](#clr)
@@ -530,6 +532,22 @@ are case sensitive! Better only use uppercase letters.
 Attention: The does not work with `ON..GOTO/GOSUB` in
 CBM BASIC, so BA67 does not support it either.
 **Usage:** `REM COMMENT. --LABEL-- FOR BAKE`
+
+
+### BLOAD
+**Usage:** `BLOAD filename$, address`
+
+Load a binary file to the given memory address.
+The end must not exceed the internal memory or an error
+will be printed.
+
+
+### BSAVE
+**Usage:** `BSAVE filename$, startAddress, endAddress+1`
+
+Saves the memory from startAddress to endAddress excluded
+to the given file.
+The endAddress is the first byte that's not written anymore.
 
 
 ### CATALOG

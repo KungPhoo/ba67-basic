@@ -42,7 +42,6 @@ private:
         INDY // (Zero Page),Y
     };
 
-
     uint8_t fetchOperand(AddrMode mode);
     void push(uint8_t value) { memory[0x0100 + SP--] = value; }
     void pushWord(uint16_t value) {
@@ -56,13 +55,24 @@ private:
         return (hi << 8) | lo;
     }
 
-    uint8_t fetchByte() { return uint8_t(memory[PC++]); }
+    uint8_t fetchByte() {
+#if _DEBUG
+        if (memory[PC] > 0xff) {
+            int pause = 1;
+        }
+#endif
+        return uint8_t(memory[PC++]);
+    }
     uint16_t fetchWord() {
         uint8_t lo = fetchByte();
         uint8_t hi = fetchByte();
         return (hi << 8) | lo;
     }
-    uint16_t readWord(uint16_t addr) { return memory[addr] | (memory[addr + 1] << 8); }
+    uint16_t readWord(uint16_t addr) { return (memory[addr] & 0xff) | ((memory[addr + 1] & 0xff) << 8); }
+
+    inline void setByte(uint16_t addr, uint8_t byte) {
+        memory[addr] = byte;
+    }
 
 
     inline bool getFlag(uint8_t f) const { return (P & f) != 0; }
