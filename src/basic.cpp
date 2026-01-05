@@ -521,9 +521,9 @@ void cmdGRAPHIC(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() == 1) {
         code = int(Basic::valueToInt(values[0]));
         if (code == 5) {
-            basic->os->screen.width = 80;
+            basic->os->screen.setSize(80, 25);
         } else {
-            basic->os->screen.width = 40;
+            basic->os->screen.setSize(40, 25);
         }
     }
 }
@@ -1057,44 +1057,76 @@ void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
 
     // address specified
     if (!basic->valueIsString(values[0])) {
+        int64_t address = basic->valueToInt(values[0]);
 
-        // you can use BASIC commands after SYS in your machine code.
-        // TXTPTR    $7A/$7B    Pointer to current position in BASIC program text
-        // GETARG  (JSR $B79B)  uses $7A/$7B to know where it currently is in the BASIC text.
-        // 10 PRINT PEEK(122),PEEK(123) prints 13,8 which is $080d - printed, seems correct!
-        // BUF       $0200      89 bytes is the text input buffer. Robin/8-bit-show-and-tell puts code at $0202.
+        if (values.size() > 1) {
+            // you can use BASIC commands after SYS in your machine code.
+            // TXTPTR    $7A/$7B    Pointer to current position in BASIC program text
+            // GETARG  (JSR $B79B)  uses $7A/$7B to know where it currently is in the BASIC text.
+            // 10 PRINT PEEK(122),PEEK(123) prints 13,8 which is $080d - printed, seems correct!
+            // BUF       $0200      89 bytes is the text input buffer. Robin/8-bit-show-and-tell puts code at $0202.
 
-        MEMCELL* ptr = &basic->memory[krnl.BUF];
-        for (size_t i = 1; i < values.size(); ++i) {
-            if (basic->valueIsOperator(values[i])) {
-                *ptr++ = U',';
-                continue;
+            MEMCELL* ptr = &basic->memory[krnl.BUF];
+            *ptr++       = U'\0';
+            *ptr++       = U'\0';
+            // *ptr++       = U'S';
+            // *ptr++       = U'Y';
+            // *ptr++       = U'S';
+            // *ptr++       = U' ';
+            for (size_t i = 1 /*skip address*/; i < values.size(); ++i) {
+                if (basic->valueIsOperator(values[i])) {
+                    *ptr++ = U',';
+                    continue;
+                }
+                if (basic->valueIsString(values[i])) {
+                    *ptr++ = U'\"';
+                }
+                std::string str = basic->valueToString(values[i]);
+                for (char c : str) {
+                    *ptr++ = c;
+                }
+                if (basic->valueIsString(values[i])) {
+                    *ptr++ = U'\"';
+                }
             }
-            if (basic->valueIsString(values[i])) {
-                *ptr++ = U'\"';
-            }
-            std::string str = basic->valueToString(values[i]);
-            for (char c : str) {
-                *ptr++ = c;
-            }
-            if (basic->valueIsString(values[i])) {
-                *ptr++ = U'\"';
-            }
-            *ptr = U'\0';
+            *ptr++ = U'\r';
+            *ptr   = U'\0';
+
+            basic->memory[krnl.TXTPTR + 0] = (2 + krnl.BUF) & 0xff;
+            basic->memory[krnl.TXTPTR + 1] = ((2 + krnl.BUF) >> 8) & 0xff;
+
+
+
+
+            // disable testing STOP key
+            // basic->memory[0x0328] = 0xed;
+            // basic->memory[0x0329] = 0xf6;
+            basic->cpu.A = basic->memory[0x030C + 0]; // #780
+            basic->cpu.X = basic->memory[0x030C + 1];
+            basic->cpu.Y = basic->memory[0x030C + 2];
+            basic->cpu.P = basic->memory[0x030C + 3];
+
+            // address = krnl.NEWSTT;
         }
-        basic->memory[krnl.TXTPTR + 0] = (krnl.BUF) & 0xff;
-        basic->memory[krnl.TXTPTR + 1] = ((krnl.BUF) >> 8) & 0xff;
+
 
 
         basic->cpu.memory = &basic->memory[0];
-        int64_t address   = basic->valueToInt(values[0]);
         if (address < 0 || address >= int64_t(basic->memory.size())) {
             throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
         }
         if (!basic->cpu.sys(uint16_t(address & 0xffff))) {
             throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
         }
+
         runAssemblerCode(basic);
+
+        // read registers back into memory
+        basic->memory[0x030C + 0] = basic->cpu.A;
+        basic->memory[0x030C + 1] = basic->cpu.X;
+        basic->memory[0x030C + 2] = basic->cpu.Y;
+        basic->memory[0x030C + 3] = basic->cpu.P;
+
         return;
     }
 
@@ -1571,8 +1603,8 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memory[0xE640 + 2] = 0xe6;
 
     // return from a BASIC error back to BA67.
-    memory[0xA43A] = 0x00; // brk
-    memory[0xA47D] = 0x00; // brk
+    // memory[0xA43A] = 0x00; // brk
+    memory[0xA46C] = 0x00; // brk instead of going to C64 editor
 
 
 

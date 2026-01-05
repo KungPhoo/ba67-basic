@@ -71,6 +71,14 @@ private:
     uint16_t readWord(uint16_t addr) { return (memory[addr] & 0xff) | ((memory[addr + 1] & 0xff) << 8); }
 
     inline void setByte(uint16_t addr, uint8_t byte) {
+
+#if _DEBUG
+        if (addr == 0xD5) {
+            int pause = 1;
+        }
+#endif
+
+
         memory[addr] = byte;
     }
 

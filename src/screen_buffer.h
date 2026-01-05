@@ -192,6 +192,12 @@ private:
     }
 
 public:
+    void setSize(size_t w, size_t h) {
+        memory[krnl.LNMX] = MEMCELL(w - 1);
+        width             = w;
+        height            = h;
+    }
+
     void putC(char32_t c);
 
     void deleteChar();
@@ -248,12 +254,6 @@ private:
 
 protected:
     mutable std::mutex lock;
-
-    void resize(size_t w, size_t h) {
-        memory[krnl.LNMX] = MEMCELL(w - 1);
-        width             = w;
-        height            = h;
-    }
 
     // get colRam value for current text and background colors
     inline MEMCELL currentColor() const {

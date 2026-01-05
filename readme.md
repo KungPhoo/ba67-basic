@@ -1545,9 +1545,7 @@ Stops the program, is if the escape key was pressed with the
 ### SYS
 **Usage:** `SYS "wget " + CHR$(22) + "www.ba67.org" + CHR$(22)`
 
-If a string is given, the system's command is executed.
-The string must be quoted. Otherwise we could not use
-variables in the command string.
+If a string is given, the host system's command is executed.
 
 It's required to have the command in quotes, so you can
 use variables.
@@ -2219,6 +2217,9 @@ When you hit a RTS $60, command gets returned to the
 BASIC code.
 
 The C64 KERNAL and BASIC rom is loaded to $E000 and $B000.
+
+The registers A,X,Y and P are read and stored to $030C-$030F.
+This is compatible with the C64.
 
 Using `SYS $FCE2` you can actually start the BASIC V2.
 

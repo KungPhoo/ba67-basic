@@ -12,9 +12,9 @@ struct KernalAddress {
     const size_t BLNSW = 0x00CC; // Cursor Blink Enable: 0=Flash Cursor
     const size_t RVS   = 0x00C7; // Reverse Mode on? 1 on, 0: off
 
-    const size_t PNT   = 0x00D1; // 2 byte pointer to address of current screen line
+    const size_t PNT   = 0x00D1; // 2 byte pointer to start address of screen line of cursor position
     const size_t PNTR  = 0x00D3; // Current column on current line (cursor x)
-    const size_t LNMX  = 0x00D5; // max cursor x of physical screen line (39 or 79)
+    const size_t LNMX  = 0x00D5; // max cursor x of physical screen line (39 or 79). Kernal E58C changes this when printing.
     const size_t TBLX  = 0x00D6; // Current Cursor Physical Line Number (cursor y)
     const size_t LDTB1 = 0x00D9; // Screen Line Link Table
 
@@ -27,6 +27,9 @@ struct KernalAddress {
     const size_t CHARRAM = 0x0400; // hard coded screen character ram (should be read from $0288 HIBASE)
 
     const size_t BUF = 0x0200; // text input buffer for INPUT and immediate mode BASIC
+
+
+    const size_t NEWSTT = 0xA7AE; // BASIC new statement fetcher
 
     const size_t COLRAM = 0xD800; // hard coded color ram (should be read from $00f3,$00f4, but on C64 it's hard coded)
 

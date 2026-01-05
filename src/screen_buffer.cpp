@@ -125,7 +125,7 @@ void ScreenBuffer::initMemory(MEMCELL* mem) {
     colRam        = mem + krnl.COLRAM;
 
     setCursorPos({ 0, 0 });
-    resize(40, 25);
+    setSize(40, 25);
 
     resetDefaultColors();
     setColors(1, 0);

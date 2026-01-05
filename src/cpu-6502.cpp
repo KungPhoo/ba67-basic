@@ -405,10 +405,60 @@ const char* kernalRoutineName(uint16_t PC) {
     static std::map<uint16_t, std::string> jt;
     if (jt.empty()) {
         jt[0x0073] = "BASIC_GET_NEXT_TEXT_CHARACTER";
+
+        // $A000...$BFFF BASIC
         jt[0xA43A] = "BASIC_ERR_MSG";
         jt[0xB78B] = "BASIC_ASC";
         jt[0xB79B] = "BASIC_ASC(get byte to X)";
         jt[0xB7AD] = "BASIC_VAL";
+
+
+        // $E000...$FFFF kernal routines
+        jt[0xE500] = "IOBASE";
+        jt[0xE505] = "SCREEN";
+        jt[0xE50A] = "PLOT";
+        jt[0xE716] = "PUT_ONE_CHAR_TO_SCREEN";
+        jt[0xE9C5] = "MOVE_ONE_LINE";
+        jt[0xE9F0] = "SETPNT to line X";
+        jt[0xE9FF] = "CLEAR_SCREEN_LINE_X";
+        jt[0xEA13] = "PUT_CHAR_A_COL_X";
+        jt[0xEA31] = "IRQ_MAIN";
+        jt[0xEA87] = "SCNKEY";
+        jt[0xED09] = "TALK";
+        jt[0xED0C] = "LISTEN";
+        jt[0xEDB9] = "SECOND";
+        jt[0xEDC7] = "TKSA";
+        jt[0xEDDD] = "CIOUT";
+        jt[0xEDEF] = "UNTLK";
+        jt[0xEDFE] = "UNLSN";
+        jt[0xEE13] = "ACPTR";
+        jt[0xF13E] = "GETIN";
+        jt[0xF157] = "CHRIN";
+        jt[0xF1CA] = "CHROUT";
+        jt[0xF20E] = "CHKIN ";
+        jt[0xF250] = "CHKOUT";
+        jt[0xF291] = "CLOSE";
+        jt[0xF32F] = "CLALL";
+        jt[0xF333] = "CLRCHN";
+        jt[0xF34A] = "OPEN";
+        jt[0xF49E] = "LOAD";
+        jt[0xF5DD] = "SAVE";
+        jt[0xF69B] = "UDTIM";
+        jt[0xF6DD] = "RDTIM";
+        jt[0xF6E4] = "SETTIM";
+        jt[0xF6ED] = "STOP";
+        jt[0xFD15] = "RESTOR";
+        jt[0xFD1A] = "VECTOR";
+        jt[0xFD50] = "RAMTAS";
+        jt[0xFDA3] = "IOINIT";
+        jt[0xFDF9] = "SETNAM";
+        jt[0xFE00] = "SETLFS";
+        jt[0xFE07] = "READST";
+        jt[0xFE18] = "SETMSG";
+        jt[0xFE21] = "SETTMO";
+        jt[0xFE25] = "MEMTOP";
+        jt[0xFE34] = "MEMBOT";
+        jt[0xFF5B] = "CINT";
 
         // jump table
         jt[0xFF81] = "CINT"; // init screen editor
@@ -450,47 +500,6 @@ const char* kernalRoutineName(uint16_t PC) {
         jt[0xFFED] = "SCREEN"; // return screen organisation
         jt[0xFFF0] = "PLOT"; // read/set cursor X/Y position
         jt[0xFFF3] = "IOBASE"; // return IOBASE address
-
-        // kernal routines
-        jt[0xEE13] = "ACPTR";
-        jt[0xF20E] = "CHKIN ";
-        jt[0xF250] = "CHKOUT";
-        jt[0xF157] = "CHRIN";
-        jt[0xF1CA] = "CHROUT";
-        jt[0xFF5B] = "CINT";
-        jt[0xEDDD] = "CIOUT";
-        jt[0xF32F] = "CLALL";
-        jt[0xF291] = "CLOSE";
-        jt[0xF333] = "CLRCHN";
-        jt[0xF13E] = "GETIN";
-        jt[0xE500] = "IOBASE";
-        jt[0xFDA3] = "IOINIT";
-        jt[0xED0C] = "LISTEN";
-        jt[0xF49E] = "LOAD";
-        jt[0xFE34] = "MEMBOT";
-        jt[0xFE25] = "MEMTOP";
-        jt[0xF34A] = "OPEN";
-        jt[0xE50A] = "PLOT";
-        jt[0xFD50] = "RAMTAS";
-        jt[0xF6DD] = "RDTIM";
-        jt[0xFE07] = "READST";
-        jt[0xFD15] = "RESTOR";
-        jt[0xF5DD] = "SAVE";
-        jt[0xEA87] = "SCNKEY";
-        jt[0xE505] = "SCREEN";
-        jt[0xEDB9] = "SECOND";
-        jt[0xFE00] = "SETLFS";
-        jt[0xFE18] = "SETMSG";
-        jt[0xFDF9] = "SETNAM";
-        jt[0xF6E4] = "SETTIM";
-        jt[0xFE21] = "SETTMO";
-        jt[0xF6ED] = "STOP";
-        jt[0xED09] = "TALK";
-        jt[0xEDC7] = "TKSA";
-        jt[0xF69B] = "UDTIM";
-        jt[0xEDFE] = "UNLSN";
-        jt[0xEDEF] = "UNTLK";
-        jt[0xFD1A] = "VECTOR";
     }
     if (jt.find(PC) != jt.end()) {
         return jt[PC].c_str();
@@ -588,18 +597,54 @@ bool CPU6502::executeNext() {
     };
     static auto ADC = [this](uint8_t value) {
         uint16_t sum = A + value + (P & PF_CARRY ? 1 : 0);
-        setFlag(PF_CARRY, sum > 0xFF);
-        uint8_t result = sum & 0xFF;
-        setFlag(PF_OVERFLOW, (~(A ^ value) & (A ^ result)) & 0x80);
-        A = result;
+
+        // Overflow is always binary
+        setFlag(PF_OVERFLOW, (~(A ^ value) & (A ^ sum)) & 0x80);
+
+        if (P & PF_DECIMAL) {
+            uint16_t adj = sum;
+
+            if ((adj & 0x0F) > 0x09) {
+                adj += 0x06;
+            }
+
+            if ((adj & 0xF0) > 0x90) {
+                adj += 0x60;
+            }
+
+            setFlag(PF_CARRY, adj > 0xFF);
+            A = adj & 0xFF;
+        } else {
+            setFlag(PF_CARRY, sum > 0xFF);
+            A = sum & 0xFF;
+        }
+
         setZN(A);
     };
     static auto SBC = [this](uint8_t value) {
-        uint16_t temp = A - value - (P & PF_CARRY ? 0 : 1);
-        setFlag(PF_CARRY, temp < 0x100); // set if no borrow
-        uint8_t result = temp & 0xFF;
-        setFlag(PF_OVERFLOW, ((A ^ result) & (A ^ value)) & 0x80);
-        A = result;
+        uint16_t diff = A - value - (P & PF_CARRY ? 0 : 1);
+
+        // Overflow is always binary
+        setFlag(PF_OVERFLOW, ((A ^ diff) & (A ^ value)) & 0x80);
+
+        if (P & PF_DECIMAL) {
+            uint16_t adj = diff;
+
+            if ((adj & 0x0F) > 0x09) {
+                adj -= 0x06;
+            }
+
+            if ((adj & 0xF0) > 0x90) {
+                adj -= 0x60;
+            }
+
+            setFlag(PF_CARRY, diff < 0x100); // no borrow
+            A = adj & 0xFF;
+        } else {
+            setFlag(PF_CARRY, diff < 0x100);
+            A = diff & 0xFF;
+        }
+
         setZN(A);
     };
     static auto CMP = [this](uint8_t value) {
@@ -671,13 +716,13 @@ bool CPU6502::executeNext() {
         printf("---%s---\n", kernal);
     }
     // disassemble
-    printf("%.4X: %.2X %.2X %.2X - %8s A:%.2x X:%.2x Y:%.2x P:%.2x\n",
+    printf("%.4X  %.2X %.2X %.2X  %8s A:%.2X X:%.2X Y:%.2X P:%.2X SP:%.2X\n",
            int(PC), int(memory[PC]), int(memory[PC + 1]), int(memory[PC + 2]),
            OpCodeName(memory[PC]),
-           int(A), int(X), int(Y), int(P));
+           int(A), int(X), int(Y), int(P), int(SP));
 #endif
 
-
+    // 079 sets A to 37 ('7' - 1st parameter ASCII)
     opcode = fetchByte();
     switch (opcode) {
     case LDA_IMM:  executeOp(IMM, LDA); break;
@@ -872,28 +917,20 @@ bool CPU6502::executeNext() {
     }
 
     // STORE INSTRUCTIONS
-    case STA_ZP:   memory[fetchByte()] = A; break;
-    case STA_ZPX:  memory[(fetchByte() + X) & 0xFF] = A; break;
-    case STA_ABS:  memory[fetchWord()] = A; break;
-    case STA_ABSX: {
-        uint16_t addr = fetchWord();
-        setByte(addr + X, A);
-        break;
-    }
-    case STA_ABSY: {
-        uint16_t addr = fetchWord();
-        setByte(addr + Y, A);
-        break;
-    }
+    case STA_ZP:   setByte(fetchByte(), A); break;
+    case STA_ZPX:  setByte(fetchByte() + X, A); break;
+    case STA_ABS:  setByte(fetchWord(), A); break;
+    case STA_ABSX: setByte(fetchWord() + X, A); break;
+    case STA_ABSY: setByte(fetchWord() + Y, A); break;
     case STA_INDX: {
         uint8_t zpAddr = (fetchByte() + X) & 0xFF;
-        uint16_t addr  = memory[zpAddr] | (memory[(zpAddr + 1) & 0xFF] << 8);
+        uint16_t addr  = (memory[zpAddr] & 0xFF) | (memory[(zpAddr + 1) & 0xFF] << 8);
         setByte(addr, A);
         break;
     }
     case STA_INDY: {
         uint8_t zpAddr = fetchByte();
-        uint16_t addr  = memory[zpAddr] | (memory[(zpAddr + 1) & 0xFF] << 8);
+        uint16_t addr  = (memory[zpAddr] & 0xFF) | (memory[(zpAddr + 1) & 0xFF] << 8);
         setByte(addr + Y, A);
         break;
     }
@@ -909,7 +946,13 @@ bool CPU6502::executeNext() {
         break;
 
         // JUMPS
-    case RTS: rts(); break;
+    case RTS:
+        rts();
+#if _DEBUG
+//         printf("--RTS--\n");
+#endif
+
+        break;
     case RTI:
         P  = pop();
         PC = popWord();
@@ -1015,13 +1058,15 @@ bool CPU6502::executeNext() {
 
         // Stack ops
     case PHA: push(A); break;
-    case PHP: push(P); break;
+    case PHP:
+        push(P | 0x30); // set B (0x10) and unused (0x20)
+        break;
     case PLA:
         A = pop();
         setZN(A);
         break;
     case PLP:
-        P = pop();
+        P = (pop() & 0xEF) | 0x20; // clear B, force unused bit
         break;
 
 
