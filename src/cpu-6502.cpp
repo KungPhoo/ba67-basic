@@ -19,7 +19,7 @@ bool CPU6502::sys(uint16_t address) {
     memory[0x01FF] = 0x08; // High byte of 0x080C
     memory[0x01FE] = 0x0C; // Low byte of 0x080C
     SP             = 0xFD; // Stack pointer (points to last used position)
-    PC             = address;
+    setPC(address);
     return true;
 }
 
@@ -711,27 +711,6 @@ bool CPU6502::executeNext() {
         setZN(value);
     };
 
-
-#if _DEBUG
-    const char* kernal = kernalRoutineName(PC);
-    if (kernal != nullptr) {
-        printf("---%s---\n", kernal);
-    }
-    // disassemble
-    printf("%.4X  %.2X %.2X %.2X  %8s A:%.2X X:%.2X Y:%.2X P:%.2X SP:%.2X\n",
-           int(PC), int(memory[PC]), int(memory[PC + 1]), int(memory[PC + 2]),
-           OpCodeName(memory[PC]),
-           int(A), int(X), int(Y), int(P), int(SP));
-#endif
-    //           CRANK     PLOT            jsr chrget      put X as row    CHRGET+PRINTC
-    // if (PC == 0x033e || PC == 0xe50a || PC == 0xb79b || PC == 0xe88c || PC == 0xab13
-    //
-    //     || PC == 0x0341 || PC == 0xAB16 || PC == 0xAB19) {
-    //     int pause = 1;
-    // }
-
-
-    // 079 sets A to 37 ('7' - 1st parameter ASCII)
     opcode = fetchByte();
     switch (opcode) {
     case LDA_IMM:  executeOp(IMM, LDA); break;
@@ -959,21 +938,21 @@ bool CPU6502::executeNext() {
         rts();
         break;
     case RTI:
-        P  = pop();
-        PC = popWord();
+        P = pop();
+        setPC(popWord());
         break;
     case JSR: {
         uint16_t addr = fetchWord();
         pushWord(PC - 1);
-        PC = addr;
+        setPC(addr);
         break;
     }
-    case JMP_ABS: PC = fetchWord(); break;
+    case JMP_ABS: setPC(fetchWord()); break;
     case JMP_IND: {
         uint16_t addr = fetchWord();
         uint8_t lo    = memory[addr];
         uint8_t hi    = memory[(addr & 0xFF00) | ((addr + 1) & 0x00FF)];
-        PC            = (hi << 8) | lo;
+        setPC((hi << 8) | lo);
         break;
     }
 
@@ -995,56 +974,56 @@ bool CPU6502::executeNext() {
     case BEQ: {
         int8_t offset = static_cast<int8_t>(fetchByte());
         if (P & PF_ZERO) {
-            PC += offset;
+            setPC(PC + offset);
         }
         break;
     }
     case BNE: {
         int8_t offset = static_cast<int8_t>(fetchByte());
         if (!(P & PF_ZERO)) {
-            PC += offset;
+            setPC(PC + offset);
         }
         break;
     }
     case BCC: {
         int8_t o = static_cast<int8_t>(fetchByte());
         if (!(P & PF_CARRY)) {
-            PC += o;
+            setPC(PC + o);
         }
         break;
     }
     case BCS: {
         int8_t o = static_cast<int8_t>(fetchByte());
         if (P & PF_CARRY) {
-            PC += o;
+            setPC(PC + o);
         }
         break;
     }
     case BMI: {
         int8_t o = static_cast<int8_t>(fetchByte());
         if (P & PF_NEGATIVE) {
-            PC += o;
+            setPC(PC + o);
         }
         break;
     }
     case BPL: {
         int8_t o = static_cast<int8_t>(fetchByte());
         if (!(P & PF_NEGATIVE)) {
-            PC += o;
+            setPC(PC + o);
         }
         break;
     }
     case BVC: {
         int8_t o = static_cast<int8_t>(fetchByte());
         if (!(P & PF_OVERFLOW)) {
-            PC += o;
+            setPC(PC + o);
         }
         break;
     }
     case BVS: {
         int8_t o = static_cast<int8_t>(fetchByte());
         if (P & PF_OVERFLOW) {
-            PC += o;
+            setPC(PC + o);
         }
         break;
     }
@@ -1120,7 +1099,7 @@ bool CPU6502::executeNext() {
     return true;
 }
 
-void CPU6502::rts() { PC = popWord() + 1; }
+void CPU6502::rts() { setPC(popWord() + 1); }
 
 void CPU6502::setZN(uint8_t value) {
     if (value == 0) {
@@ -1140,5 +1119,26 @@ void CPU6502::brk() {
     pushWord(PC);
     push(P | PF_BREAK);
     P |= PF_INTERRUPT;
-    PC = readWord(0xFFFE);
+    setPC(readWord(0xFFFE));
+}
+
+void CPU6502::printState() {
+    const char* kernal = kernalRoutineName(PC);
+    if (kernal != nullptr) {
+        printf("---%s---\n", kernal);
+    }
+    // disassemble
+    printf("%.4X  %.2X %.2X %.2X  %8s A:%.2X X:%.2X Y:%.2X P:%.2X SP:%.2X\n",
+           int(PC), int(memory[PC]), int(memory[PC + 1]), int(memory[PC + 2]),
+           OpCodeName(memory[PC]),
+           int(A), int(X), int(Y), int(P), int(SP));
+    //           CRANK     PLOT            jsr chrget      put X as row    CHRGET+PRINTC
+    // if (PC == 0x033e || PC == 0xe50a || PC == 0xb79b || PC == 0xe88c || PC == 0xab13
+    //
+    //     || PC == 0x0341 || PC == 0xAB16 || PC == 0xAB19) {
+    //     int pause = 1;
+    // }
+
+
+    // 079 sets A to 37 ('7' - 1st parameter ASCII)
 }

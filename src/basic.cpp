@@ -510,7 +510,9 @@ void cmdGO(Basic* basic, const std::vector<Basic::Value>& values) {
     int64_t where = int(Basic::valueToInt(values[0]));
 
     if (where == 64) {
-        cmdSYS(basic, { 0xFCE2 });
+        if (basic->AreYouSureQuestion()) {
+            cmdSYS(basic, { 0xFCE2 });
+        }
     } else {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
@@ -659,9 +661,7 @@ void cmdSCRATCH(Basic* basic, const std::vector<Basic::Value>& values) {
             basic->os->screen.cleanCurrentLine();
             basic->printUtf8String("SCRATCH ");
             basic->printUtf8String(fn);
-            basic->printUtf8String(". ARE YOU SURE (Y/N)?");
-            std::string yesno = basic->inputLine(false);
-            if (yesno.length() == 0 || Unicode::toUpperAscii(yesno[0]) != u'Y') {
+            if (!basic->AreYouSureQuestion()) {
                 break;
             }
         }
@@ -963,7 +963,7 @@ void cmdSOUND(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 void runAssemblerCode(Basic* basic) {
-    uint8_t counter   = 0;
+    int counter       = 0;
     basic->cpu.cpuJam = false;
     uint16_t raster   = 0;
     bool stoppedByEsc = false;
@@ -995,13 +995,15 @@ void runAssemblerCode(Basic* basic) {
             break;
         }
 
-#if _DEBUG // always display what's on screen
-        counter = 0xfe;
-#endif
+        // #if _DEBUG // always display what's on screen
+        //         counter = 0xfe;
+        // #endif
 
 
 
         if (++counter == 0xff) {
+            counter = 0;
+            basic->os->updateEvents();
             basic->os->presentScreen();
 
 
@@ -4855,7 +4857,7 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
                     case ControlCharacters::backspaceChar /*0x14*/:           os->screen.backspaceChar(); break; // delete
                     case ControlCharacters::clearScreen /*0x93*/:             os->screen.clear(); break; // clear
                     case ControlCharacters::reverseModeOn /*0x12*/:           os->screen.setReverseMode(true); break; // reverse on
-                    case ControlCharacters::reverseModeeOff /*0x92*/:         os->screen.setReverseMode(false); break; // reverse off
+                    case ControlCharacters::reverseModeOff /*0x92*/:          os->screen.setReverseMode(false); break; // reverse off
                     case ControlCharacters::textColor0_Black /*0x90*/:        os->screen.setTextColor(0); break; // Black
                     case ControlCharacters::textColor1_White /*0x05*/:        os->screen.setTextColor(1); break; // White
                     case ControlCharacters::textColor2_Red /*0x1c*/:          os->screen.setTextColor(2); break; // Red
@@ -4897,6 +4899,15 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
             pf.flush();
         }
     }
+}
+
+bool Basic::AreYouSureQuestion() {
+    printUtf8String("ARE YOU SURE (Y/N)?");
+    std::string yesno = inputLine(false);
+    if (yesno.length() > 0 && Unicode::toUpperAscii(yesno[0]) == u'Y') {
+        return true;
+    }
+    return false;
 }
 
 

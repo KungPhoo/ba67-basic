@@ -7,6 +7,7 @@
 #include "string_helper.h"
 #include "minifetch.h"
 #include "basic.h"
+#include "control_characters.h"
 
 // static instance
 BA68settings Os::settings = {};
@@ -49,15 +50,39 @@ void Os::putToKeyboardBuffer(Os::KeyPress key, bool applyBufferLimit) {
 }
 
 void Os::pokeKeyboardBuffer() {
+    static uint8_t cbmMap[256] = {};
+    if (cbmMap[255] == 0) {
+        for (size_t i = 0; i < 0x100; ++i) {
+            cbmMap[i] = i;
+        }
+        // 10 if peek(198)=0 then goto 10
+        // 20 print peek(631);"=";
+        // 30 get a$
+        // 40 print asc(a$)
+        // 50 goto 10
+        cbmMap[int(Os::KeyConstant::CRSR_LEFT)]  = ControlCharacters::cursorLeft;
+        cbmMap[int(Os::KeyConstant::CRSR_UP)]    = ControlCharacters::cursorUp;
+        cbmMap[int(Os::KeyConstant::CRSR_RIGHT)] = ControlCharacters::cursorRight;
+        cbmMap[int(Os::KeyConstant::CRSR_DOWN)]  = ControlCharacters::cursorDown;
+        cbmMap[int(Os::KeyConstant::BACKSPACE)]  = ControlCharacters::backspaceChar;
+        cbmMap[int(Os::KeyConstant::INSERT)]     = ControlCharacters::insertChar;
+        cbmMap[int(Os::KeyConstant::HOME)]       = ControlCharacters::cursorHome;
+        cbmMap[int(Os::KeyConstant::END)]        = ControlCharacters::cursorHome;
+        cbmMap[int(Os::KeyConstant::END)]        = ControlCharacters::cursorHome;
+    }
+
     size_t bufsz = keyboardBuffer.size();
     if (bufsz > 9) {
         bufsz = 9;
     }
     basic->memory[krnl.NDX] = MEMCELL(bufsz);
     for (size_t i = 0; i < bufsz; ++i) {
-        auto code = keyboardBuffer[bufsz - i - 1].code;
+        auto& kp  = keyboardBuffer[bufsz - i - 1];
+        auto code = kp.code;
         if (code == '\n') {
             code = '\r';
+        } else if (code <= 0xff && code > 0) {
+            code = cbmMap[code];
         }
         basic->memory[krnl.KEYD + i] = MEMCELL(code);
     }

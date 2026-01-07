@@ -543,6 +543,7 @@ public:
     }
     // inline void printUtf8String(const char8_t* utf8, bool applyCtrlCodes = false) { printUtf8String((const char*)utf8, applyCtrlCodes); }
 
+    bool AreYouSureQuestion();
 
 
     enum class ParseStatus {

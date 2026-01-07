@@ -74,6 +74,13 @@ private:
         memory[addr] = byte;
     }
 
+    inline void setPC(uint16_t addr) {
+        PC = addr;
+#if _DEBUG
+        printState();
+#endif
+    }
+
 
     inline bool getFlag(uint8_t f) const { return (P & f) != 0; }
     inline void clearFlag(uint8_t f) { P &= ~f; }
@@ -88,4 +95,6 @@ private:
     void setZN(uint8_t value);
 
     void brk();
+
+    void printState();
 };
