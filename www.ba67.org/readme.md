@@ -617,10 +617,14 @@ In Detail:
 In C128 BASIC, the background color could be changed with
 `POKE 53281, color0`. The border color can be set with
 `POKE 53280, color0`.
-The C64 can set the text color with `POKE 646, color0`.
+BA67 and C64 can set the text color with `POKE 646, color0`.
 The C128 pendant would be `POKE 241, color0`, where
 `color0` is the zero based color index.
 
+BA67 uses the C64 memory layout. The high nibble at address $286(646),
+however, is set to the text background color as well!
+This does not harm the C64, but allows BA67 to have a separate background
+color per character.
 
 ### CHAR
 **Usage:** `CHAR color, column0, line0, text$[, inverse]`
@@ -2048,6 +2052,7 @@ Example:
 - Your data is not safe from being hacked.
 - Your data is not safe from being deleted.
 - You're not allowed to cause harm to anyone anywhere.
+- Only .BAS and .SEQ file types are allowed.
 - Be good.
 
 Do not "hack" this server. Everyone and his dog can do it.
@@ -2212,11 +2217,11 @@ Image taken from [style64.org](https://style64.org/petscii/)
 
 Your program relies on an assembler subroutine?
 
-BA68 can emulate the code you `POKE'd` into the memory.
-When you hit a RTS $60, command gets returned to the
-BASIC code.
+BA68 can emulate the code you `POKE'd` or `BLOAD'ed` into the memory.
+When you hit a RTS $60, command gets returned to the BASIC code.
 
 The C64 KERNAL and BASIC rom is loaded to $E000 and $B000.
+Memory $0000-$0FFF presents the state of a booted C64.
 
 The registers A,X,Y and P are read and stored to $030C-$030F.
 This is compatible with the C64.
@@ -2238,7 +2243,17 @@ to the screen ram.
 $E640-$E645 is $EA (NOP). Path the CHIN routine
 to get PETSCII from screen (bypass screen-code conversion).
 
-This way, you can actually use the original BASIC code.
+If you set $A46C to a BRK instruction ($00), you return to BA67
+after a C64 BASIC error.
+
+This way, you can actually use the original BASIC code,
+which is what `GO 64` does.
+
+When you add parameters to `SYS` like `SYS $3ff,X,Y,a$`,
+BA67 evaluates all parameters and prints them in the input
+buffer at $0200 and sets the TXTPTR at $7A to the first
+comma after the address. So code like
+[CrankThePRINT](https://github.com/c1570/CrankThePRINT) does work.
 
 
 ## I - Internal Memory Model (PEEK and POKE)

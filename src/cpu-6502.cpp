@@ -559,11 +559,14 @@ bool CPU6502::executeNext() {
         return false; // back to BASIC
     }
 
-    static auto executeOp = [this](AddrMode mode, std::function<void(uint8_t)> op) {
+    // pre C++20 versions (no template, but costly)
+    // static auto executeOp = [this]<typename Op>(AddrMode mode, Op&& op) ;
+    // static auto executeRMW = [this](AddrMode mode, std::function<uint8_t(uint8_t)> op) ;
+    static auto executeOp = [this]<typename Op>(AddrMode mode, Op&& op) {
         op(fetchOperand(mode));
     };
 
-    static auto executeRMW = [this](AddrMode mode, std::function<uint8_t(uint8_t)> op) {
+    static auto executeRMW = [this]<typename Op>(AddrMode mode, Op&& op) {
         if (mode == IMM) {
             return; // Not used for RMW
         }
@@ -710,7 +713,6 @@ bool CPU6502::executeNext() {
 
 
 #if _DEBUG
-
     const char* kernal = kernalRoutineName(PC);
     if (kernal != nullptr) {
         printf("---%s---\n", kernal);
@@ -721,6 +723,13 @@ bool CPU6502::executeNext() {
            OpCodeName(memory[PC]),
            int(A), int(X), int(Y), int(P), int(SP));
 #endif
+    //           CRANK     PLOT            jsr chrget      put X as row    CHRGET+PRINTC
+    // if (PC == 0x033e || PC == 0xe50a || PC == 0xb79b || PC == 0xe88c || PC == 0xab13
+    //
+    //     || PC == 0x0341 || PC == 0xAB16 || PC == 0xAB19) {
+    //     int pause = 1;
+    // }
+
 
     // 079 sets A to 37 ('7' - 1st parameter ASCII)
     opcode = fetchByte();
@@ -948,10 +957,6 @@ bool CPU6502::executeNext() {
         // JUMPS
     case RTS:
         rts();
-#if _DEBUG
-//         printf("--RTS--\n");
-#endif
-
         break;
     case RTI:
         P  = pop();

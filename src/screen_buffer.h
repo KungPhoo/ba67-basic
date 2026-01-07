@@ -62,6 +62,22 @@ public:
         return { memory[krnl.PNTR], memory[krnl.TBLX] };
     }
     inline void setCursorPos(Cursor crsr) {
+
+        if (crsr.x < 0) {
+            crsr.x = 0;
+        } else if (crsr.x >= width) {
+            crsr.x = 0;
+            ++crsr.y;
+        }
+        if (crsr.y < 0) {
+            crsr.y = 0;
+        } else if (crsr.y >= height) {
+            scrollUpOne();
+            crsr.y = height - 1;
+        }
+
+
+
         dirtyFlag = true;
         // cursorPosition    = ptrAt(crsr.y, crsr.x);
         memory[krnl.PNTR] = MEMCELL(crsr.x);
@@ -102,10 +118,20 @@ public:
         setBackgroundColor(back);
     }
 
-    void setTextColor(int index) { memory[krnl.COLOR] = (index & 0x0f); }
+    // get/set the text foreground color
+    void setTextColor(int index) {
+        memory[krnl.COLOR] = (index & 0x0f) | ((memory[krnl.VIC_BKGND] & 0x0f) << 4);
+    }
     inline uint8_t getTextColor() const { return memory[krnl.COLOR] & 0x0f; }
-
-    void setBackgroundColor(int index) { memory[krnl.VIC_BKGND] = (index & 0x0f); }
+    // get/set text background color
+    // C64/C128 had no mode to display per-character background color
+    // however, the high nibble at krnl.COLOR was never used.
+    // BA67 uses it, but also stores the *one* background color
+    // at krnl.VIC_BKGND.
+    void setBackgroundColor(int index) {
+        memory[krnl.VIC_BKGND] = (index & 0x0f);
+        setTextColor(getTextColor()); // set background in foreground byte, too
+    }
     inline uint8_t getBackgroundColor() const { return memory[krnl.VIC_BKGND] & 0x0f; }
 
     void setBorderColor(int index) { memory[krnl.VIC_BORDER] = (index & 0x0f); }
@@ -186,6 +212,11 @@ private:
         const auto* ptr = getCursorPtr();
         if (ptr >= charRam && ptr < charRam + width * height) {
         } else {
+            if (ptr < charRam) {
+                setCursorPtr(charRam);
+            } else {
+                setCursorPtr(charRam + width * height - 1);
+            }
             throw "cursor is out of screen memory";
         }
 #endif
@@ -211,8 +242,8 @@ public:
 
     void clearHistory();
 
-    inline bool isOwnerRow(size_t r) const { return (lineLinkTable[r] & 0x80) == 0; }
-    inline bool isContinuationRow(size_t r) const { return (lineLinkTable[r] & 0x80) != 0; }
+    inline bool isOwnerRow(size_t r) const { return (lineLinkTable[r] & 0x80) != 0; }
+    inline bool isContinuationRow(size_t r) const { return (lineLinkTable[r] & 0x80) == 0; }
 
 private:
     inline size_t idxOf(const MEMCELL* p) const { return static_cast<size_t>(p - charRam); }
@@ -232,13 +263,15 @@ private:
     }
     // MEMCELL currentColor() const { return colRam ? colRam[idxOf(cursorPosition)] : defaultColor; }
 
+    // row 'r' is continued at 'r+1'?
     inline bool rowContinues(size_t r) const { return r + 1 < height && isContinuationRow(r + 1); }
     void makeRowOwner(size_t r) {
-        lineLinkTable[r] = 0;
+        lineLinkTable[r] |= 0x80; // set bit 7
     }
     void makeRowContinuation(size_t r) {
-        lineLinkTable[r] = 0x80;
+        lineLinkTable[r] &= 0x7F; // clear bit 7
     }
+    void rebuildLineLinkAddresses();
 
     void hardNewline();
 

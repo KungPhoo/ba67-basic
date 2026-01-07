@@ -592,8 +592,8 @@ void cmdBLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
-    std::string path     = basic->valueToString(values[0]);
-    int64_t startAddress = basic->valueToInt(values[2]);
+    std::string path    = basic->valueToString(values[0]);
+    size_t startAddress = size_t(basic->valueToInt(values[2]));
 
 
     FilePtr file(basic->os);
@@ -617,9 +617,9 @@ void cmdBSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 5) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
-    std::string path     = basic->valueToString(values[0]);
-    int64_t startAddress = basic->valueToInt(values[2]);
-    int64_t endAddress   = basic->valueToInt(values[4]);
+    std::string path    = basic->valueToString(values[0]);
+    size_t startAddress = size_t(basic->valueToInt(values[2]));
+    size_t endAddress   = size_t(basic->valueToInt(values[4]));
 
     if (startAddress < 0 || startAddress >= endAddress || endAddress > basic->memory.size()) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
@@ -975,19 +975,6 @@ void runAssemblerCode(Basic* basic) {
     for (;;) {
         auto PC = basic->cpu.PC;
         switch (PC) {
-            // case 0xf508: { // PRIMM
-            //     uint16_t addr   = basic->cpu.A | (basic->cpu.X << 8);
-            //     const char* str = reinterpret_cast<const char*>(&basic->memory[addr]);
-            //     basic->printUtf8String(str);
-            //     basic->cpu.rts();
-            //     break;
-            // }
-            //
-            // case 0xffd2: // CHROUT
-            //     basic->os->screen.putC(basic->cpu.A);
-            //     basic->cpu.rts();
-            //     break;
-
         case 0xE5C6:
             // BASIF has decreased the keyboard buffer count
             // clear kb buffer, because BASIC might have changed the NDX value.
@@ -997,7 +984,7 @@ void runAssemblerCode(Basic* basic) {
             }
             break;
 
-        case 0xffe4: // CHIN
+        case 0XFFE4: // CHIN
             basic->cpu.A = uint8_t(basic->os->getFromKeyboardBuffer().code);
             basic->cpu.rts();
 
@@ -1008,9 +995,13 @@ void runAssemblerCode(Basic* basic) {
             break;
         }
 
+#if _DEBUG // always display what's on screen
+        counter = 0xfe;
+#endif
+
+
 
         if (++counter == 0xff) {
-            basic->os->updateEvents();
             basic->os->presentScreen();
 
 
@@ -1023,17 +1014,23 @@ void runAssemblerCode(Basic* basic) {
             }
 
             // overwrite the jiffy clock
-            int64_t TI          = (basic->os->tick() * 60LL) / 1000LL;
-            basic->memory[0xA2] = TI & 0xff;
-            basic->memory[0xA1] = (TI << 8) & 0xff;
-            basic->memory[0xA0] = (TI << 16) & 0xff;
+            int64_t TI                   = (basic->os->tick() * 60LL) / 1000LL;
+            basic->memory[krnl.TIME + 2] = TI & 0xff;
+            basic->memory[krnl.TIME + 1] = (TI << 8) & 0xff;
+            basic->memory[krnl.TIME + 0] = (TI << 16) & 0xff;
 
             ++raster;
             if (raster > 312) {
                 raster = 0;
             }
-            basic->memory[0xD012] = raster & 0xff;
-            basic->memory[0xD011] = (raster << 8) & 0xff;
+            basic->memory[krnl.VIC_RASTER] = raster & 0xff;
+
+            // high bit in CTRL1 is used for lines 256..312
+            if (raster > 255) {
+                basic->memory[krnl.VIC_CTRL1] |= 0x80;
+            } else {
+                basic->memory[krnl.VIC_CTRL1] &= 0x7f;
+            }
         }
     }
     if (basic->cpu.cpuJam || stoppedByEsc) {
@@ -1060,11 +1057,12 @@ void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
         int64_t address = basic->valueToInt(values[0]);
 
         if (values.size() > 1) {
-            // you can use BASIC commands after SYS in your machine code.
+            // you can use BASIC arguments after SYS in your machine code.
             // TXTPTR    $7A/$7B    Pointer to current position in BASIC program text
             // GETARG  (JSR $B79B)  uses $7A/$7B to know where it currently is in the BASIC text.
             // 10 PRINT PEEK(122),PEEK(123) prints 13,8 which is $080d - printed, seems correct!
-            // BUF       $0200      89 bytes is the text input buffer. Robin/8-bit-show-and-tell puts code at $0202.
+            // BUF       $0200      89 bytes is the text input buffer.
+            //                      Robin/8-bit-show-and-tell puts code at $0202.
 
             MEMCELL* ptr = &basic->memory[krnl.BUF];
             *ptr++       = U'\0';
@@ -1094,8 +1092,6 @@ void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
 
             basic->memory[krnl.TXTPTR + 0] = (2 + krnl.BUF) & 0xff;
             basic->memory[krnl.TXTPTR + 1] = ((2 + krnl.BUF) >> 8) & 0xff;
-
-
 
 
             // disable testing STOP key
@@ -1603,9 +1599,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memory[0xE640 + 2] = 0xe6;
 
     // return from a BASIC error back to BA67.
-    // memory[0xA43A] = 0x00; // brk
-    memory[0xA46C] = 0x00; // brk instead of going to C64 editor
-
+    // memory[0xA46C] = 0x00; // brk instead of going to C64 editor
 
 
     // COMMODORE BASIC V2 -> COMMODORE+BA67  V2
@@ -1615,7 +1609,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memory[0xE48E] = '7';
     memory[0xE48F] = ' ';
 
-    // set screen page
+    // set screen page to $0400
     memory[krnl.HIBASE] = 0x04;
 
 #if 0
@@ -3103,7 +3097,8 @@ void Basic::doPrintValue(Value& v) {
         if (op->value == ",") {
             if (currentFileNo == 0) {
                 auto crsr = os->screen.getCursorPos();
-                os->screen.setCursorPos({ (crsr.x / 10 + 1) * 10, crsr.y });
+                crsr      = { (crsr.x / 10 + 1) * 10, crsr.y };
+                os->screen.setCursorPos(crsr);
             } else {
                 printUtf8String("    ");
             }
@@ -3810,7 +3805,9 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
                 }
 
                 sline += colLN;
-                --ptr; // for loop increments
+                if (range.length() != 0) {
+                    --ptr; // for loop increments
+                }
                 continue;
             }
 

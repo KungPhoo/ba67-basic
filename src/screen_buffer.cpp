@@ -32,7 +32,12 @@ void ScreenBuffer::clear() {
         charRam[i] = U' ';
         colRam[i]  = col;
     }
-    memset(lineLinkTable, 0, sizeof(lineLinkTable[0]) * height);
+
+    for (size_t i = 0; i < height; ++i) {
+        makeRowOwner(i);
+    }
+    rebuildLineLinkAddresses();
+
     setCursorPos({ 0, 0 });
     overflowTop.clear();
     overflowBottom.clear();
@@ -119,10 +124,16 @@ ScreenBuffer::ScreenBuffer() {
 }
 
 void ScreenBuffer::initMemory(MEMCELL* mem) {
-    memory        = mem;
-    lineLinkTable = mem + krnl.LDTB1;
-    charRam       = mem + krnl.CHARRAM;
-    colRam        = mem + krnl.COLRAM;
+    memory             = mem;
+    lineLinkTable      = mem + krnl.LDTB1;
+    size_t charAddress = mem[krnl.HIBASE] << 8;
+    charRam            = mem + charAddress;
+    colRam             = mem + krnl.COLRAM;
+
+    // clear sets the line-link-table
+    // for (size_t i = 0; i < height; ++i) {
+    //     lineLinkTable[i] = ((charAddress + i * width) >> 8) | 0x80;
+    // }
 
     setCursorPos({ 0, 0 });
     setSize(40, 25);
@@ -158,7 +169,7 @@ void ScreenBuffer::updateScreenPixelsPalette(bool highlightCursor, std::vector<u
                     ((*co) >> 4) & 0x0f,
                     ch == visibleCursorPosition);
         if (x + 1 == width) {
-            if (isContinuationRow(y + 1)) {
+            if (rowContinues(y)) {
                 drawLineContinuationPal(pixelsPal, y);
             }
         }
@@ -398,6 +409,19 @@ void ScreenBuffer::insertSpace() {
     setAt(getCursorPos().y, getCursorPos().x, blankChar, currentColor());
 }
 
+// rebuild the line link table's low bits that indicate the
+// address of the screen buffer.
+// Keep the continuation bit as it was.
+void ScreenBuffer::rebuildLineLinkAddresses() {
+    size_t charAddress = size_t(memory[krnl.HIBASE]) << 8;
+
+    for (size_t i = 0; i < height; ++i) {
+        MEMCELL hi       = lineLinkTable[i] & 0x80;
+        MEMCELL value    = MEMCELL(((charAddress + i * width) >> 8) | 0x80);
+        lineLinkTable[i] = (value & 0x7f) | hi;
+    }
+}
+
 // print '\n'
 void ScreenBuffer::hardNewline() {
     size_t r = getCursorPos().y;
@@ -457,8 +481,6 @@ void ScreenBuffer::ensureOneCellAtTail(size_t tailR, size_t tailC) {
         scrollUpOne();
         --tailR;
     }
-    // makeRowContinuation(std::min(tailR + 1, height - 1));
-    // setAt(std::min(tailR + 1, height - 1), 0, blankChar, currentColor());
 
     // 1. Scroll everything down by one row (bottom row drops off)
     for (size_t r = height - 1; r > tailR + 1; --r) {
@@ -476,6 +498,7 @@ void ScreenBuffer::ensureOneCellAtTail(size_t tailR, size_t tailC) {
 
     // 3. Mark continuation flag so this row belongs to same logical line
     makeRowContinuation(tailR + 1);
+    rebuildLineLinkAddresses();
 }
 
 size_t ScreenBuffer::lastUsedColumn(size_t r) const {
@@ -520,11 +543,12 @@ void ScreenBuffer::scrollUpOne() {
     for (size_t r = 0; r + 1 < height; ++r) {
         lineLinkTable[r] = lineLinkTable[r + 1];
     }
-    makeRowOwner(height - 1);
+
     if (!overflowBottom.empty()) {
         lineLinkTable[height - 1] = overflowBottom.back().lineLink;
         overflowBottom.pop_back();
     }
+    rebuildLineLinkAddresses();
 
     auto crsr  = getCursorPos();
     size_t col = std::min(crsr.x, width - 1);
@@ -562,14 +586,15 @@ void ScreenBuffer::scrollDownOne() {
         }
     }
 
-    for (size_t r = 0; r + 1 < height; ++r) {
-        lineLinkTable[r] = lineLinkTable[r + 1];
+    for (size_t r = height - 1; r > 0; --r) {
+        lineLinkTable[r] = lineLinkTable[r - 1];
     }
-    makeRowOwner(height - 1);
+
     if (!overflowTop.empty()) {
         lineLinkTable[0] = overflowTop.back().lineLink;
         overflowTop.pop_back();
     }
+    rebuildLineLinkAddresses();
 
     auto crsr  = getCursorPos();
     size_t col = std::min(crsr.x, width - 1);
