@@ -23,17 +23,6 @@ bool CPU6502::sys(uint16_t address) {
     return true;
 }
 
-enum P_Flags {
-    PF_CARRY     = 0x01,
-    PF_ZERO      = 0x02,
-    PF_INTERRUPT = 0x04,
-    PF_DECIMAL   = 0x08,
-    PF_BREAK     = 0x10,
-    PF_UNUSED    = 0x20,
-    PF_OVERFLOW  = 0x40,
-    PF_NEGATIVE  = 0x80,
-};
-
 
 enum Opcode : uint8_t {
     // incrementing

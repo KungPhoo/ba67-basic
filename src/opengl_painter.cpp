@@ -244,9 +244,9 @@ void OpenGLPainter::draw(size_t winWidth, size_t winHeight, size_t pixWidth, siz
     glUniform2f(glGetUniformLocation(shaderProgram, "uOffset"), (float)offsetX, (float)offsetY);
 
     const float one_over_255 = 1.0f / 255.0f;
-    auto red                 = [one_over_255](uint32_t c) { return float((c >> 0) & 0xFF) * one_over_255; };
+    auto red                 = [one_over_255](uint32_t c) { return float((c >> 16) & 0xFF) * one_over_255; };
     auto green               = [one_over_255](uint32_t c) { return float((c >> 8) & 0xFF) * one_over_255; };
-    auto blue                = [one_over_255](uint32_t c) { return float((c >> 16) & 0xFF) * one_over_255; };
+    auto blue                = [one_over_255](uint32_t c) { return float((c >> 0) & 0xFF) * one_over_255; };
 
     // Assuming fully opaque border
     glUseProgram(shaderProgram);

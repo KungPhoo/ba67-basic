@@ -300,8 +300,9 @@ std::string Os::cloudUserHash() const {
 
     std::string hex;
     auto addHex = [&hex](uint64_t i) {
-        std::string s = StringHelper::int2hex(i & 0x00000000000000ff, false);
-        hex += s.substr(s.length() - 2, 2);
+        // std::string s = StringHelper::int2hex(i & 0x00000000000000ff, false);
+        // hex += s.substr(s.length() - 2, 2);
+        hex += StringHelper::int2hex(i & 0x00000000000000ff, false, 1);
     };
 
     // Convert to hex string

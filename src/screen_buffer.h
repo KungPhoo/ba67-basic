@@ -120,7 +120,7 @@ public:
 
     // get/set the text foreground color
     void setTextColor(int index) {
-        memory[krnl.COLOR] = (index & 0x0f) | ((memory[krnl.VIC_BKGND] & 0x0f) << 4);
+        memory[krnl.COLOR] = (index & 0x0f) | ((memory[krnl.VIC_BKGND] & 0x0f) << 4); // BACKGROUND_COLOR_ALSO_SEE_HERE
     }
     inline uint8_t getTextColor() const { return memory[krnl.COLOR] & 0x0f; }
     // get/set text background color

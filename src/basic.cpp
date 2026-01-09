@@ -943,7 +943,13 @@ void cmdPOKE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (address < 0 || address >= int64_t(basic->memory.size())) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
-    basic->memory[address]      = uint32_t(value & 0xffffffff);
+
+    MEMCELL v = MEMCELL(uint32_t(value) & 0xffffffff);
+    if (address == krnl.COLOR) { // BACKGROUND_COLOR_ALSO_SEE_HERE
+        v |= (basic->memory[krnl.VIC_BKGND] << 4);
+    }
+
+    basic->memory[address]      = v;
     basic->os->screen.dirtyFlag = true;
 }
 
@@ -972,8 +978,9 @@ void runAssemblerCode(Basic* basic) {
     printf("---Run Machine Code---\n");
 #endif
 
+    auto& cpu = basic->cpu;
     for (;;) {
-        auto PC = basic->cpu.PC;
+        auto PC = cpu.PC;
         switch (PC) {
         case 0xE5C6:
             // BASIF has decreased the keyboard buffer count
@@ -984,14 +991,94 @@ void runAssemblerCode(Basic* basic) {
             }
             break;
 
-        case 0XFFE4: // CHIN
-            basic->cpu.A = uint8_t(basic->os->getFromKeyboardBuffer().code);
-            basic->cpu.rts();
+        case 0XF142: // CHIN - get character from keyboard
+            basic->os->updateEvents(); // pokes to keyboard buffer
+            //            if (basic->os->peekKeyboardBuffer().code != 0) {
+            //                cpu.A = uint8_t(basic->os->getFromKeyboardBuffer().code);
+            //            }
+            //            cpu.rts();
+            //
+            break;
+        case 0xFFD5: // LOAD (vector)
+        case 0xF49E: // LOAD implementation
+        {
+            // LOAD RAM FUNCTION
+            // LOADS FROM CASSETTE 1 OR 2, OR
+            // SERIAL BUS DEVICES >= 4 TO 31
+            // AS DETERMINED BY CONTENTS OF
+            // VARIABLE FA.VERIFY FLAG IN.A
+            // ALT LOAD IF SA = 0, NORMAL SA = 1
+            // .X, .Y LOAD ADDRESS IF SA     = 0
+            // .A = 0 PERFORMS LOAD, <> IS VERIFY
+            // HIGH LOAD RETURN IN X, Y.
 
+            uint8_t fnlen = cpu.memory[0xB7];
+            uint8_t dev1  = cpu.memory[0xBA]; // primary device number   ,!8!, 1
+            uint8_t dev2  = cpu.memory[0xB9]; // secondary device number , 8 ,!1!
+
+            // see set filename: FDF9
+            uint16_t fnaddr = (cpu.memory[0xBB] & 0xff) | ((cpu.memory[0xBC] & 0xff) << 8);
+            if (fnaddr + fnlen >= 0x10000) {
+                cpu.cpuJam = true;
+                cpu.rts();
+                break;
+            }
+
+            std::string fname;
+            for (size_t i = 0; i < fnlen; ++i) {
+                auto c = cpu.memory[fnaddr + i];
+                if (c == 0) {
+                    break;
+                }
+                fname += c;
+            }
+
+            fname = basic->os->findFirstFileNameWildcard(fname);
+            if (!basic->os->doesFileExist(fname)) {
+                cpu.memory[krnl.STATUS] = Basic::FS_ERROR_READ;
+                cpu.rts();
+                break;
+            }
+
+            if (cpu.A == 0) {
+                FilePtr pf(basic->os);
+                pf.open(fname, "rb");
+                auto bytes = pf.readAll();
+                pf.close();
+
+                //
+                uint16_t addr = (cpu.X & 0xff) | ((cpu.Y & 0xff) << 8);
+                if (dev2 == 0) {
+                    // use 2 byte header of PRG file
+                    if (bytes.size() >= 2) {
+                        addr = (bytes[1] << 8) | bytes[0];
+                        bytes.erase(bytes.begin(), bytes.begin() + 2);
+                    }
+                }
+
+#if _DEBUG
+                basic->printUtf8String("LOADING $" + StringHelper::int2hex(addr, true, 2) + "-$" + StringHelper::int2hex(addr + bytes.size(), true, 2) + "\n");
+#endif
+
+                for (size_t i = 0; i < bytes.size(); ++i) {
+                    cpu.memory[addr] = bytes[i];
+                    ++addr;
+                }
+                cpu.X            = addr | 0xff;
+                cpu.Y            = addr >> 8;
+                cpu.memory[0xAE] = cpu.X;
+                cpu.memory[0xAF] = cpu.Y;
+                cpu.clearFlag(CPU6502::PF_CARRY);
+            }
+            cpu.rts();
             break;
         }
 
-        if (!basic->cpu.executeNext()) {
+
+            // FFD8 SAVE
+        }
+
+        if (!cpu.executeNext()) {
             break;
         }
 
@@ -1035,11 +1122,15 @@ void runAssemblerCode(Basic* basic) {
             }
         }
     }
-    if (basic->cpu.cpuJam || stoppedByEsc) {
-        std::string err = (basic->cpu.cpuJam ? "CPU JAM AT " : "CPU STOP AT ")
-                        + StringHelper::int2hex(basic->cpu.PC)
-                        + "\nOPCODE " + StringHelper::int2hex(basic->cpu.opcode)
-                        + "\nPC " + StringHelper::int2hex(basic->cpu.PC)
+    if (cpu.cpuJam || stoppedByEsc) {
+        std::string err = (cpu.cpuJam ? "CPU JAM AT " : "CPU STOP AT ")
+                        + StringHelper::int2hex(cpu.PC, true, 2)
+                        + "\nOPCODE " + StringHelper::int2hex(cpu.opcode, true, 1)
+                        + "\nPC:" + StringHelper::int2hex(cpu.PC, true, 2)
+                        + "\nA:" + StringHelper::int2hex(cpu.A, true, 2)
+                        + "\nX:" + StringHelper::int2hex(cpu.X, true, 2)
+                        + "\nY:" + StringHelper::int2hex(cpu.Y, true, 2)
+                        + "\nP:" + StringHelper::int2hex(cpu.P, true, 2)
                         + "\n";
         basic->restoreColorsAndCursor(false);
         basic->printUtf8String(err);
@@ -1580,9 +1671,12 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memcellcpy8(&memory[0xE000], RomImage::KERNAL_C64(), 0x2000);
     memcellcpy8(&memory[0x0000], RomImage::LOW_RAM(), 0x1000);
 
+    // TODO the upper characters are not PETSCII
     // copy the BA67 font to the CHARROM memory.
     for (size_t i = 0; i < 0x100; ++i) {
-        auto& bmp = os->screen.getCharDefinition(char32_t(i));
+        char32_t unicode = PETSCII::toUnicode(uint8_t(i));
+
+        auto& bmp = os->screen.getCharDefinition(unicode);
         for (size_t y = 0; y < 8; ++y) {
             // uppercase char set
             memory[0xD000 + i * 8 + y] = bmp.bits[y];

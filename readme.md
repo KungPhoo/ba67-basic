@@ -614,9 +614,10 @@ In Detail:
 - Print "M" with text color 8 (yellow)
 - Result: yellow M on red background
 
-In C128 BASIC, the background color could be changed with
-`POKE 53281, color0`. The border color can be set with
-`POKE 53280, color0`.
+In C64/C128 BASIC, the background color could be changed with
+`POKE 53281, color0`. For BA67 even `POKE $D021, color0`.
+The border color can be set with `POKE 53280, color0`.
+
 BA67 and C64 can set the text color with `POKE 646, color0`.
 The C128 pendant would be `POKE 241, color0`, where
 `color0` is the zero based color index.
@@ -625,6 +626,13 @@ BA67 uses the C64 memory layout. The high nibble at address $286(646),
 however, is set to the text background color as well!
 This does not harm the C64, but allows BA67 to have a separate background
 color per character.
+
+Whenever you change the address $288, the high nibble will be taken
+from $D021. The C64 VIC-II will only interpret the low nibble. The
+kernal does not mask it, so it should not break compatibility.
+BA67 will display the proper background color for every printed character
+then. If you change the background color, better clear the screen
+afterwards if you plan to run code on the real C64 as well.
 
 ### CHAR
 **Usage:** `CHAR color, column0, line0, text$[, inverse]`
@@ -2283,13 +2291,20 @@ These memory addresses are directly used:
 +--------------+--------------------------------------+
 | $0277        | Keyboard buffer (9 bytes)            |
 +--------------+--------------------------------------+
+| $0286        | Current text color                   |
+|              | plus background color * 16.          |
+|              | See `Color` command.                 |
++--------------+--------------------------------------+
 | $0400 (2048) | Screen characters (80x25!)           |
 +--------------+--------------------------------------+
 | $D800(55296) | Color Ram                            |
 |              |                                      |
 |              | foreground+16*background             |
 +--------------+--------------------------------------+
-
+| $D020        | Color of border                      |
++--------------+--------------------------------------+
+| $D021        | Color of text background             |
++--------------+--------------------------------------+
 
 See `kernal.h` for more used locations.
 

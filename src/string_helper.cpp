@@ -83,6 +83,15 @@ int StringHelper::strcmp(const char* text, const char* find) {
     return (unsigned char)text[i] - (unsigned char)find[i];
 }
 
+bool StringHelper::endsWith(const char* text, const char* find) {
+    size_t lfnd = strlen(find);
+    size_t ltxt = strlen(text);
+    if (lfnd > ltxt) {
+        return false;
+    }
+    return strcmp(text + ltxt - lfnd, find) == 0;
+}
+
 const char* StringHelper::strchr(const char* text, char find) {
     while (*text) {
         if (*text == find) {
@@ -205,7 +214,7 @@ void StringHelper::strcpy(char* dest, const char* src) {
 }
 
 // returns a 16 characters long string with '0' padding.
-std::string StringHelper::int2hex(int64_t n, bool uppercase) {
+std::string StringHelper::int2hex(int64_t n, bool uppercase, int bytes) {
     static const char* digitsU = "0123456789ABCDEF";
     static const char* digitsL = "0123456789abcdef";
     const char* digits         = uppercase ? digitsU : digitsL;
@@ -214,5 +223,61 @@ std::string StringHelper::int2hex(int64_t n, bool uppercase) {
     for (size_t i = 0, j = (hex_len - 1) * 4; i < hex_len; ++i, j -= 4) {
         rc[i] = digits[(n >> j) & 0x0f];
     }
+
+    if (bytes < 8 && bytes > 0) {
+        rc = rc.substr((8 - bytes) * 2);
+    }
     return rc;
+}
+
+int64_t StringHelper::strtoi64(const std::string_view str) {
+    const char* p   = str.data();
+    const char* end = p + str.size();
+    while (p < end && std::isspace(static_cast<unsigned char>(*p))) {
+        ++p;
+    }
+    bool negative = false;
+    if (p < end && (*p == '-' || *p == '+')) {
+        negative = (*p == '-');
+        ++p;
+    }
+    int64_t result = 0;
+    while (p < end && std::isdigit(static_cast<unsigned char>(*p))) {
+        result = result * 10 + (*p - '0');
+        ++p;
+    }
+    return negative ? -result : result;
+}
+
+uint64_t StringHelper::strtou64(const std::string_view str) {
+    const char* p   = str.data();
+    const char* end = p + str.size();
+    while (p < end && std::isspace(static_cast<unsigned char>(*p))) {
+        ++p;
+    }
+    uint64_t result = 0;
+    while (p < end && std::isdigit(static_cast<unsigned char>(*p))) {
+        result = result * 10 + (*p - '0');
+        ++p;
+    }
+    return result;
+}
+
+int64_t StringHelper::strtoi64_hex(const std::string_view str) {
+    const char* p   = str.data();
+    const char* end = p + str.size();
+    while (p < end && std::isspace(static_cast<unsigned char>(*p))) {
+        ++p;
+    }
+    // Handle optional $ prefix
+    if ((end - p) >= 1 && p[0] == '$') {
+        ++p;
+    }
+    int64_t result = 0;
+    while (p < end && std::isxdigit(static_cast<unsigned char>(*p))) {
+        int digit = hexchartoi(*p);
+        result    = (result << 4) | digit;
+        ++p;
+    }
+    return result;
 }

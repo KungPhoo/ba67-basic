@@ -26,10 +26,9 @@ struct KernalAddress {
 
     const size_t KEYD   = 0x0277; // keyboard buffer [9]
     const size_t COLOR  = 0x0286; // current text foreground color
-    const size_t HIBASE = 0x0288; // top page of screen memory (currently not used, but KERNAL needs it)
+    const size_t HIBASE = 0x0288; // top page of screen memory (currently only used in LDTB1)
 
     const size_t CHARRAM = 0x0400; // hard coded screen character ram (should be read from $0288 HIBASE)
-
 
     const size_t NEWSTT = 0xA7AE; // BASIC new statement fetcher
 

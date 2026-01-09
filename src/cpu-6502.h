@@ -28,6 +28,21 @@ public:
 
     void rts();
 
+
+    enum P_Flags {
+        PF_CARRY     = 0x01,
+        PF_ZERO      = 0x02,
+        PF_INTERRUPT = 0x04,
+        PF_DECIMAL   = 0x08,
+        PF_BREAK     = 0x10,
+        PF_UNUSED    = 0x20,
+        PF_OVERFLOW  = 0x40,
+        PF_NEGATIVE  = 0x80,
+    };
+
+    inline void clearFlag(uint8_t f) { P &= ~f; }
+    inline void setFlag(uint8_t f) { P |= f; }
+
 private:
     enum AddrMode {
         IMM, // Immediate
@@ -71,6 +86,9 @@ private:
     uint16_t readWord(uint16_t addr) { return (memory[addr] & 0xff) | ((memory[addr + 1] & 0xff) << 8); }
 
     inline void setByte(uint16_t addr, uint8_t byte) {
+        if (addr == 0x0286) { // BACKGROUND_COLOR_ALSO_SEE_HERE
+            byte |= (memory[0xD021] << 4);
+        }
         memory[addr] = byte;
     }
 
@@ -83,8 +101,6 @@ private:
 
 
     inline bool getFlag(uint8_t f) const { return (P & f) != 0; }
-    inline void clearFlag(uint8_t f) { P &= ~f; }
-    inline void setFlag(uint8_t f) { P |= f; }
     inline void setFlag(uint8_t f, bool cond = true) {
         if (cond) {
             P |= f; // set the bit
