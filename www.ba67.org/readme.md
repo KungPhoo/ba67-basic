@@ -2221,6 +2221,9 @@ represented, thus.
 
 Image taken from [style64.org](https://style64.org/petscii/)
 
+This is the character set that will be switched to with the `GO 64`
+command.
+
 ## H - Hardcore Assembler Language
 
 Your program relies on an assembler subroutine?

@@ -30,6 +30,9 @@ struct KernalAddress {
 
     const size_t CHARRAM = 0x0400; // hard coded screen character ram (should be read from $0288 HIBASE)
 
+    const size_t BASICCODE = 0x0801; // BASIC program code address. TXTTAB $2B/$2C points to it
+    const size_t BASICEND  = 0xA000; // first address that cannot be used for BASIC code anymore
+
     const size_t NEWSTT = 0xA7AE; // BASIC new statement fetcher
 
     const size_t COLRAM = 0xD800; // hard coded color ram (should be read from $00f3,$00f4, but on C64 it's hard coded)

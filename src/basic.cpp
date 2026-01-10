@@ -90,7 +90,44 @@ void cmdAUTO(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->currentModule().autoNumbering = int32_t(basic->valueToInt(values[0]));
 }
 
+
+void bakePRGtoC64(Basic* basic) {
+    std::string all;
+    for (auto& ln : basic->currentModule().listing) {
+        if (ln.first < 0) {
+            continue;
+        }
+        all += std::to_string(ln.first) + " " + ln.second.code + "\n";
+    }
+
+    std::vector<std::pair<int, std::string>> errorDetails;
+    auto prg = PrgTool::BASICtoPRG(all.c_str(), &errorDetails);
+
+    size_t address = krnl.BASICCODE;
+    for (size_t i = 0; i < prg.size(); ++i) {
+        basic->memory[address++] = prg[i];
+        if (address >= krnl.BASICEND) {
+            throw Basic::ErrorId::OUT_OF_MEMORY;
+        }
+    }
+    basic->printUtf8String("BAKE TO $" + StringHelper::int2hex(krnl.BASICCODE, true, 2) + "-$" + StringHelper::int2hex(address, true, 2) + "\n");
+
+    // BASIC warm-start clears the variables and BASIC program here
+    basic->memory[0xA4ED + 0] = 0xEA; // NOP
+    basic->memory[0xA4ED + 1] = 0xEA; // NOP
+    basic->memory[0xA4ED + 2] = 0xEA; // NOP
+}
+
+
+
 void cmdBAKE(Basic* basic, const std::vector<Basic::Value>& values) {
+
+    bool bakeToC64 = false;
+    if (values.size() > 0 && basic->valueIsInt(values[0]) && basic->valueToInt(values[0]) == 64) {
+        bakeToC64 = true;
+    }
+
+
     basic->currentModule().forceTokenizing();
     auto& listing = basic->currentModule().listing;
 
@@ -149,6 +186,10 @@ void cmdBAKE(Basic* basic, const std::vector<Basic::Value>& values) {
             }
         }
         line = updatedLine;
+    }
+
+    if (bakeToC64) {
+        bakePRGtoC64(basic);
     }
 }
 
@@ -511,7 +552,20 @@ void cmdGO(Basic* basic, const std::vector<Basic::Value>& values) {
 
     if (where == 64) {
         if (basic->AreYouSureQuestion()) {
+
+            // GO 64
+            // prepare the original C64 font
+            // copy the BA67 font to the CHARROM memory.
+            // --this is never used. BA67 takes the PRINT-ing role--
+            for (size_t i = 0; i < 0x100; ++i) {
+                char32_t unicode = PETSCII::toUnicode(uint8_t(i));
+
+                const CharBitmap& bmp = basic->os->screen.getCharDefinition(unicode);
+                basic->os->screen.defineChar(char32_t(i), bmp);
+            }
+
             cmdSYS(basic, { 0xFCE2 });
+            basic->restoreColorsAndCursor(true);
         }
     } else {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
@@ -981,6 +1035,11 @@ void runAssemblerCode(Basic* basic) {
     auto& cpu = basic->cpu;
     for (;;) {
         auto PC = cpu.PC;
+
+        if (cpu.breakPointHit) {
+            basic->monitor();
+        }
+
         switch (PC) {
         case 0xE5C6:
             // BASIF has decreased the keyboard buffer count
@@ -1019,9 +1078,7 @@ void runAssemblerCode(Basic* basic) {
             // see set filename: FDF9
             uint16_t fnaddr = (cpu.memory[0xBB] & 0xff) | ((cpu.memory[0xBC] & 0xff) << 8);
             if (fnaddr + fnlen >= 0x10000) {
-                cpu.cpuJam = true;
-                cpu.rts();
-                break;
+                throw Basic::ErrorId::OUT_OF_MEMORY;
             }
 
             std::string fname;
@@ -1100,6 +1157,9 @@ void runAssemblerCode(Basic* basic) {
             if (basic->os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
                 stoppedByEsc = true;
                 break;
+            }
+            if (basic->os->isKeyPressed(Os::KeyConstant::PAUSE)) {
+                basic->monitor();
             }
 
             // overwrite the jiffy clock
@@ -1671,15 +1731,15 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memcellcpy8(&memory[0xE000], RomImage::KERNAL_C64(), 0x2000);
     memcellcpy8(&memory[0x0000], RomImage::LOW_RAM(), 0x1000);
 
-    // TODO the upper characters are not PETSCII
     // copy the BA67 font to the CHARROM memory.
+    // --this is never used. BA67 takes the PRINT-ing role--
     for (size_t i = 0; i < 0x100; ++i) {
-        char32_t unicode = PETSCII::toUnicode(uint8_t(i));
+        // char32_t unicode = PETSCII::toUnicode(uint8_t(i));
 
-        auto& bmp = os->screen.getCharDefinition(unicode);
+        auto& bmp = os->screen.getCharDefinition(char32_t(i));
         for (size_t y = 0; y < 8; ++y) {
             // uppercase char set
-            memory[0xD000 + i * 8 + y] = bmp.bits[y];
+            // memory[0xD000 + i * 8 + y] = bmp.bits[y];
 
             // lowercase char set (same, but reversed)
             memory[0xD800 + i * 8 + y] = ~bmp.bits[y];
@@ -4995,16 +5055,6 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
     }
 }
 
-bool Basic::AreYouSureQuestion() {
-    printUtf8String("ARE YOU SURE (Y/N)?");
-    std::string yesno = inputLine(false);
-    if (yesno.length() > 0 && Unicode::toUpperAscii(yesno[0]) == u'Y') {
-        return true;
-    }
-    return false;
-}
-
-
 std::string Basic::inputLine(bool allowVertical) {
     if (os->settings.demoMode) {
         os->delay(2000);
@@ -5536,9 +5586,15 @@ void Basic::executeCommands(const char* pline) {
 void Basic::handleEscapeKey(bool allowPauseWithShift) {
     // break with escape
     if (os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
+        os->getFromKeyboardBuffer();
         restoreColorsAndCursor(true);
         throw Error(ErrorId::BREAK);
     }
+    if (os->isKeyPressed(Os::KeyConstant::PAUSE)) {
+        os->getFromKeyboardBuffer();
+        monitor();
+    }
+
 
     // pause with scroll lock
     if (!allowPauseWithShift) {
@@ -5708,7 +5764,7 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
 
     std::string fileExt;
     if (inOutFilenameUtf8.length() > 4) {
-        Unicode::toLowerAscii(inOutFilenameUtf8.substr(inOutFilenameUtf8.length() - 4).c_str());
+        fileExt = Unicode::toLowerAscii(inOutFilenameUtf8.substr(inOutFilenameUtf8.length() - 4).c_str());
     }
     if (os->dirIsInD64() || (fileExt == ".prg")) {
         // load PRG
@@ -6025,4 +6081,209 @@ Basic::Module::VariableMap::iterator Basic::Module::findOrCreateVariable(const s
         varit = variables.find(variableName);
     }
     return varit;
+}
+
+
+bool Basic::AreYouSureQuestion() {
+    printUtf8String("ARE YOU SURE (Y/N)?");
+    std::string yesno = inputLine(false);
+    if (yesno.length() > 0 && Unicode::toUpperAscii(yesno[0]) == u'Y') {
+        return true;
+    }
+    return false;
+}
+
+// machine memory monitor
+void Basic::monitor() {
+
+    if (inMonitor) {
+        return;
+    }
+
+    cpu.breakPointHit = false;
+
+
+    inMonitor      = true;
+    auto& scn      = os->screen;
+    auto oldScreen = scn.saveState();
+
+    scn.setBackgroundColor(11);
+    scn.setTextColor(13);
+    scn.setReverseMode(false);
+
+    for (;;) {
+        os->updateEvents();
+        os->presentScreen();
+        // prompt
+        scn.setCursorPos({ 0, scn.height - 1 });
+        printUtf8String("\n");
+
+        scn.cleanCurrentLine();
+        printUtf8String("$" + StringHelper::int2hex(cpu.PC, true, 2) + " ");
+
+        std::string cmd;
+        try {
+            cmd = inputLine(false);
+        } catch (...) {
+            break;
+        }
+
+
+        printUtf8String("\n");
+        scn.cleanCurrentLine();
+        auto args = StringHelper::split(cmd, " \t");
+        Unicode::toLower(args[0]);
+
+        // ==
+        auto argi = [&args](size_t i) -> int {
+            if (args.size() <= i) {
+                return 0;
+            }
+            const char* str = args[i].c_str();
+            if (*str == '$') {
+                ++str;
+            }
+            char* endInt = nullptr;
+            i            = int(strtoll(str, &endInt, 16));
+            if (endInt != str) {
+                return i;
+            }
+            return 0;
+        };
+
+
+        if (args.empty()) {
+            continue;
+        }
+        if (args[0] == "h" || args[0] == "help") {
+            //              "0123456789012345678901234567890123456789"
+            printUtf8String("g [address]     - continue execution\n");
+            printUtf8String("z               - single step\n");
+            printUtf8String("m [from] [to]   - memory display\n");
+            printUtf8String("s [from] [to]   - disassemble\n");
+            printUtf8String("r               - registers\n");
+            printUtf8String("> address xx    - poke bytes into memory\n");
+            printUtf8String("bk [l|s|x] a    - add breakpoint\n");
+        } else if (args[0] == "g") {
+            // --goto--
+            if (args.size() > 1) {
+                cpu.PC = argi(1);
+            }
+            break; // monitor loop
+        } else if (args[0] == "z") {
+            // --single step--
+            cpu.breakPointHit = true;
+            break; // monitor loop
+        } else if (args[0] == "m") {
+            // --memory--
+            int from = argi(1), to = argi(2);
+            if (to <= from) {
+                to = from + 0x8f;
+            }
+            while (from < to) {
+                scn.cleanCurrentLine();
+                std::string str = StringHelper::int2hex(from, true, 2);
+                for (int i = 0; i < 8; ++i) {
+                    if ((i % 4) == 0 && i != 0) {
+                        str += " ";
+                    }
+                    str += " " + StringHelper::int2hex(memory[from + i], true, 1);
+                }
+
+                str += " ";
+                for (int i = 0; i < 8; ++i) {
+                    char32_t c = memory[from + i];
+                    if (c < 0x20) {
+                        c = U'.';
+                    }
+                    Unicode::appendAsUtf8(str, c);
+                }
+                str += "\n";
+                from += 8;
+                printUtf8String(str);
+            }
+        } else if (args[0] == "d") {
+            // --disassemble--
+            int from = argi(1);
+            if (from == 0) {
+                from = cpu.PC;
+            }
+            int to = argi(2);
+            if (to == 0) {
+                to = 0xffff;
+            }
+
+            for (int i = 0; i < 20; ++i) {
+                if (from > to) {
+                    break;
+                }
+                auto info = CPU6502::getOpcodeInfo(cpu.memory[from]);
+                scn.cleanCurrentLine();
+                printUtf8String(StringHelper::int2hex(from, true, 2) + "  " + cpu.disassemble(from) + "\n");
+                from += info.length;
+            }
+        } else if (args[0][0] == '>') {
+            // --poke--
+            if (args[0].length() > 1) { // >0801 00 00 instead of > 0801 00 00
+                args.insert(args.begin() + 1, args[0].substr(1));
+            }
+            int addr = argi(1);
+            if (addr >= 0 && addr < memory.size()) {
+                for (size_t i = 2; i < args.size(); ++i) {
+                    memory[addr + i - 2] = argi(i);
+                }
+            }
+        } else if (args[0] == "r") {
+            // --registers--
+            printUtf8String(cpu.registers() + "\n");
+        } else if (args[0] == "break" || args[0] == "bk") {
+            CPU6502::BreakPoint opt;
+            opt.onExec = false;
+
+            for (int i = 1; i < args.size(); ++i) {
+                Unicode::toLower(args[i]);
+                if (args[i][0] == 'l') {
+                    opt.onRead = true;
+                    continue;
+                }
+                if (args[i][0] == 's') {
+                    opt.onWrite = true;
+                    continue;
+                }
+                if (args[i][0] == 'x' || args[i] == "exec") {
+                    opt.onExec = true;
+                    continue;
+                }
+
+                int16_t addr = argi(i);
+                if (!opt.onExec && !opt.onRead && !opt.onWrite) {
+                    opt.onExec = true;
+                }
+                auto& br = cpu.breakpoints[addr];
+                br.onExec |= opt.onExec;
+                br.onRead |= opt.onRead;
+                br.onWrite |= opt.onWrite;
+            }
+            // list all
+            for (auto& bk : cpu.breakpoints) {
+                printUtf8String("BREAK: $" + StringHelper::int2hex(bk.first, true, 2));
+                if (bk.second.onExec) {
+                    printUtf8String(" ON EXEC");
+                }
+                if (bk.second.onRead) {
+                    printUtf8String(" ON LOAD");
+                }
+                if (bk.second.onWrite) {
+                    printUtf8String(" ON STORE");
+                }
+                printUtf8String("\n");
+            }
+        } else {
+            printUtf8String("? TYPE HELP FOR AVAILABLE COMMANDS\n");
+        }
+    }
+
+
+    inMonitor = false;
+    scn.restoreState(oldScreen);
 }

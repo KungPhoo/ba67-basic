@@ -88,30 +88,32 @@ public:
     using Value = std::variant<int64_t, double, std::string, Operator>;
 #endif
 
+    // https://sta.c64.org/cbm64baserr.html
     enum ErrorId {
-        INTERNAL = 1,
-        SYNTAX,
-        FILE_NOT_FOUND,
-        ILLEGAL_DEVICE,
-        UNDEFD_STATEMENT,
-        TYPE_MISMATCH,
-        ILLEGAL_QUANTITY,
-        BAD_SUBSCRIPT // out of dim bounds
+        INTERNAL         = 1,
+        SYNTAX           = 11,
+        FILE_NOT_FOUND   = 4,
+        ILLEGAL_DEVICE   = 9, // illegal device NUMBER
+        UNDEFD_STATEMENT = 17,
+        TYPE_MISMATCH    = 22,
+        ILLEGAL_QUANTITY = 14,
+        BAD_SUBSCRIPT    = 18 // out of dim bounds
         ,
-        UNIMPLEMENTED_COMMAND,
-        OUT_OF_DATA,
-        NEXT_WITHOUT_FOR,
-        RETURN_WITHOUT_GOSUB,
-        FORMULA_TOO_COMPLEX,
+        OUT_OF_DATA          = 13,
+        OUT_OF_MEMORY        = 16,
+        NEXT_WITHOUT_FOR     = 10,
+        RETURN_WITHOUT_GOSUB = 12,
+        FORMULA_TOO_COMPLEX  = 25,
 
         // these are not from BASIC V7
 
-        BREAK,
-        UNDEFD_MODULE,
-        ARGUMENT_COUNT = 101,
-        VARIABLE_UNDEFINED,
-        DEF_WITHOUT_FNEND,
-        READY_COMMAND // easter egg: press enter on "READY."
+        BREAK                 = 30,
+        UNDEFD_MODULE         = 254,
+        ARGUMENT_COUNT        = 101,
+        VARIABLE_UNDEFINED    = 201,
+        DEF_WITHOUT_FNEND     = 202,
+        READY_COMMAND         = 203, // easter egg: press enter on "READY."
+        UNIMPLEMENTED_COMMAND = 255
     };
 
 
@@ -137,8 +139,8 @@ public:
                 {         ErrorId::TYPE_MISMATCH,        "TYPE MISTMATCH ERROR" },
                 {      ErrorId::ILLEGAL_QUANTITY,      "ILLEGAL QUANTITY ERROR" },
                 {         ErrorId::BAD_SUBSCRIPT,         "BAD SUBSCRIPT ERROR" },
-                { ErrorId::UNIMPLEMENTED_COMMAND, "UNIMPLEMENTED COMMAND ERROR" },
                 {           ErrorId::OUT_OF_DATA,           "OUT OF DATA ERROR" },
+                {         ErrorId::OUT_OF_MEMORY,         "OUT OF MEMORY ERROR" },
                 {  ErrorId::RETURN_WITHOUT_GOSUB,        "RETURN WITHOUT GOSUB" },
                 {      ErrorId::NEXT_WITHOUT_FOR,            "NEXT WITHOUT FOR" },
                 {   ErrorId::FORMULA_TOO_COMPLEX,         "FORMULA TOO COMPLEX" },
@@ -147,7 +149,8 @@ public:
                 {        ErrorId::ARGUMENT_COUNT,        "ARGUMENT COUNT ERROR" },
                 {    ErrorId::VARIABLE_UNDEFINED,    "VARIABLE UNDEFINED ERROR" },
                 {     ErrorId::DEF_WITHOUT_FNEND,           "DEF WITHOUT FNEND" },
-                {         ErrorId::READY_COMMAND,                "YES, I AM..." }
+                {         ErrorId::READY_COMMAND,                "YES, I AM..." },
+                { ErrorId::UNIMPLEMENTED_COMMAND, "UNIMPLEMENTED COMMAND ERROR" }
             };
 
             return errorMessages[ID].c_str();
@@ -543,9 +546,6 @@ public:
     }
     // inline void printUtf8String(const char8_t* utf8, bool applyCtrlCodes = false) { printUtf8String((const char*)utf8, applyCtrlCodes); }
 
-    bool AreYouSureQuestion();
-
-
     enum class ParseStatus {
         PS_ERROR = 0,
         PS_EXECUTED,
@@ -571,4 +571,10 @@ public:
 
     bool saveState(std::string& filenameUtf8);
     bool loadState(std::string& filenameUtf8);
+
+    bool AreYouSureQuestion();
+    void monitor();
+
+private:
+    bool inMonitor = false;
 };

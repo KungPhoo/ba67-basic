@@ -4,6 +4,7 @@
 #include "petscii.h"
 #include "unicode.h"
 #include "string_helper.h"
+#include "kernal.h"
 
 uint16_t PrgTool::getword(const uint8_t*& p) {
     int a = *p++;
@@ -282,7 +283,7 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8, std::vector<std:
         }
     }
 
-    int address   = 0x0801;
+    int address   = int(krnl.BASICCODE);
     auto pushWord = [&prg](int w) {
         prg.push_back(w & 0xff);
         prg.push_back((w >> 8) & 0xff);
@@ -350,7 +351,7 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8, std::vector<std:
             if (!isToken) { // any other character
                 if (*src == '\n' || *src == '\0') {
                     rem = false;
-                    prg.push_back(0);
+                    prg.push_back(0); // end of line marker
 
                     // fix address
                     pushWord(address + int(prg.size()) - 2);
@@ -387,6 +388,6 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8, std::vector<std:
         }
     }
 
-    pushWord(0);
+    pushWord(0); // another null byte to end the BASIC code
     return prg;
 }

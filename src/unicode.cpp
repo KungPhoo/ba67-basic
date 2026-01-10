@@ -272,7 +272,7 @@ void Unicode::toLower(std::string& utf8) {
             break;
         }
         tmp.clear();
-        appendAsUtf8(tmp, Unicode::toUpper(cp));
+        appendAsUtf8(tmp, Unicode::toLower(cp));
         if (str - start == tmp.length()) {
             memcpy(start, tmp.c_str(), tmp.length());
         } else {

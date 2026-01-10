@@ -497,6 +497,174 @@ const char* kernalRoutineName(uint16_t PC) {
 }
 
 
+CPU6502::OpCodeInfo CPU6502::getOpcodeInfo(uint8_t op) {
+    static CPU6502::OpCodeInfo info[256] = {};
+    if (info[0].mnemonic == nullptr || info[0].length != 1) {
+        auto add = [&](size_t op, const char* mn, const char* ops, int c) {
+            info[op].mnemonic = mn;
+            info[op].operands = ops;
+            info[op].length   = c;
+        };
+        add(0x00, "BRK", "       ", 1);
+        add(0x01, "ORA", "(IND,X)", 2);
+        add(0x05, "ORA", "ZPG    ", 2);
+        add(0x06, "ASL", "ZPG    ", 2);
+        add(0x08, "PHP", "       ", 1);
+        add(0x09, "ORA", "#      ", 2);
+        add(0x0a, "ASL", "A      ", 1);
+        add(0x0d, "ORA", "ABS    ", 3);
+        add(0x0e, "ASL", "ABS    ", 3);
+        add(0x10, "BPL", "REL    ", 2);
+        add(0x11, "ORA", "(IND),Y", 2);
+        add(0x15, "ORA", "ZPG,X  ", 2);
+        add(0x16, "ASL", "ZPG,X  ", 2);
+        add(0x18, "CLC", "       ", 1);
+        add(0x19, "ORA", "ABS,Y  ", 3);
+        add(0x1d, "ORA", "ABS,X  ", 3);
+        add(0x1e, "ASL", "ABS,X  ", 3);
+        add(0x20, "JSR", "ABS    ", 3);
+        add(0x21, "AND", "(IND,X)", 2);
+        add(0x24, "BIT", "ZPG    ", 2);
+        add(0x25, "AND", "ZPG    ", 2);
+        add(0x26, "ROL", "ZPG    ", 2);
+        add(0x28, "PLP", "       ", 1);
+        add(0x29, "AND", "#      ", 2);
+        add(0x2a, "ROL", "A      ", 1);
+        add(0x2c, "BIT", "ABS    ", 3);
+        add(0x2d, "AND", "ABS    ", 3);
+        add(0x2e, "ROL", "ABS    ", 3);
+        add(0x30, "BMI", "REL    ", 2);
+        add(0x31, "AND", "(IND),Y", 2);
+        add(0x35, "AND", "ZPG,X  ", 2);
+        add(0x36, "ROL", "ZPG,X  ", 2);
+        add(0x38, "SEC", "       ", 1);
+        add(0x39, "AND", "ABS,Y  ", 3);
+        add(0x3d, "AND", "ABS,X  ", 3);
+        add(0x3e, "ROL", "ABS,X  ", 3);
+        add(0x40, "RTI", "       ", 1);
+        add(0x41, "EOR", "(IND,X)", 2);
+        add(0x45, "EOR", "ZPG    ", 2);
+        add(0x46, "LSR", "ZPG    ", 2);
+        add(0x48, "PHA", "       ", 1);
+        add(0x49, "EOR", "#      ", 2);
+        add(0x4a, "LSR", "A      ", 1);
+        add(0x4c, "JMP", "ABS    ", 3);
+        add(0x4d, "EOR", "ABS    ", 3);
+        add(0x4e, "LSR", "ABS    ", 3);
+        add(0x50, "BVC", "REL    ", 2);
+        add(0x51, "EOR", "(IND),Y", 2);
+        add(0x55, "EOR", "ZPG,X  ", 2);
+        add(0x56, "LSR", "ZPG,X  ", 2);
+        add(0x58, "CLI", "       ", 1);
+        add(0x59, "EOR", "ABS,Y  ", 3);
+        add(0x5d, "EOR", "ABS,X  ", 3);
+        add(0x5e, "LSR", "ABS,X  ", 3);
+        add(0x60, "RTS", "       ", 1);
+        add(0x61, "ADC", "(IND,X)", 2);
+        add(0x65, "ADC", "ZPG    ", 2);
+        add(0x66, "ROR", "ZPG    ", 2);
+        add(0x68, "PLA", "       ", 1);
+        add(0x69, "ADC", "#      ", 2);
+        add(0x6a, "ROR", "A      ", 1);
+        add(0x6c, "JMP", "(IND)  ", 3);
+        add(0x6d, "ADC", "ABS    ", 3);
+        add(0x6e, "ROR", "ABS    ", 3);
+        add(0x70, "BVS", "REL    ", 2);
+        add(0x71, "ADC", "(IND),Y", 2);
+        add(0x75, "ADC", "ZPG,X  ", 2);
+        add(0x76, "ROR", "ZPG,X  ", 2);
+        add(0x78, "SEI", "       ", 1);
+        add(0x79, "ADC", "ABS,Y  ", 3);
+        add(0x7d, "ADC", "ABS,X  ", 3);
+        add(0x7e, "ROR", "ABS,X  ", 3);
+        add(0x81, "STA", "(IND,X)", 2);
+        add(0x84, "STY", "ZPG    ", 2);
+        add(0x85, "STA", "ZPG    ", 2);
+        add(0x86, "STX", "ZPG    ", 2);
+        add(0x88, "DEY", "       ", 1);
+        add(0x8a, "TXA", "       ", 1);
+        add(0x8c, "STY", "ABS    ", 3);
+        add(0x8d, "STA", "ABS    ", 3);
+        add(0x8e, "STX", "ABS    ", 3);
+        add(0x90, "BCC", "REL    ", 2);
+        add(0x91, "STA", "(IND),Y", 2);
+        add(0x94, "STY", "ZPG,X  ", 2);
+        add(0x95, "STA", "ZPG,X  ", 2);
+        add(0x96, "STX", "ZPG,Y  ", 2);
+        add(0x98, "TYA", "       ", 1);
+        add(0x99, "STA", "ABS,Y  ", 3);
+        add(0x9a, "TXS", "       ", 1);
+        add(0x9d, "STA", "ABS,X  ", 3);
+        add(0xa0, "LDY", "#      ", 2);
+        add(0xa1, "LDA", "(IND,X)", 2);
+        add(0xa2, "LDX", "#      ", 2);
+        add(0xa4, "LDY", "ZPG    ", 2);
+        add(0xa5, "LDA", "ZPG    ", 2);
+        add(0xa6, "LDX", "ZPG    ", 2);
+        add(0xa8, "TAY", "       ", 1);
+        add(0xa9, "LDA", "#      ", 2);
+        add(0xaa, "TAX", "       ", 1);
+        add(0xac, "LDY", "ABS    ", 3);
+        add(0xad, "LDA", "ABS    ", 3);
+        add(0xae, "LDX", "ABS    ", 3);
+        add(0xb0, "BCS", "REL    ", 2);
+        add(0xb1, "LDA", "(IND),Y", 2);
+        add(0xb4, "LDY", "ZPG,X  ", 2);
+        add(0xb5, "LDA", "ZPG,X  ", 2);
+        add(0xb6, "LDX", "ZPG,Y  ", 2);
+        add(0xb8, "CLV", "       ", 1);
+        add(0xb9, "LDA", "ABS,Y  ", 3);
+        add(0xba, "TSX", "       ", 1);
+        add(0xbc, "LDY", "ABS,X  ", 3);
+        add(0xbd, "LDA", "ABS,X  ", 3);
+        add(0xbe, "LDX", "ABS,Y  ", 3);
+        add(0xc0, "CPY", "#      ", 2);
+        add(0xc1, "CMP", "(IND,X)", 2);
+        add(0xc4, "CPY", "ZPG    ", 2);
+        add(0xc5, "CMP", "ZPG    ", 2);
+        add(0xc6, "DEC", "ZPG    ", 2);
+        add(0xc8, "INY", "       ", 1);
+        add(0xc9, "CMP", "#      ", 2);
+        add(0xca, "DEX", "       ", 1);
+        add(0xcc, "CPY", "ABS    ", 3);
+        add(0xcd, "CMP", "ABS    ", 3);
+        add(0xce, "DEC", "ABS    ", 3);
+        add(0xd0, "BNE", "REL    ", 2);
+        add(0xd1, "CMP", "(IND),Y", 2);
+        add(0xd5, "CMP", "ZPG,X  ", 2);
+        add(0xd6, "DEC", "ZPG,X  ", 2);
+        add(0xd8, "CLD", "       ", 1);
+        add(0xd9, "CMP", "ABS,Y  ", 3);
+        add(0xdd, "CMP", "ABS,X  ", 3);
+        add(0xde, "DEC", "ABS,X  ", 3);
+        add(0xe0, "CPX", "#      ", 2);
+        add(0xe1, "SBC", "(IND,X)", 2);
+        add(0xe4, "CPX", "ZPG    ", 2);
+        add(0xe5, "SBC", "ZPG    ", 2);
+        add(0xe6, "INC", "ZPG    ", 2);
+        add(0xe8, "INX", "       ", 1);
+        add(0xe9, "SBC", "#      ", 2);
+        add(0xea, "NOP", "       ", 1);
+        add(0xec, "CPX", "ABS    ", 3);
+        add(0xed, "SBC", "ABS    ", 3);
+        add(0xee, "INC", "ABS    ", 3);
+        add(0xf0, "BEQ", "REL    ", 2);
+        add(0xf1, "SBC", "(IND),Y", 2);
+        add(0xf5, "SBC", "ZPG,X  ", 2);
+        add(0xf6, "INC", "ZPG,X  ", 2);
+        add(0xf8, "SED", "       ", 1);
+        add(0xf9, "SBC", "ABS,Y  ", 3);
+        add(0xfd, "SBC", "ABS,X  ", 3);
+        add(0xfe, "INC", "ABS,X  ", 3);
+        for (size_t i = 0; i <= 0xff; ++i) {
+            if (info[i].mnemonic == nullptr) {
+                add(i, "???", "???????", 1);
+            }
+        }
+    }
+    return info[op & 0xff];
+}
+
 uint8_t CPU6502::fetchOperand(AddrMode mode) {
     switch (mode) {
     case IMM: return fetchByte();
@@ -701,6 +869,8 @@ bool CPU6502::executeNext() {
     };
 
     opcode = fetchByte();
+
+
     switch (opcode) {
     case LDA_IMM:  executeOp(IMM, LDA); break;
     case LDA_ZP:   executeOp(ZP, LDA); break;
@@ -1085,10 +1255,18 @@ bool CPU6502::executeNext() {
         break;
     }
 
+
+    // check if we hit a breakpoint for next instruction
+    auto it = breakpoints.find(PC);
+    if (it != breakpoints.end() && it->second.onExec) {
+        breakPointHit = true;
+    }
+
     return true;
 }
 
 void CPU6502::rts() { setPC(popWord() + 1); }
+
 
 void CPU6502::setZN(uint8_t value) {
     if (value == 0) {
@@ -1117,17 +1295,50 @@ void CPU6502::printState() {
         printf("---%s---\n", kernal);
     }
     // disassemble
-    printf("%.4X  %.2X %.2X %.2X  %8s A:%.2X X:%.2X Y:%.2X P:%.2X SP:%.2X\n",
-           int(PC), int(memory[PC]), int(memory[PC + 1]), int(memory[PC + 2]),
-           OpCodeName(memory[PC]),
-           int(A), int(X), int(Y), int(P), int(SP));
     //           CRANK     PLOT            jsr chrget      put X as row    CHRGET+PRINTC
     // if (PC == 0x033e || PC == 0xe50a || PC == 0xb79b || PC == 0xe88c || PC == 0xab13
     //
     //     || PC == 0x0341 || PC == 0xAB16 || PC == 0xAB19) {
     //     int pause = 1;
     // }
-
+    printf("%.4X  %s %s\n", int(PC), disassemble(PC).c_str(), registers().c_str());
 
     // 079 sets A to 37 ('7' - 1st parameter ASCII)
+}
+
+std::string CPU6502::disassemble(uint16_t address) {
+    static char buf[256];
+    memset(buf, 0, sizeof(buf));
+
+    auto info = getOpcodeInfo(memory[address]);
+    switch (info.length) {
+    case 1:
+        sprintf(buf, "%.2X        ", int(memory[PC]));
+        break;
+    case 2:
+        sprintf(buf, "%.2X %.2X     ", int(memory[PC]), int(memory[PC + 1]));
+        break;
+    case 3:
+        sprintf(buf, "%.2X %.2X %.2X  ", int(memory[PC]), int(memory[PC + 1]), int(memory[PC + 2]));
+        break;
+    default:
+        sprintf(buf, "%.2X!!      ", int(memory[PC]));
+        break;
+    }
+    std::string str(buf);
+
+    sprintf(buf, "%3s %-16s", info.mnemonic, info.operands);
+
+    str += buf;
+    return str;
+}
+
+std::string CPU6502::registers() {
+    static char buf[256];
+    memset(buf, 0, sizeof(buf));
+
+    sprintf(buf, "PC:%.4X   A:%.2X X:%.2X Y:%.2X   P:%.2X SP:%.2X",
+            int(PC),
+            int(A), int(X), int(Y), int(P), int(SP));
+    return std::string(buf);
 }

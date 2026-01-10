@@ -1,5 +1,7 @@
 ﻿// Full C64 6502 Emulator with all documented opcodes
 #include <cstdint>
+#include <string>
+#include <unordered_map>
 
 using MEMCELL = uint32_t;
 class CPU6502 {
@@ -28,7 +30,6 @@ public:
 
     void rts();
 
-
     enum P_Flags {
         PF_CARRY     = 0x01,
         PF_ZERO      = 0x02,
@@ -42,6 +43,20 @@ public:
 
     inline void clearFlag(uint8_t f) { P &= ~f; }
     inline void setFlag(uint8_t f) { P |= f; }
+
+    struct OpCodeInfo {
+        const char* mnemonic;
+        const char* operands;
+        int length;
+    };
+    static OpCodeInfo getOpcodeInfo(uint8_t op);
+
+    struct BreakPoint {
+        bool onRead = false, onWrite = false, onExec = true;
+    };
+
+    std::unordered_map<uint16_t, BreakPoint> breakpoints;
+    bool breakPointHit = false; // last operation triggered a breakpoint
 
 private:
     enum AddrMode {
@@ -71,11 +86,10 @@ private:
     }
 
     uint8_t fetchByte() {
-#if _DEBUG
-        if (memory[PC] > 0xff) {
-            int pause = 1;
+        auto it = breakpoints.find(PC);
+        if (it != breakpoints.end() && it->second.onRead) {
+            breakPointHit = true;
         }
-#endif
         return uint8_t(memory[PC++]);
     }
     uint16_t fetchWord() {
@@ -86,6 +100,12 @@ private:
     uint16_t readWord(uint16_t addr) { return (memory[addr] & 0xff) | ((memory[addr + 1] & 0xff) << 8); }
 
     inline void setByte(uint16_t addr, uint8_t byte) {
+
+        auto it = breakpoints.find(addr);
+        if (it != breakpoints.end() && it->second.onWrite) {
+            breakPointHit = true;
+        }
+
         if (addr == 0x0286) { // BACKGROUND_COLOR_ALSO_SEE_HERE
             byte |= (memory[0xD021] << 4);
         }
@@ -113,4 +133,8 @@ private:
     void brk();
 
     void printState();
+
+public:
+    std::string disassemble(uint16_t address);
+    std::string registers();
 };

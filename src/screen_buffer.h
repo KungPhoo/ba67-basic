@@ -162,6 +162,8 @@ public:
     struct SaveState {
         std::vector<MEMCELL> screen;
         Cursor crsr;
+        uint8_t c1, c2;
+        bool rvs;
     };
     SaveState saveState() const {
         SaveState s;
@@ -170,6 +172,10 @@ public:
             s.screen[n] = charRam[n];
         }
         s.crsr = getCursorPos();
+        s.c1   = getTextColor();
+        s.c2   = getBackgroundColor();
+        s.rvs  = getReverseMode();
+
         return s;
     }
     void restoreState(const SaveState& s) {
@@ -177,6 +183,9 @@ public:
             charRam[n] = s.screen[n];
         }
         setCursorPos(s.crsr);
+        setTextColor(s.c1);
+        setBackgroundColor(s.c2);
+        setReverseMode(s.rvs);
     }
 
 public:
