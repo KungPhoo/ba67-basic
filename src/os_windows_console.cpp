@@ -407,6 +407,12 @@ const bool OsWindowsConsole::isKeyPressed(char32_t index, bool withShift, bool w
     case char32_t(Os::KeyConstant::SHIFT_RIGHT):
         index = VK_RSHIFT;
         break;
+        // case char32_t(Os::KeyConstant::CTRL_LEFT):
+        //     index = VK_LCONTROL;
+        //     break;
+        // case char32_t(Os::KeyConstant::CTRL_RIGHT):
+        //     index = VK_RCONTROL;
+        //     break;
     }
 
     bool pressed = ((GetKeyState(int(index)) & bitmask) != 0);

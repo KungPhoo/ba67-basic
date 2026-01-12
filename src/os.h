@@ -103,7 +103,11 @@ public:
         SCROLL      = 149,
         PAUSE       = 150,
         SHIFT_LEFT  = 151,
-        SHIFT_RIGHT = 152
+        SHIFT_RIGHT = 152,
+        CTRL_LEFT   = 153,
+        CTRL_RIGHT  = 154,
+        ALT_LEFT    = 155,
+        ALT_RIGHT   = 156
 
         // 161 start of visible characters in Unicode
         // no more than 255

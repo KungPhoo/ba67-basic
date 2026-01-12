@@ -362,6 +362,13 @@ void OsSDL2::codepointFromSDLKey(const SDL_Keysym& keysym, Os::KeyPress& k) {
     case SDLK_RIGHT:  k.code = uint32_t(KeyConstant::CRSR_RIGHT); break;
     case SDLK_INSERT: k.code = uint32_t(KeyConstant::INSERT); break;
     case SDLK_DELETE: k.code = uint32_t(KeyConstant::DEL); break;
+    case SDLK_LSHIFT: k.code = uint32_t(KeyConstant::SHIFT_LEFT); break;
+    case SDLK_RSHIFT:
+        k.code = uint32_t(KeyConstant::SHIFT_RIGHT);
+        break;
+        // case SDLK_LCTRL:  k.code = uint32_t(KeyConstant::CTRL_LEFT); break;
+        // case SDLK_RCTRL:  k.code = uint32_t(KeyConstant::CTRL_RIGHT); break;
+
     case SDLK_KP_BACKSPACE:
     case SDLK_BACKSPACE:
         k.code = uint32_t(KeyConstant::BACKSPACE);

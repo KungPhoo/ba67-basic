@@ -574,7 +574,4 @@ public:
 
     bool AreYouSureQuestion();
     void monitor();
-
-private:
-    bool inMonitor = false;
 };

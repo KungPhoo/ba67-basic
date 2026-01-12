@@ -212,7 +212,7 @@ std::string PrgTool::PRGtoBASIC(const uint8_t* prgBytes) {
                 }
                 quote    = !quote;
                 hasSpace = true;
-            } else if (!isData && !quote && (c & 0x80)) {
+            } else if (!isData && !quote && (c & 0x80)) { // token
                 bool isGO         = (*p == 0xcb);
                 const char* token = gettoken(p);
                 if (token == nullptr) {
@@ -229,7 +229,10 @@ std::string PrgTool::PRGtoBASIC(const uint8_t* prgBytes) {
                 str << token;
                 char lastChar = token[StringHelper::strlen(token) - 1];
                 if (lastChar >= 'A' && lastChar <= 'Z' && !isGO) {
-                    str << " ";
+                    str << ' ';
+                    if (p[1] == ' ') {
+                        ++p;
+                    }
                 }
                 hasSpace = true;
             } else if (quote || isData) {
@@ -283,14 +286,15 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8, std::vector<std:
         }
     }
 
-    int address   = int(krnl.BASICCODE);
-    auto pushWord = [&prg](int w) {
+    int addressOfStart = int(krnl.BASICCODE);
+    auto pushWord      = [&prg](int w) {
         prg.push_back(w & 0xff);
         prg.push_back((w >> 8) & 0xff);
     };
 
     const char* src = basicUtf8;
-    pushWord(address);
+
+    pushWord(addressOfStart);
     for (; *src; ++src) {
         int lineno = 0;
         while (*src >= '0' && *src <= '9') {
@@ -302,7 +306,7 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8, std::vector<std:
             ++src;
         }
         size_t addressIndex = prg.size();
-        pushWord(address);
+        pushWord(addressOfStart);
         pushWord(lineno);
 
         bool quote = false, rem = false;
@@ -343,9 +347,6 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8, std::vector<std:
                     src += longestTokenLength;
                     isToken = true;
                     // break;
-                } else {
-
-                    int yiokes = 0;
                 }
             }
             if (!isToken) { // any other character
@@ -353,12 +354,11 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8, std::vector<std:
                     rem = false;
                     prg.push_back(0); // end of line marker
 
-                    // fix address
-                    pushWord(address + int(prg.size()) - 2);
-                    prg[addressIndex]     = prg[prg.size() - 2];
-                    prg[addressIndex + 1] = prg[prg.size() - 1];
-                    prg.pop_back();
-                    prg.pop_back();
+                    // fix address to next line
+                    uint16_t nla          = uint16_t(addressOfStart + prg.size() - 2);
+                    prg[addressIndex]     = nla & 0xff;
+                    prg[addressIndex + 1] = (nla >> 8) & 0xff;
+                    // #error somehow the byte is offset by one
                     break;
                 } else {
                     if (quote) {

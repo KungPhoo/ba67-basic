@@ -23,6 +23,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
   - [boot.bas](#boot-bas)
   - [PETCAT](#petcat)
 - [Editor](#editor)
+- [Monitor](#monitor)
 - [Keywords, Commands, Functions](#keywords--commands--functions)
   - [Commands and Keywords](#commands-and-keywords)
     - [ABOUT](#about)
@@ -156,6 +157,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
   - [G - Going from PETSCII to Unicode](#g---going-from-petscii-to-unicode)
   - [H - Hardcore Assembler Language](#h---hardcore-assembler-language)
   - [I - Internal Memory Model (PEEK and POKE)](#i---internal-memory-model--peek-and-poke-)
+  - [M - Machine Language Monitor](#m---machine-language-monitor)
   - [Z Known bugs](#z-known-bugs)
 - [Disclaimer](#disclaimer)
 <!-- TOC_END -->
@@ -185,6 +187,7 @@ but also features some improvements.
 Here are the key features:
 - Compatible with the famous Commodore BASIC
 - Can even run 6502 assembler subroutines
+- Machine language monitor
 - Can load and save .prg files. Even in .d64 files
 - GOTO/GOSUB labels (backwards compatible!)
 - Variable names can be longer than 2 characters
@@ -219,8 +222,7 @@ These days there are so many languages and programs to
 install before the fun starts, that many do not even bother
 to try it.
 
-The goal of this project is to get people to start
-programming.
+The goal of this project is to get people to start programming.
 
 It aims to provide a BASIC language, that sticks to a very
 widespread standard, keep backwards compatibility and focus
@@ -255,8 +257,7 @@ effects, DrPetter's SFXR is used. See [PLAY](#play) and
 
 -------------------------------------------------------------
 # Syntax
-This interpreter tries to imitate and extend
-COMMODORE's BASIC V7.
+This interpreter tries to imitate and extend COMMODORE's BASIC V7.
 
 ## Case Sensitive
 The parser is case sensitive, but the line input uppercases
@@ -320,9 +321,8 @@ This interpreter has full Unicode support. Even emoji 😀.
 The Windows console, however, cannot display characters
 above 0xffff and will display two characters instead ☹.
 
-LEN, MID$ etc. work with Unicode code-points, so
-LEN("äöü") = 3, even though the parser stores 6 utf8
-bytes, internally.
+LEN, MID$ etc. work with Unicode code-points, so LEN("äöü") = 3,
+even though the parser stores 6 Utf8 bytes, internally.
 
 
 -------------------------------------------------------------
@@ -476,6 +476,13 @@ position. You can find that program as well on
 [github](https://github.com/KungPhoo/stdout-emoji-panel).
 
 -------------------------------------------------------------
+# Monitor
+There is a built-in machine code monitor. You can open it by
+pressing `ALT+PAUSE`. See the annex for some details or type
+`help` in the monitor's input command line.
+
+
+-------------------------------------------------------------
 # Keywords, Commands, Functions
 The following is a list of the BASIC hard-coded language
 tokens you can use to write programs. They are split in 3
@@ -507,7 +514,7 @@ this line to prevent you from overwriting existing code.
 
 
 ### BAKE
-**Usage:** `BAKE`
+**Usage:** `BAKE [64]`
 
 BA67 provides a compatible way to use labels for `GOTO` and
 `GOSUB` calls.
@@ -533,6 +540,9 @@ Attention: The does not work with `ON..GOTO/GOSUB` in
 CBM BASIC, so BA67 does not support it either.
 **Usage:** `REM COMMENT. --LABEL-- FOR BAKE`
 
+If you provide the argument `64`, BA67 will compress your
+program to a PRG file and copy it to the memory location
+$0801, so the C64 mode (`GO 64`) can access it.
 
 ### BLOAD
 **Usage:** `BLOAD filename$, address`
@@ -2092,26 +2102,26 @@ control characters.
 It's compatible with the Commodore PETSCII codes.
 
 +-----+--------------+-------------------------------------+
-|Code |How to Type   | Description                         |
+| Code| How to Type  | Description                         |
 +-----+--------------+-------------------------------------+
-| $0d |              | carriage return (see annex F)       |
-| $0a |              | line feed (see annex F)             |
+| $0D |              | carriage return (see annex F)       |
+| $0A |              | line feed (see annex F)             |
 | $11 | ALT+CRSR     | cursor down                         |
-| $1d | ALT+CRSR     | cursor right                        |
+| $1D | ALT+CRSR     | cursor right                        |
 | $91 | ALT+CRSR     | cursor up                           |
-| $9d | ALT+CRSR     | cursor left                         |
+| $9D | ALT+CRSR     | cursor left                         |
 | $13 | ALT+HOME     | home                                |
 | $14 | ALT+DEL      | delete                              |
 | $93 | ALT.END      | clear                               |
 | $94 | no key yet   | insert (not implemented)            |
 | $90 | CTRL+1       | color black                         |
 | $05 | CTRL+2       | color white                         |
-| $1c | CTRL+3       | color red                           |
-| $9f | CTRL+4       | color cyan                          |
-| $9c | CTRL+5       | color purple                        |
-| $1e | CTRL+6       | color green                         |
-| $1f | CTRL+7       | color blue                          |
-| $9e | CTRL+8       | color yellow                        |
+| $1C | CTRL+3       | color red                           |
+| $9F | CTRL+4       | color cyan                          |
+| $9C | CTRL+5       | color purple                        |
+| $1E | CTRL+6       | color green                         |
+| $1F | CTRL+7       | color blue                          |
+| $9E | CTRL+8       | color yellow                        |
 | $12 | CTRL+9       | reverse on (implemented as a hack)  |
 | $92 | CTRL+0       | reverse off (implemented as a hack) |
 | $97 | SHIFT+CTRL+1 | color dark gray                     |
@@ -2120,7 +2130,7 @@ It's compatible with the Commodore PETSCII codes.
 | $98 | SHIFT+CTRL+4 | color gray                          |
 | $81 | SHIFT+CTRL+5 | color orange                        |
 | $99 | SHIFT+CTRL+6 | color light green                   |
-| $9a | SHIFT+CTRL+7 | color light blue                    |
+| $9A | SHIFT+CTRL+7 | color light blue                    |
 | $95 | SHIFT+CTRL+8 | color brown                         |
 +-----+--------------+-------------------------------------+
 
@@ -2130,13 +2140,13 @@ As the newline war subsides, in the 1980s we were not aware of
 what was coming.
 
 There are two ASCII characters for "end of line":
-+---------------+------------+---+---+
-|Name           |Abbreviation|Hex|Dec|
-+---------------+------------+---+---+
-|Carriage Return|CR          |$0d| 10|
-+---------------+------------+---+---+
-|Line Feed      |LF          |$0a| 13|
-+---------------+------------+---+---+
++----------------+-------------+-----+-----+
+| Name           | Abbreviation| Hex | Dec |
++----------------+-------------+-----+-----+
+| Carriage Return| CR          | $0D |  10 |
++----------------+-------------+-----+-----+
+| Line Feed      | LF          | $0A |  13 |
++----------------+-------------+-----+-----+
 Originally designed, the CR moved the cursor or typewriter's
 print head to the left edge, where LF moved the cursor down
 or the paper up.
@@ -2150,19 +2160,19 @@ complicated - each did their own thing.
 
 Here's a short list of what each one did with the cursor
 position:
-+----------+---------+---------+
-|COMPUTER  | CR      | LF      |
-+----------+---------+---------+
-|C64/C128  | X=0,Y+1 | Y+1     |
-+----------+---------+---------+
-|BBC       | Y+1     | X=0     |
-+----------+---------+---------+
-|CPC       | Y+1     | X=0     |
-+----------+---------+---------+
-|Apple     | Y+1     | X=0,Y+1 |
-+----------+---------+---------+
-|BA67      | X=0,Y+1 | X=0,Y+1 |
-+----------+---------+---------+
++-----------+---------+---------+
+| COMPUTER  | CR      | LF      |
++-----------+---------+---------+
+| C64/C128  | X=0,Y+1 | Y+1     |
++-----------+---------+---------+
+| BBC       | Y+1     | X=0     |
++-----------+---------+---------+
+| CPC       | Y+1     | X=0     |
++-----------+---------+---------+
+| Apple     | Y+1     | X=0,Y+1 |
++-----------+---------+---------+
+| BA67      | X=0,Y+1 | X=0,Y+1 |
++-----------+---------+---------+
 
 So how to stay compatible with Commodore BASIC, but have
 a modern implementation of it?
@@ -2328,6 +2338,14 @@ Thus, peeking $E48D(58509) yields:
 +-------+-------+-----+-----+------+------+
 | $00   | $FF   | $F9 | $53 | $AD  | $36  |
 +-------+-------+-----+-----+------+------+
+
+
+
+## M - Machine Language Monitor
+Pressing `ALT+PAUSE` keys brings up the machine language monitor.
+Type `help` for the list of available commands.
+
+
 
 ## Z Known bugs
 `PRINT "X"; IF ` - no colon! but no error, yet

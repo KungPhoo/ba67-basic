@@ -53,7 +53,7 @@ void Os::pokeKeyboardBuffer() {
     static uint8_t cbmMap[256] = {};
     if (cbmMap[255] == 0) {
         for (size_t i = 0; i < 0x100; ++i) {
-            cbmMap[i] = i;
+            cbmMap[i] = uint8_t(i);
         }
         // 10 if peek(198)=0 then goto 10
         // 20 print peek(631);"=";

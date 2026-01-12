@@ -689,6 +689,9 @@ void OsFPL::updateEvents() {
 }
 
 const bool OsFPL::isKeyPressed(char32_t index, bool withShift, bool withAlt, bool withCtrl) const {
+
+
+
     static fplKeyboardState keyboardState = {};
 
     if (!hasFocus) {
@@ -713,6 +716,25 @@ const bool OsFPL::isKeyPressed(char32_t index, bool withShift, bool withAlt, boo
             return false;
         }
     }
+
+
+
+
+    // #if _DEBUG
+    // static fplKeyboardState nullstate = {};
+    // static bool first                 = true;
+    // if (first) {
+    //     first     = false;
+    //     nullstate = keyboardState;
+    // }
+    //
+    // fplPollKeyboardState(&keyboardState);
+    // for (int i = 0; i < FPL_MAX_KEYBOARD_STATE_COUNT; ++i) {
+    //     if (keyboardState.keyStatesRaw[i] != nullstate.keyStatesRaw[i]) {
+    //         printf("Key: %d($%x)\n", i, i);
+    //     }
+    // }
+    // #endif
 
     switch (index) {
     case uint32_t(KeyConstant::ESCAPE):
@@ -798,11 +820,17 @@ const bool OsFPL::isKeyPressed(char32_t index, bool withShift, bool withAlt, boo
         index = fplKey_Pause;
         break;
     case uint32_t(KeyConstant::SHIFT_LEFT):
-        index = fplKey_LeftShift;
-        break;
+        return (int(keyboardState.modifiers) & fplKeyboardModifierFlags_LShift) != 0;
     case uint32_t(KeyConstant::SHIFT_RIGHT):
-        index = fplKey_RightShift;
-        break;
+        return (int(keyboardState.modifiers) & fplKeyboardModifierFlags_RShift) != 0;
+    case uint32_t(KeyConstant::CTRL_LEFT):
+        return (int(keyboardState.modifiers) & fplKeyboardModifierFlags_LCtrl) != 0;
+    case uint32_t(KeyConstant::CTRL_RIGHT):
+        return (int(keyboardState.modifiers) & fplKeyboardModifierFlags_RCtrl) != 0;
+    case uint32_t(KeyConstant::ALT_LEFT):
+        return (int(keyboardState.modifiers) & fplKeyboardModifierFlags_LAlt) != 0;
+    case uint32_t(KeyConstant::ALT_RIGHT):
+        return (int(keyboardState.modifiers) & fplKeyboardModifierFlags_RAlt) != 0;
     default:
         break;
     }

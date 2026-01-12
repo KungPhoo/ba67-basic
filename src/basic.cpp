@@ -104,8 +104,8 @@ void bakePRGtoC64(Basic* basic) {
     auto prg = PrgTool::BASICtoPRG(all.c_str(), &errorDetails);
 
     size_t address = krnl.BASICCODE;
-    for (size_t i = 0; i < prg.size(); ++i) {
-        basic->memory[address++] = prg[i];
+    for (size_t i = 2; i < prg.size(); ++i) {
+        basic->memory[address++] = prg[i]; // skip 2 byte loading address header
         if (address >= krnl.BASICEND) {
             throw Basic::ErrorId::OUT_OF_MEMORY;
         }
@@ -1714,6 +1714,7 @@ inline const std::string Basic::buildVersion() { return __DATE__; }
 
 Basic::Basic(Os* os, SoundSystem* ss) {
     memory.resize(0x20000);
+    cpu.memory = &memory[0];
 
     static auto memcellcpy8 = [](MEMCELL* dst, const uint8_t* src, size_t count) {
         while (count != 0) {
@@ -5586,12 +5587,12 @@ void Basic::executeCommands(const char* pline) {
 void Basic::handleEscapeKey(bool allowPauseWithShift) {
     // break with escape
     if (os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
-        os->getFromKeyboardBuffer();
         restoreColorsAndCursor(true);
         throw Error(ErrorId::BREAK);
     }
-    if (os->isKeyPressed(Os::KeyConstant::PAUSE)) {
-        os->getFromKeyboardBuffer();
+    if (os->isKeyPressed(Os::KeyConstant::PAUSE) && os->isKeyPressed(Os::KeyConstant::ALT_LEFT)) {
+
+
         monitor();
     }
 
@@ -6095,6 +6096,7 @@ bool Basic::AreYouSureQuestion() {
 
 // machine memory monitor
 void Basic::monitor() {
+    static bool inMonitor = false;
 
     if (inMonitor) {
         return;
@@ -6146,7 +6148,7 @@ void Basic::monitor() {
             char* endInt = nullptr;
             i            = int(strtoll(str, &endInt, 16));
             if (endInt != str) {
-                return i;
+                return int(i);
             }
             return 0;
         };
@@ -6164,6 +6166,7 @@ void Basic::monitor() {
             printUtf8String("r               - registers\n");
             printUtf8String("> address xx    - poke bytes into memory\n");
             printUtf8String("bk [l|s|x] a    - add breakpoint\n");
+            printUtf8String("del [addr]      - remove breakpoints\n");
         } else if (args[0] == "g") {
             // --goto--
             if (args.size() > 1) {
@@ -6237,6 +6240,7 @@ void Basic::monitor() {
             // --registers--
             printUtf8String(cpu.registers() + "\n");
         } else if (args[0] == "break" || args[0] == "bk") {
+            // --break--
             CPU6502::BreakPoint opt;
             opt.onExec = false;
 
@@ -6277,6 +6281,19 @@ void Basic::monitor() {
                     printUtf8String(" ON STORE");
                 }
                 printUtf8String("\n");
+            }
+        } else if (args[0] == "del" || args[0] == "delete") {
+            // --delete breakpoints--
+            if (args.size() == 1) {
+                cpu.breakpoints.clear();
+            } else {
+                for (size_t i = 1; i < args.size(); ++i) {
+                    int addr = argi(i);
+                    auto it  = cpu.breakpoints.find(addr);
+                    if (it != cpu.breakpoints.end()) {
+                        cpu.breakpoints.erase(it);
+                    }
+                }
             }
         } else {
             printUtf8String("? TYPE HELP FOR AVAILABLE COMMANDS\n");
