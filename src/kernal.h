@@ -42,6 +42,10 @@ struct KernalAddress {
     const size_t VIC_RASTER = 0xD012; // raster interrupt position
     const size_t VIC_BORDER = 0xD020; // color of border
     const size_t VIC_BKGND  = 0xD021; // color of screen background
+
+    // screen size
+    const size_t LLEN   = 0xE506; // 40 columns - hardcoded
+    const size_t NLINES = 0xE508; // 25 lines   - hardcoded
 };
 
 inline constexpr KernalAddress krnl {};

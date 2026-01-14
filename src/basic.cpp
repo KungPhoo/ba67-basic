@@ -564,7 +564,17 @@ void cmdGO(Basic* basic, const std::vector<Basic::Value>& values) {
                 basic->os->screen.defineChar(char32_t(i), bmp);
             }
 
-            cmdSYS(basic, { 0xFCE2 });
+            // basic->os->screen.setBackgroundColor(6);
+            // basic->os->screen.setTextColor(14);
+            // basic->os->screen.setBorderColor(14);
+            // basic->os->screen.clear();
+            // basic->printUtf8String("\n    **** COMMODORE 64 BASIC V2 ****     "
+            //                        "\n                                        "
+            //                        "\n 64K RAM SYSTEM - BA67 EMULATION MODE   "
+            //                        "\n");
+            // cmdSYS(basic, { 0xA474 }); // print BASIC "READY." and go
+
+            cmdSYS(basic, { 0xFCE2 }); // 64738 system cold start
             basic->restoreColorsAndCursor(true);
         }
     } else {
@@ -1132,18 +1142,14 @@ void runAssemblerCode(Basic* basic) {
         }
 
 
-            // FFD8 SAVE
+            // case 0xFFD8: // SAVE implementation
+            //     cpu.rts();
+            //     break;
         }
 
         if (!cpu.executeNext()) {
             break;
         }
-
-        // #if _DEBUG // always display what's on screen
-        //         counter = 0xfe;
-        // #endif
-
-
 
         if (++counter == 0xff) {
             counter = 0;
@@ -1183,14 +1189,7 @@ void runAssemblerCode(Basic* basic) {
         }
     }
     if (cpu.cpuJam || stoppedByEsc) {
-        std::string err = (cpu.cpuJam ? "CPU JAM AT " : "CPU STOP AT ")
-                        + StringHelper::int2hex(cpu.PC, true, 2)
-                        + "\nOPCODE " + StringHelper::int2hex(cpu.opcode, true, 1)
-                        + "\nPC:" + StringHelper::int2hex(cpu.PC, true, 2)
-                        + "\nA:" + StringHelper::int2hex(cpu.A, true, 2)
-                        + "\nX:" + StringHelper::int2hex(cpu.X, true, 2)
-                        + "\nY:" + StringHelper::int2hex(cpu.Y, true, 2)
-                        + "\nP:" + StringHelper::int2hex(cpu.P, true, 2)
+        std::string err = (cpu.cpuJam ? ("CPU JAM\n" + cpu.registers()) : "EXIT TO BA67")
                         + "\n";
         basic->restoreColorsAndCursor(false);
         basic->printUtf8String(err);
@@ -1380,6 +1379,21 @@ void cmdCLOUD(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() > 2) {
         basic->os->cloudUrl = basic->valueToString(values[2]);
     }
+}
+
+Basic::Value fktCHR$(Basic* basic, const std::vector<Basic::Value>& args) {
+    if (args.size() != 1) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+
+    char32_t i = char32_t(basic->valueToInt(args[0]));
+    std::string s;
+    if (i == 0) {
+        s.push_back(0);
+    } else {
+        Unicode::appendAsUtf8(s, i);
+    }
+    return s;
 }
 
 Basic::Value fktDEC(Basic* basic, const std::vector<Basic::Value>& args) {
@@ -1911,7 +1925,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "ABS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return fabs(basic->valueToDouble(args[0])); } },
         { "ASC", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); std::string s = Basic::valueToString(args[0]); const char* p = s.c_str(); return (int64_t)Unicode::parseNextUtf8(p); } },
         { "ATN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return atan(basic->valueToDouble(args[0])); } },
-        { "CHR$", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); std::string s; Unicode::appendAsUtf8(s,  char32_t(basic->valueToInt(args[0]))); return s; } },
+        { "CHR$", fktCHR$ },
         { "COS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return cos(basic->valueToDouble(args[0])); } },
         { "DEC", fktDEC },
         { "EXP", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return exp(basic->valueToDouble(args[0])); } },
@@ -2300,8 +2314,10 @@ bool Basic::parseOperator(const char*& str, std::string_view* op) {
 
 inline bool Basic::parseIdentifier(const char*& str, std::string_view* identifier) {
     skipWhite(str);
-    // start with alpha
-    if ((*str >= 'A' && *str <= 'Z') || (*str >= 'a' && *str <= 'z')) {
+    // start with alpha or Unicode
+    if ((*str >= 'A' && *str <= 'Z') || (*str >= 'a' && *str <= 'z')
+        /* || *str > 192 || *str < 0 */
+    ) {
         const char* pend = str;
 
         if (!options.spacingRequired) {
@@ -6160,6 +6176,7 @@ void Basic::monitor() {
         if (args[0] == "h" || args[0] == "help") {
             //              "0123456789012345678901234567890123456789"
             printUtf8String("g [address]     - continue execution\n");
+            printUtf8String("x               - exit monitor\n");
             printUtf8String("z               - single step\n");
             printUtf8String("m [from] [to]   - memory display\n");
             printUtf8String("s [from] [to]   - disassemble\n");
@@ -6172,6 +6189,8 @@ void Basic::monitor() {
             if (args.size() > 1) {
                 cpu.PC = argi(1);
             }
+            break; // monitor loop
+        } else if (args[0] == "x" || args[0] == "exit") {
             break; // monitor loop
         } else if (args[0] == "z") {
             // --single step--

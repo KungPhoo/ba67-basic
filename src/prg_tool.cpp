@@ -236,9 +236,6 @@ std::string PrgTool::PRGtoBASIC(const uint8_t* prgBytes) {
                 }
                 hasSpace = true;
             } else if (quote || isData) {
-                if (c == 0xcc) {
-                    int pause = 1;
-                }
                 char32_t s32[2] = { PETSCII::toUnicode(c), 0 };
                 str << Unicode::toUtf8String(s32);
             } else {
@@ -388,6 +385,6 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8, std::vector<std:
         }
     }
 
-    pushWord(0); // another null byte to end the BASIC code
+    pushWord(0); // another two null byte to end the BASIC code
     return prg;
 }
