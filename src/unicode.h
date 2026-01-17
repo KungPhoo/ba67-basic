@@ -19,8 +19,9 @@ public:
 
     // code point length of utf8 string
     static size_t utf8StrLen(const char* utf8);
+    static size_t utf8StrLen(const std::string& utf8);
 
-    // uppercase a unicode code point (A-Z)
+    // uppercase a Unicode code point (A-Z)
     static char32_t toUpperAscii(char32_t c);
     static char32_t toLowerAscii(char32_t c);
     // uppercase a utf8 string (A-Z)

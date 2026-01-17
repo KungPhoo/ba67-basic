@@ -867,7 +867,6 @@ void CharMap::init(char32_t from, char32_t to) {
         ++pData;
     }
 
-
 #if 0
     for (auto& c : synonyms) {
         if (c.second < 0) {

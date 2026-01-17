@@ -32,7 +32,6 @@ public:
 
     static uint64_t strtou64(const std::string_view str);
 
-
 private:
     struct HexTable {
         int tab[256];

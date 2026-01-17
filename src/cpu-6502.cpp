@@ -1255,7 +1255,6 @@ bool CPU6502::executeNext() {
         break;
     }
 
-
     // check if we hit a breakpoint for next instruction
     auto it = breakpoints.find(PC);
     if (it != breakpoints.end() && it->second.onExec) {

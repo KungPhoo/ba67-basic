@@ -130,14 +130,6 @@ bool OsWindowsConsole::init(Basic* basic, SoundSystem* ss) {
     // SetConsoleFont(L"Cascadia Code PL", 24, true);
     SetC64ConsoleColours();
 
-    // ConsoleColor(10, 8);
-
-    // system("color BD"); // Back, fore - this is the correct way to set the background
-    // foregnd = 13;
-    // bkgnd = 11;
-    // ConsoleColor(foregnd, bkgnd);
-    // setTextColor(foregnd);
-
     return true;
 }
 

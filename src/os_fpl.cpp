@@ -372,6 +372,7 @@ static void renderToFrontBuffer(OsFPL* fpl, OsFPL::Buffered* buffer) {
     }
 }
 
+// render the screen buffer to the actual graphics screen
 void OsFPL::presentScreen() {
 
     uint64_t now             = tick();

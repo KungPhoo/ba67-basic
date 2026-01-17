@@ -293,7 +293,6 @@ private:
     size_t lastUsedColumn(size_t r) const;
 
 
-
 protected:
     mutable std::mutex lock;
 

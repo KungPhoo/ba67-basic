@@ -46,7 +46,6 @@ const vec3 blockMatrix[16] = vec3[16]( // vertically flipped
     vec3(1.0, drk, drk),vec3(drk, 1.0, drk),vec3(drk, drk, 1.0),vec3(scn, scn, scn)
 );
 
-
 void main() {
     // Convert current screen fragment position (TexCoord is [0,1]) to pixel coords
     vec2 fragPixel = TexCoord * uWinSize;

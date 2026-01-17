@@ -85,7 +85,6 @@ public:
     bool isMono                                                                     = true;
 };
 
-
 class CharMap {
 public:
     CharMap();

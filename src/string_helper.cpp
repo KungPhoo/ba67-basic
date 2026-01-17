@@ -197,7 +197,6 @@ void StringHelper::memcpy(void* dst, const void* src, size_t len) {
     while (len--) {
         *d++ = *s++;
     }
-
     return dst;
 #endif
 }

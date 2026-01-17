@@ -15,6 +15,7 @@
 ,{"CHARDEF", R"RAW(CHARDEF char$, bytes [, more bytes])RAW"}
 ,{"CHDIR", R"RAW(CHDIR directory)RAW"}
 ,{"CLOUD", R"RAW(CLOUD email$ [, server$])RAW"}
+,{"CONT", R"RAW(CONT)RAW"}
 ,{"DATA", R"RAW(DATA value, value, string, "string with spaces", ...)RAW"}
 ,{"DELETE", R"RAW(DELETE from [- to])RAW"}
 ,{"DIM", R"RAW(DIM var(size))RAW"}

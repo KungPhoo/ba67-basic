@@ -1,5 +1,5 @@
 ﻿# BA67 - 80s BASIC Interpreter
-Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
+Visit the project Homepage: [www.ba67.org](https://www.ba67.org).              
 
 # Contents
 <!-- do not edit TOC_START and TOC_END lines. -->
@@ -39,6 +39,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [CHARDEF](#chardef)
     - [CHDIR](#chdir)
     - [CLOUD](#cloud)
+    - [CONT](#cont)
     - [DATA](#data)
     - [DEF FN](#def-fn)
     - [DELETE](#delete)
@@ -760,6 +761,13 @@ If you have a local directory "CLOUD" and want to change
 to that directory, you can do so with  `CHDIR "./CLOUD"`.
 
 See [Annex C](#annex) for more details.
+
+### CONT
+**Usage:** `CONT`
+
+This command tries ton continue from where the program was
+stopped last time using the `ESC` key or the `STOP` command.
+
 
 ### DATA
 **Usage:** `DATA value, value, string, "string with spaces", ...`
@@ -1595,7 +1603,6 @@ FOR I = 1 TO 5
 ```
 
 
-
 -------------------------------------------------------------
 ## Functions
 ### ABS
@@ -2349,6 +2356,7 @@ Type `help` for the list of available commands.
 
 ## Z Known bugs
 `PRINT "X"; IF ` - no colon! but no error, yet
+
 
 -------------------------------------------------------------
 # Disclaimer

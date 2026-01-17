@@ -108,7 +108,6 @@ public:
         CTRL_RIGHT  = 154,
         ALT_LEFT    = 155,
         ALT_RIGHT   = 156
-
         // 161 start of visible characters in Unicode
         // no more than 255
     };

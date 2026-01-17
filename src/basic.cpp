@@ -160,15 +160,21 @@ void cmdBAKE(Basic* basic, const std::vector<Basic::Value>& values) {
             size_t matchPos = it->position() + offset;
             size_t matchLen = it->length();
 
-            bool inString = false;
+            bool inString  = false;
+            bool inComment = false;
             for (size_t i = 0; i < matchPos; ++i) {
                 if (updatedLine[i] == '\"') {
                     inString = !inString;
                 }
+                if (!inString && updatedLine.substr(i, 3) == "REM") {
+                    inComment = true;
+                    break;
+                }
             }
-            if (inString) {
+            if (inString || inComment) {
                 continue;
             }
+
 
             std::string command     = (*it)[1];
             std::string numberPart  = (*it)[2];
@@ -420,7 +426,7 @@ void cmdSPRDEF(Basic* basic, const std::vector<Basic::Value>& values) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
     std::string str = basic->valueToString(values[2]);
-    if (Unicode::utf8StrLen(str.c_str()) > 6) {
+    if (Unicode::utf8StrLen(str) > 6) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
 
@@ -1381,6 +1387,16 @@ void cmdCLOUD(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
+
+void cmdCONT(Basic* basic, const std::vector<Basic::Value>& values) {
+    auto& modl = basic->currentModule();
+    auto ln    = modl.listing.find(modl.lineNumberForCONT);
+    if (ln != modl.listing.end()) {
+        modl.programCounter.line   = ln;
+        modl.programCounter.cmdpos = modl.tokenIndexForCONT;
+    }
+}
+
 Basic::Value fktCHR$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -1567,7 +1583,6 @@ Basic::Value fktMID$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() == 5) {
         length = basic->valueToInt(args[4]);
     }
-
     return Unicode::substr(basic->valueToString(args[0]), start, length);
 }
 
@@ -1577,11 +1592,10 @@ Basic::Value fktRIGHT$(Basic* basic, const std::vector<Basic::Value>& args) {
     }
     size_t right    = basic->valueToInt(args[2]);
     std::string str = basic->valueToString(args[0]);
-    size_t length   = Unicode::utf8StrLen(str.c_str());
+    size_t length   = Unicode::utf8StrLen(str);
     if (right >= length) {
         return str;
     }
-
     return Unicode::substr(str, length - right);
 }
 
@@ -1881,6 +1895,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "CHDIR", cmdCHDIR },
         { "COLOR", cmdCOLOR },
         { "CATALOG", cmdCATALOG },
+        { "CONT", cmdCONT },
         { "CLOUD", cmdCLOUD },
         { "CHARDEF", cmdCHARDEF },
         { "SPRDEF", cmdSPRDEF },
@@ -1937,7 +1952,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "LEFT$", fktLEFT$ },
         { "LCASE$", fktLCASE$ },
         { "UCASE$", fktUCASE$ },
-        { "LEN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return (int64_t)Unicode::utf8StrLen(basic->valueToString(args[0]).c_str()); } },
+        { "LEN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return (int64_t)Unicode::utf8StrLen(basic->valueToString(args[0])); } },
         { "LOG", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return log(basic->valueToDouble(args[0])); } },
         { "MOD", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 3); auto div = basic->valueToInt(args[2]); if (div == 0) { throw Error(ErrorId::ILLEGAL_QUANTITY); }return basic->valueToInt(args[0]) % div; } },
         { "MAX", fktMAX },
@@ -1999,8 +2014,19 @@ uint8_t Basic::colorForModule(const std::string& str) const {
     return colsToUse[col % colsToUse.size()];
 }
 
-// Represent value as string
 
+void Basic::storeProgramCounterForCont() {
+    Basic::Module& modl    = moduleListingStack.back()->second;
+    modl.tokenIndexForCONT = 0;
+    modl.lineNumberForCONT = 0;
+    auto& pc               = programCounter();
+    if (pc.line != moduleListingStack.back()->second.listing.end()) {
+        modl.tokenIndexForCONT = pc.cmdpos;
+        modl.lineNumberForCONT = pc.line->first;
+    }
+}
+
+// Represent value as string
 inline std::string Basic::valueToString(const Value& v) {
     if (auto s = std::get_if<std::string>(&v)) {
         return *s;
@@ -5565,6 +5591,7 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
     } catch (const Error& e) {
         currentFileNo = 0;
         // dumpVariables();
+        storeProgramCounterForCont();
         auto& pc  = programCounter();
         int iline = 0;
         if (pc.line != currentListing().end() && pc.line->first != -1) {

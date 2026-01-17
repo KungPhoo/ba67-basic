@@ -29,14 +29,12 @@ Os::KeyPress Os::getFromKeyboardBuffer() {
     return k;
 }
 
-
 Os::KeyPress Os::peekKeyboardBuffer() const {
     if (keyboardBuffer.empty()) {
         return {};
     }
     return keyboardBuffer.back();
 }
-
 
 void Os::putToKeyboardBuffer(Os::KeyPress key, bool applyBufferLimit) {
     // key.debug();

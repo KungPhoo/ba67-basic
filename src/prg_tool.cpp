@@ -12,8 +12,6 @@ uint16_t PrgTool::getword(const uint8_t*& p) {
     return uint16_t(a | (b << 8));
 }
 
-
-
 const char* PrgTool::gettoken(const uint8_t*& prg) {
     // https://www.c64-wiki.de/wiki/Token
     static std::map<int, const char*> tokens = {

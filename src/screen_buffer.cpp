@@ -402,7 +402,9 @@ void ScreenBuffer::insertSpace() {
         if (c > 0) {
             c--;
         } else {
-            r--;
+            if (r > 0) {
+                r--;
+            }
             c = width - 1;
         }
     }
@@ -455,6 +457,7 @@ void ScreenBuffer::softWrapToNextRow() {
     makeRowContinuation(getCursorPos().y);
 }
 
+// find the end of the logical line for a given physical line index
 void ScreenBuffer::findTailCell(size_t startR, size_t& outR, size_t& outC) {
     size_t r = startR;
     while (rowContinues(r) && r + 1 < height) {
@@ -734,7 +737,7 @@ uint8_t ScreenBuffer::buddyColor(uint8_t colorindex) {
     // 14 Light Blue
     // 15 Light Gray
     //                               0    1  2   3   4   5   6  7  8  9 10  11  12 13 14 15
-    const uint8_t buddyIndex[16] = { 11, 15, 8, 13, 10, 13, 14, 8, 7, 8, 1, 12, 15, 7, 1, 1 };
+    const uint8_t buddyIndex[16] = { 11, 15, 8, 13, 10, 13, 14, 1, 7, 8, 7, 12, 15, 7, 13, 1 };
     return buddyIndex[colorindex & 0x0f];
 }
 

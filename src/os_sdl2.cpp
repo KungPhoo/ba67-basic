@@ -334,7 +334,6 @@ Os::MouseStatus OsSDL2::getMouseStatus() {
     return m;
 }
 
-
 // captures all keys, that are not sent via SDL_TEXTINPUT
 void OsSDL2::codepointFromSDLKey(const SDL_Keysym& keysym, Os::KeyPress& k) {
     k.code      = 0; // all others are handled with SDL_TEXTINPUT

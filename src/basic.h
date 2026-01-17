@@ -382,6 +382,8 @@ public:
         int32_t lastEnteredLineNumber = 0;
 
         ProgramCounter programCounter = { listing.end(), 0 };
+        int32_t lineNumberForCONT     = 0; // where to continue with CONT command
+        size_t tokenIndexForCONT      = 0; // where to continue with CONT
 
         ProgramCounter readDataPosition = { listing.begin(), 0 };
         int readDataIndex               = 0; // from the data at readDataPosition, read the readDataIndex's element next
@@ -437,6 +439,7 @@ public:
     Module& currentModule() { return moduleVariableStack.back()->second; } // the module (variable space) to work in
     std::map<int, ProgramLine>& currentListing() { return moduleListingStack.back()->second.listing; }
     ProgramCounter& programCounter() { return moduleListingStack.back()->second.programCounter; }
+    void storeProgramCounterForCont();
 
 public:
     // Represent value as string
