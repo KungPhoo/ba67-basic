@@ -5473,8 +5473,11 @@ std::string Basic::inputLine(bool allowVertical) {
         }
         os->screen.setCursorPos(crsr);
     } else {
-        istart      = (startCrsr);
-        iend        = os->screen.getEndOfLineAt(startCrsr);
+        istart = (startCrsr);
+        iend   = os->screen.getEndOfLineAt(startCrsr);
+        if (iend < istart) {
+            iend = istart;
+        }
         screenchars = os->screen.getSelectedText(istart, iend);
         printUtf8String("\n");
     }
@@ -6155,7 +6158,8 @@ void Basic::monitor() {
     scn.setBackgroundColor(11);
     scn.setTextColor(13);
     scn.setReverseMode(false);
-
+    bool assemblerMode  = false;
+    uint16_t assembleAt = 0;
     for (;;) {
         os->updateEvents();
         os->presentScreen();
@@ -6164,7 +6168,11 @@ void Basic::monitor() {
         printUtf8String("\n");
 
         scn.cleanCurrentLine();
-        printUtf8String("$" + StringHelper::int2hex(cpu.PC, true, 2) + " ");
+        if (assemblerMode) {
+            printUtf8String("." + StringHelper::int2hex(assembleAt, true, 2) + "  ");
+        } else {
+            printUtf8String("$" + StringHelper::int2hex(cpu.PC, true, 2) + " ");
+        }
 
         std::string cmd;
         try {
@@ -6177,7 +6185,6 @@ void Basic::monitor() {
         printUtf8String("\n");
         scn.cleanCurrentLine();
         auto args = StringHelper::split(cmd, " \t");
-        Unicode::toLower(args[0]);
 
         // ==
         auto argi = [&args](size_t i) -> int {
@@ -6197,20 +6204,51 @@ void Basic::monitor() {
         };
 
 
+        // ==
+        auto disassemble = [&](uint16_t addr) -> uint16_t {
+            auto info = CPU6502::getOpcodeInfo(cpu.memory[addr]);
+            scn.cleanCurrentLine();
+            printUtf8String("." + StringHelper::int2hex(addr, true, 2) + "  " + cpu.disassemble(addr) + "\n");
+            addr += info.length;
+            return addr;
+        };
+
+        // assembler
+        if (assemblerMode) {
+            if (args.empty()) {
+                assemblerMode = false;
+                continue;
+            }
+            Unicode::toUpper(cmd);
+            uint16_t newAddr = cpu.assemble(cmd.c_str(), assembleAt);
+            if (newAddr == 0) {
+                printUtf8String("ERROR\n");
+            } else {
+                disassemble(assembleAt);
+                assembleAt = newAddr;
+            }
+            continue;
+        }
+
+        // monitor
         if (args.empty()) {
             continue;
         }
+        Unicode::toLower(args[0]);
+
+
         if (args[0] == "h" || args[0] == "help") {
             //              "0123456789012345678901234567890123456789"
             printUtf8String("g [address]     - continue execution\n");
             printUtf8String("x               - exit monitor\n");
             printUtf8String("z               - single step\n");
             printUtf8String("m [from] [to]   - memory display\n");
-            printUtf8String("s [from] [to]   - disassemble\n");
+            printUtf8String("d [from] [to]   - disassemble\n");
             printUtf8String("r               - registers\n");
             printUtf8String("> address xx    - poke bytes into memory\n");
             printUtf8String("bk [l|s|x] a    - add breakpoint\n");
             printUtf8String("del [addr]      - remove breakpoints\n");
+            printUtf8String("a address       - start assembler.\n");
         } else if (args[0] == "g") {
             // --goto--
             if (args.size() > 1) {
@@ -6251,25 +6289,28 @@ void Basic::monitor() {
                 from += 8;
                 printUtf8String(str);
             }
-        } else if (args[0] == "d") {
+        } else if (args[0] == "a") {
+            // --assembler mode--
+            assembleAt    = argi(1);
+            assemblerMode = true;
+        } else if (args[0] == "d" || args[0] == "disass") {
             // --disassemble--
-            int from = argi(1);
+            int count     = 0x10000;
+            uint16_t from = argi(1);
             if (from == 0) {
                 from = cpu.PC;
             }
-            int to = argi(2);
+            uint16_t to = argi(2);
             if (to == 0) {
-                to = 0xffff;
+                to    = 0xffff;
+                count = 20;
             }
 
-            for (int i = 0; i < 20; ++i) {
+            for (int i = 0; i < count; ++i) {
                 if (from > to) {
                     break;
                 }
-                auto info = CPU6502::getOpcodeInfo(cpu.memory[from]);
-                scn.cleanCurrentLine();
-                printUtf8String(StringHelper::int2hex(from, true, 2) + "  " + cpu.disassemble(from) + "\n");
-                from += info.length;
+                from = disassemble(from);
             }
         } else if (args[0][0] == '>') {
             // --poke--

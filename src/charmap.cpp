@@ -845,16 +845,6 @@ void CharMap::init(char32_t from, char32_t to) {
 
     FontDataBits::DataStruct* pData = FontDataBits::getBits();
 
-#if defined(_DEBUG) && defined(_WIN32)
-    // export font
-    #if 0
-    BDFExport bdf;
-
-    bdf.writeBDF("BA67", pData, "C:\\Temp\\ba67.bdf", 8, 16);
-    bdf.writeBDF("BA67 square", pData, "C:\\Temp\\ba67-square.bdf", 8, 8);
-    #endif
-#endif
-
     while (pData->c != 0xffffffff) {
         CharBitmap bmp(pData->b, 8);
         if (pData->c < ascii.size()) {
@@ -884,5 +874,15 @@ void CharMap::init(char32_t from, char32_t to) {
             this->at(c.first) = (*this)[c.second];
         }
     }
+#endif
+
+#if defined(_DEBUG) && defined(_WIN32)
+    // export font
+    #if 0
+    BDFExport bdf;
+
+    bdf.writeBDF("BA67", pData, "C:\\Temp\\ba67.bdf", 8, 16);
+    bdf.writeBDF("BA67 square", pData, "C:\\Temp\\ba67-square.bdf", 8, 8);
+    #endif
 #endif
 }

@@ -44,9 +44,36 @@ public:
     inline void clearFlag(uint8_t f) { P &= ~f; }
     inline void setFlag(uint8_t f) { P |= f; }
 
+    enum AddrMode {
+        IMP,
+        IMM, // Immediate
+        ACC, // accumulator variants
+        ZPG, // Zero Page
+        ZPX, // Zero Page,X
+        ZPY, // Zero Page,Y
+        ABS, // Absolute
+        ABSX, // Absolute,X
+        ABSY, // Absolute,Y
+        IND, // JMP (indirect)
+        INDX, // (Zero Page,X)
+        INDY, // (Zero Page),Y
+        REL, // branches
+        INVALID
+    };
+    static const char* modeStr(AddrMode m) {
+        static const char* t[] = {
+            "       ",
+            "#      ", "A      ",
+            "ZPG    ", "ZPG,X  ", "ZPG,Y  ",
+            "ABS    ", "ABS,X  ", "ABS,Y  ",
+            "(IND)  ", "(IND,X)", "(IND),Y",
+            "REL    ", "???????"
+        };
+        return t[m];
+    }
     struct OpCodeInfo {
         const char* mnemonic;
-        const char* operands;
+        AddrMode admode;
         int length;
     };
     static OpCodeInfo getOpcodeInfo(uint8_t op);
@@ -59,19 +86,6 @@ public:
     bool breakPointHit = false; // last operation triggered a breakpoint
 
 private:
-    enum AddrMode {
-        IMM, // Immediate
-        ACC, // accumulator variants
-        ZP, // Zero Page
-        ZPX, // Zero Page,X
-        ZPY, // Zero Page,Y
-        ABS, // Absolute
-        ABSX, // Absolute,X
-        ABSY, // Absolute,Y
-        INDX, // (Zero Page,X)
-        INDY // (Zero Page),Y
-    };
-
     uint8_t fetchOperand(AddrMode mode);
     void push(uint8_t value) { memory[0x0100 + SP--] = value; }
     void pushWord(uint16_t value) {
@@ -134,6 +148,15 @@ private:
     void printState();
 
 public:
-    std::string disassemble(uint16_t address);
+    std::string disassemble(uint16_t address, bool showBytes = true);
+
+    static AddrMode parseOperand(const char*& s,
+                                 const char* mnemonic,
+                                 uint16_t& value,
+                                 int16_t pc);
+
+    int emitBytes(AddrMode m, uint16_t v, uint8_t* out);
+
+    int16_t assemble(const char* line, int16_t addr);
     std::string registers();
 };
