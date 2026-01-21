@@ -499,6 +499,9 @@ void cmdMOVSPR(Basic* basic, const std::vector<Basic::Value>& values) {
     }
     basic->os->screen.dirtyFlag = true;
 }
+void cmdMONITOR(Basic* basic, const std::vector<Basic::Value>& values) {
+    basic->monitor();
+}
 
 void cmdQUIT(Basic* basic, const std::vector<Basic::Value>& values) {
     int code = 0;
@@ -1901,6 +1904,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "SPRDEF", cmdSPRDEF },
         { "SPRITE", cmdSPRITE },
         { "MOVSPR", cmdMOVSPR },
+        { "MONITOR", cmdMONITOR },
         { "QUIT", cmdQUIT },
         { "FIND", cmdFIND },
         { "GO", cmdGO },
@@ -6248,7 +6252,7 @@ void Basic::monitor() {
             printUtf8String("> address xx    - poke bytes into memory\n");
             printUtf8String("bk [l|s|x] a    - add breakpoint\n");
             printUtf8String("del [addr]      - remove breakpoints\n");
-            printUtf8String("a address       - start assembler.\n");
+            printUtf8String("a address       - start assembler mode.\n");
         } else if (args[0] == "g") {
             // --goto--
             if (args.size() > 1) {

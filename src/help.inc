@@ -39,6 +39,7 @@
 ,{"MOVSPR", R"RAW(MOVSPR number, x25, y50)RAW"}
 ,{"NEW", R"RAW(NEW)RAW"}
 ,{"MODULE", R"RAW(MODULE name)RAW"}
+,{"MONITOR", R"RAW(MONITOR)RAW"}
 ,{"NETGET", R"RAW(NETGET url$, c$)RAW"}
 ,{"NEXT", R"RAW(NEXT [var])RAW"}
 ,{"ON", R"RAW(ON expr GOTO/GOSUB line1, line2, ...)RAW"}

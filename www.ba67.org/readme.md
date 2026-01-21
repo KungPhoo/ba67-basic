@@ -66,6 +66,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [MOVSPR](#movspr)
     - [NEW](#new)
     - [MODULE](#module)
+    - [MONITOR](#monitor)
     - [NETGET](#netget)
     - [NEXT](#next)
     - [ON](#on)
@@ -1118,8 +1119,18 @@ IN MODL 3
 IN MAIN 1
 ```
 
+### MONITOR
+**Usage:** `MONITOR`
+
+Opens the machine language monitor. You can also open it
+by pressing `Alt+Break` on the keyboard. See Annex for
+machine language details and monitor use.
+Type `h` or `help` to get a list of commands to use.
+The `x` command exits the monitor.
+
+
 ### NETGET
-***Usage:** `NETGET url$, c$`
+**Usage:** `NETGET url$, c$`
 
 Downloads a website and stores the returned bytes in c$,
 which is interpreted as a UTF-8 string when `PRINT-ing`.
@@ -2283,6 +2294,7 @@ buffer at $0200 and sets the TXTPTR at $7A to the first
 comma after the address. So code like
 [CrankThePRINT](https://github.com/c1570/CrankThePRINT) does work.
 
+See also the `MONITOR` command.
 
 ## I - Internal Memory Model (PEEK and POKE)
 BA67 internally stores a 32 bit integer at each
