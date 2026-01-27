@@ -776,16 +776,41 @@ void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     }
     // file slot is already open
     if (basic->fileHandles[ifile]) {
-        {
-            basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
-        }
+        basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
+        throw Basic::Error(Basic::ErrorId::FILE_OPEN);
     }
 
     // printer -> stdout and stderr
-    if (device == 4 || device == 5) {
-        basic->fileHandles[ifile].openStdOut();
-    } else {
+    switch (device) {
+    case 0: // Inter Process Communication
+    {
+#if defined(__EMSCRIPTEN__)
+        throw Basic::Error(Basic::ErrorId::UNIMPLEMENTED_COMMAND);
+#endif
+
+        IPC::Options opt = {};
+
+        std::string cmdpath(path);
+        if (secondary < 0) {
+            opt.mode = IPC::IPC_MODE::PIPE;
+            cmdpath  = basic->os->findFirstFileNameWildcard(cmdpath);
+        } else {
+            opt.mode     = IPC::IPC_MODE::TCP;
+            opt.hostname = cmdpath;
+            opt.port     = 6502;
+            if (secondary > 0) {
+                opt.port = secondary & 0xffff;
+            }
+        }
+
+
+        basic->fileHandles[ifile].openIPC(opt);
+        break;
+    }
+    case 4:  basic->fileHandles[ifile].openStdIn(); break;
+    case 5:  basic->fileHandles[ifile].openStdErr(); break;
+    case 6:  basic->fileHandles[ifile].openStdOut(); break;
+    default: {
         // assume disk device
         const char* iomode = "r";
 
@@ -842,12 +867,17 @@ void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
         }
 
         basic->fileHandles[ifile].open(filepath, iomode);
-    }
+        break;
+    } // default
+    case 15:
+        throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
+        break;
+    } // switch
 
 
     if (!basic->fileHandles[ifile]) {
         basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
-        throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
+        throw Basic::Error(Basic::ErrorId::FILE_NOT_OPEN);
     }
     basic->memory[krnl.STATUS] = Basic::FS_OK;
 }
@@ -863,7 +893,7 @@ void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
     }
     if (!basic->fileHandles[ifile]) {
         basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
+        throw Basic::Error(Basic::ErrorId::FILE_NOT_OPEN);
     }
 
     basic->memory[krnl.STATUS] = Basic::FS_OK;
@@ -3324,6 +3354,11 @@ void Basic::handlePRINT(const std::vector<Token>& tokens) {
     currentFileNo = 0;
     if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
         currentFileNo = strToInt(tokens[1].value);
+
+        if (tokens.size() > 2 && tokens[2].type != TokenType::COMMA) {
+            throw Basic::Error(Basic::ErrorId::SYNTAX);
+        }
+
         // tokens.erase(tokens.begin() + 1);
         istart += 2; // handle and comma
     }
@@ -3525,6 +3560,11 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
     currentFileNo = 0;
     if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
         currentFileNo = strToInt(tokens[1].value);
+
+        if (tokens.size() > 2 && tokens[2].type != TokenType::COMMA) {
+            throw Basic::Error(Basic::ErrorId::SYNTAX);
+        }
+
         istart += 2; // handle and comma
     }
 
@@ -3614,7 +3654,10 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
                 }
 
             } else { // read from file
-                auto& fp       = fileHandles[currentFileNo];
+                auto& fp = fileHandles[currentFileNo];
+                if (!fp) {
+                    throw Error(ErrorId::FILE_NOT_OPEN);
+                }
                 char buffer[4] = { 0, 0, 0, 0 };
                 if (fp.read(&buffer[0], 1) == 1) {
                     str = buffer;
@@ -3637,18 +3680,24 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
             }
         }
     }
+    currentFileNo = 0;
 }
 
 // INPUT from file
 void Basic::handleINPUTFile(const std::vector<Token>& tokens) {
     currentFileNo = 0;
     currentFileNo = strToInt(tokens[1].value);
+
+    if (tokens.size() > 2 && tokens[2].type != TokenType::COMMA) {
+        throw Basic::Error(Basic::ErrorId::SYNTAX);
+    }
+
     size_t istart = 3; // INPUT handle and comma
 
     auto& fp = fileHandles[currentFileNo];
     if (!fp) {
         memory[krnl.STATUS] = Basic::FS_ERROR_READ;
-        throw Error(ErrorId::ILLEGAL_DEVICE);
+        throw Error(ErrorId::FILE_NOT_OPEN);
     }
 
     if ((memory[krnl.STATUS] & Basic::FS_EOF) == 0) {
@@ -3715,6 +3764,7 @@ void Basic::handleINPUTFile(const std::vector<Token>& tokens) {
             }
         }
     }
+    currentFileNo = 0;
 }
 
 void Basic::handleINPUT(const std::vector<Token>& tokens) {
@@ -5093,7 +5143,7 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
         auto& pf = fileHandles[currentFileNo];
         if (!pf) {
             currentFileNo = 0;
-            throw Error(ErrorId::ILLEGAL_DEVICE);
+            throw Error(ErrorId::FILE_NOT_OPEN);
         } else {
             pf.write(utf8, pend - utf8);
             // pf.printf("%s", utf8);

@@ -92,6 +92,8 @@ public:
     enum ErrorId {
         INTERNAL         = 1,
         SYNTAX           = 11,
+        FILE_OPEN        = 2,
+        FILE_NOT_OPEN    = 3,
         FILE_NOT_FOUND   = 4,
         ILLEGAL_DEVICE   = 9, // illegal device NUMBER
         UNDEFD_STATEMENT = 17,
@@ -133,6 +135,8 @@ public:
             static std::map<ErrorId, std::string> errorMessages = {
                 {              ErrorId::INTERNAL,              "INTERNAL ERROR" },
                 {                ErrorId::SYNTAX,                "SYNTAX ERROR" },
+                {             ErrorId::FILE_OPEN,             "FILE OPEN ERROR" },
+                {         ErrorId::FILE_NOT_OPEN,         "FILE NOT OPEN ERROR" },
                 {        ErrorId::FILE_NOT_FOUND,        "FILE NOT FOUND ERROR" },
                 {        ErrorId::ILLEGAL_DEVICE,        "ILLEGAL DEVICE ERROR" },
                 {      ErrorId::UNDEFD_STATEMENT,     "UNDEF'D STATEMENT ERROR" },

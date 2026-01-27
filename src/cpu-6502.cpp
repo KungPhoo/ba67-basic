@@ -5,7 +5,7 @@
 #include "cpu-6502.h"
 #include <functional>
 #include <map>
-#include <string>
+#include <cstring>
 
 void CPU6502::reset() {
     cpuJam = false;

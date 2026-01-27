@@ -115,9 +115,14 @@ bool Os::setCurrentDirectory(const std::string& dir) {
         return true;
     }
 
-    const int cpp = __cplusplus;
+
+    std::filesystem::path p(dir);
+    // If the user passed "C:" convert to "C:\"
+    if (p.has_root_name() && p.root_directory().empty()) {
+        p = dir + "\\";
+    }
     std::error_code ec;
-    std::filesystem::current_path(dir, ec);
+    std::filesystem::current_path(p, ec);
     return !ec; // Returns true if no error occurred
 }
 
@@ -674,6 +679,10 @@ std::string Os::findFirstFileNameWildcard(std::string filenameUtf8, bool isDirec
             fixedDirs += folder;
             fixedDirs += '/';
             filenameUtf8 = filenameUtf8.substr(endOfDir + 1);
+
+
+            std::string cd = getCurrentDirectory();
+
 
             if (!setCurrentDirectory(folder)) {
                 break;

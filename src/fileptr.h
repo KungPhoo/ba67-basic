@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <vector>
 #include <cstdint>
+#include "ipc.h"
 
 class Os;
 
@@ -24,9 +25,11 @@ public:
         , cloudFileName(std::move(other.cloudFileName))
         , d64FileName(std::move(other.d64FileName))
         , localTempPath(std::move(other.localTempPath))
-        , file(other.file) {
+        , file(other.file)
+        , ipc(other.ipc) {
         other.os   = nullptr;
         other.file = nullptr;
+        other.ipc  = nullptr;
     }
     inline FilePtr& operator=(FilePtr&& other) noexcept {
         if (this != &other) {
@@ -39,24 +42,35 @@ public:
             d64FileName   = std::move(other.d64FileName);
             localTempPath = std::move(other.localTempPath);
             file          = other.file;
+            ipc           = other.ipc;
 
             other.os   = nullptr;
             other.file = nullptr;
+            other.ipc  = nullptr;
         }
         return *this;
     }
 
     ~FilePtr() { close(); }
     // operator FILE*() { return file; }
-    operator bool() const { return file != nullptr; }
+    operator bool() const {
+        if (ipc != nullptr) {
+            return ipc->isRunning();
+        }
+        return file != nullptr;
+    }
     bool close();
-    static std::string tempFileName();
 
     void setPassword(std::string pw);
+
+    // open
     bool open(std::string filenameUtf8, const char* mode);
     bool openStdOut();
     bool openStdErr();
+    bool openStdIn();
+    bool openIPC(const IPC::Options& options);
 
+    // io
     int printf(const char* fmt, ...);
     void flush();
     int seek(int offset, int origin);
@@ -67,6 +81,8 @@ public:
     std::vector<uint8_t> readAll();
     std::string status() const { return lastStatus; }
 
+    // static
+    static std::string tempFileName();
     static void sanitizePath(std::string& path, char separator = '/');
     static char nativeDirectorySeparator();
 
@@ -82,6 +98,7 @@ protected:
     std::string localTempPath; // in case this is a cloud file
     bool fileIsStdIo = false;
     FILE* file       = nullptr;
+    IPC* ipc         = nullptr;
     std::string lastStatus;
 
     bool fopenLocal(std::string filenameUtf8, const char* mode);

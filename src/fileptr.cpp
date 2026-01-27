@@ -26,7 +26,11 @@ bool FilePtr::close() {
         fileIsStdIo = false;
         file        = nullptr;
     }
-
+    if (ipc != nullptr) {
+        ipc->close();
+        delete ipc;
+        ipc = nullptr;
+    }
     bool rv = true;
 
     if (!d64FileName.empty() && !localTempPath.empty()) {
@@ -116,23 +120,6 @@ bool FilePtr::close() {
 
     // TODO throw, maybe
     return rv;
-}
-
-std::string FilePtr::tempFileName() {
-    namespace fs = std::filesystem;
-
-    std::error_code ec;
-    fs::path tempDir = fs::temp_directory_path(ec);
-    if (!ec) {
-        // Generate a unique file path
-        for (int i = 0; i < 999; ++i) {
-            auto tempFile = tempDir / fs::path("ba67-cloud-" + std::to_string(std::rand()) + ".bas");
-            if (!fs::exists(tempFile)) {
-                return (const char*)(tempFile.u8string().c_str());
-            }
-        }
-    }
-    return "bad-path.tmp";
 }
 
 
@@ -226,16 +213,60 @@ bool FilePtr::openStdErr() {
     return file != nullptr;
 }
 
+bool FilePtr::openStdIn() {
+    close();
+    lastStatus.clear();
+    file        = stdin;
+    fileIsStdIo = true;
+    return file != nullptr;
+}
+
+bool FilePtr::openIPC(const IPC::Options& options) {
+    ipc     = new IPC();
+    bool ok = ipc->open(options);
+    if (!ok) {
+        delete ipc;
+        ipc = nullptr;
+    }
+    return ok;
+}
+
+// helper from va_list to std::string
+std::string vformat(const char* fmt, va_list args) {
+    va_list args_copy;
+    va_copy(args_copy, args);
+
+    int size = std::vsnprintf(nullptr, 0, fmt, args_copy);
+    va_end(args_copy);
+
+    if (size < 0) {
+        return {};
+    }
+
+    std::string result(size, '\0');
+    std::vsnprintf(result.data(), size + 1, fmt, args);
+
+    return result;
+}
+
 // Cross-platform fprintf-like method
 int FilePtr::printf(const char* fmt, ...) {
-    if (!file) {
+    if (!file && !ipc) {
         lastStatus = "BAD FILE";
         return -1;
     }
+
     dirty = true;
     va_list args;
     va_start(args, fmt);
-    int result = std::vfprintf(file, fmt, args);
+    int result = 0;
+    if (ipc) {
+        std::string s = vformat(fmt, args);
+        result        = int(s.length());
+        ipc->puts(s);
+    } else {
+        result = std::vfprintf(file, fmt, args);
+    }
     va_end(args);
     return result;
 }
@@ -243,6 +274,8 @@ int FilePtr::printf(const char* fmt, ...) {
 void FilePtr::flush() {
     if (file) {
         std::fflush(file);
+    } else if (ipc) {
+        ipc->flush();
     }
 }
 
@@ -263,10 +296,23 @@ size_t FilePtr::tell() {
 }
 
 size_t FilePtr::read(void* buffer, size_t bytes) {
-    if (!file) {
+    if (!file && !ipc) {
         lastStatus = "BAD FILE";
         return 0;
     }
+    if (ipc) {
+        size_t n    = 0;
+        uint8_t* p8 = reinterpret_cast<uint8_t*>(buffer);
+        while (bytes) {
+            --bytes;
+            if (!ipc->hasData()) {
+                break;
+            }
+            p8[n++] = ipc->getc();
+        }
+        return n;
+    }
+
     return fread(buffer, bytes, 1, file);
 }
 
@@ -283,11 +329,18 @@ std::string FilePtr::getline() {
 }
 
 size_t FilePtr::write(const void* buffer, size_t bytes) {
-    if (!file) {
+    if (!file && !ipc) {
         lastStatus = "BAD FILE";
         return 0;
     }
     dirty = true;
+
+    if (ipc) {
+        const char* ps = reinterpret_cast<const char*>(buffer);
+        ipc->puts(std::string(ps, ps + bytes));
+        return bytes;
+    }
+
     return fwrite(buffer, bytes, 1, file);
 }
 
@@ -295,6 +348,16 @@ std::vector<uint8_t> FilePtr::readAll() {
     if (fileIsStdIo) {
         return {};
     }
+
+    if (ipc) {
+        std::string str = ipc->gets();
+        std::vector<uint8_t> bytes(str.length());
+        for (size_t i = 0; i < str.length(); ++i) {
+            bytes[i] = str[i];
+        }
+        return bytes;
+    }
+
     seek(0, SEEK_END);
     size_t len = tell();
     if (len == -1) {
@@ -305,6 +368,25 @@ std::vector<uint8_t> FilePtr::readAll() {
     read(&bytes[0], len);
     return bytes;
 }
+
+
+std::string FilePtr::tempFileName() {
+    namespace fs = std::filesystem;
+
+    std::error_code ec;
+    fs::path tempDir = fs::temp_directory_path(ec);
+    if (!ec) {
+        // Generate a unique file path
+        for (int i = 0; i < 999; ++i) {
+            auto tempFile = tempDir / fs::path("ba67-cloud-" + std::to_string(std::rand()) + ".bas");
+            if (!fs::exists(tempFile)) {
+                return (const char*)(tempFile.u8string().c_str());
+            }
+        }
+    }
+    return "bad-path.tmp";
+}
+
 
 void FilePtr::sanitizePath(std::string& path, char separator) {
     size_t pos = 0;

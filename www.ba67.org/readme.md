@@ -71,6 +71,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [NEXT](#next)
     - [ON](#on)
     - [OPEN](#open)
+      - [Inter Process Communication](#inter-process-communication)
     - [PLAY](#play)
       - [Technical Background](#technical-background)
     - [POKE](#poke)
@@ -1166,9 +1167,12 @@ ON X GOTO 100, 200, 300
 Opens a file for reading or writing.
 
 The device has the following meanings:
-- 1,8..15: hard disk access
-- 4: printer (print to stdout)
-- 5: printer (print to stderr)
+- 0: TCP inter process communication
+- 1,8..14: hard drive access
+- 4: read from stdin
+- 5: print to stdout
+- 6: print to stderr
+-15: not supported (direct communication to CBM floppy drives)
 
 The secondary parameter is currently only for backwards
 compatibility and is ignored.
@@ -1189,6 +1193,24 @@ REL files currently are not supported (random access files).
 Use `PRINT#1, "TEXT"` to print to the opened fileno #1.
 
 Don't forget to `CLOSE` the file afterwards.
+
+#### Inter Process Communication
+The device numbers 4-6 allow you to access the main process'
+stdin and stdout file handles.
+
+When using the device number 0, the `secondary parameter` decides
+on the mode to connect to another process.
+
+The secondary number `-1` connects to stdin and stdout.
+The filename is an executable.
+
+
+Secondary numbers 1..65535: Connect using TCP to that port.
+The filename is the host-name to connect to. The default
+`OPEN #N, 0` will connect to `localhost` on port 6502.
+If TCP cannot connect, it will start listening to that port.
+
+
 
 ### PLAY
 **Usage:** `PLAY ABC_notation$`
@@ -1248,7 +1270,7 @@ You can use special control characters.
 See the Annex D for more details.
 
 Using a file indicator `#N,`, you can write
-to a file or the printer etc. See `OPEN` command.
+to a file or the printer etc. See the `OPEN` command.
 
 **Usage:** `PRINT [file-number#, ] expr [[,|;| ] expr ...]`
 
