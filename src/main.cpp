@@ -1,6 +1,9 @@
 ﻿
 #if defined(__EMSCRIPTEN__)
     #include "os_sdl2.h"
+// miniaudio needs user interaction to init.
+// err: An AudioContext was prevented from starting automatically. It must be created or resumed after a user gesture on the page.
+
 // using OsBackend     = OsSDL2;
 using OsSoundsystem = NullSoundSystem;
 #else

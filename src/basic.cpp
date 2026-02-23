@@ -911,24 +911,40 @@ void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
-    // RENUMBER new_start, step, start_from_old
+    // RENUMBER new_start, step, start_from_old, milestone
 
     int newstart      = 10;
     int step          = 10;
     int startFromLine = 0;
     int milestone     = 0;
     std::map<int, int> renum;
-    if (values.size() > 0) {
-        newstart = int(basic->valueToInt(values[0]));
+
+    int ipara = 0;
+    for (size_t i = 0; i < values.size(); ++i) {
+        auto& v = values[i];
+        if (basic->valueIsOperator(v)) {
+            ++ipara;
+            continue;
+        }
+        switch (ipara) {
+        case 0: newstart = int(basic->valueToInt(v)); break;
+        case 1: step = int(basic->valueToInt(v)); break;
+        case 2: startFromLine = int(basic->valueToInt(v)); break;
+        case 3: milestone = int(basic->valueToInt(v)); break;
+        default:
+            throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        }
     }
-    if (values.size() > 2) {
-        step = int(basic->valueToInt(values[2]));
-    }
-    if (values.size() > 4) {
-        startFromLine = int(basic->valueToInt(values[4]));
-    }
-    if (values.size() > 6) {
-        milestone = int(basic->valueToInt(values[6]));
+
+
+    basic->os->screen.cleanCurrentLine();
+    basic->printUtf8String(basic->valueToString(newstart)
+                           + " STEP " + basic->valueToString(step)
+                           + " FROM " + basic->valueToString(startFromLine)
+                           + " MILE " + basic->valueToString(milestone)
+                           + ".\n");
+    if (!basic->AreYouSureQuestion()) {
+        return;
     }
 
     std::map<int, Basic::ProgramLine> newListing;
@@ -4392,6 +4408,17 @@ Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tok
 
 void Basic::doGOTO(int line, bool isGoSub) {
 
+
+#ifdef __EMSCRIPTEN__
+    static int gotocount = 0;
+    ++gotocount;
+    if (gotocount > 100) {
+        gotocount = 0;
+        os->delay(1); // experienced crashes otherwise due to asyncify, I guess
+    }
+#endif
+
+
     if (line < 0) {
         int pase = 1;
     }
@@ -5198,9 +5225,11 @@ std::string Basic::inputLine(bool allowVertical) {
         os->presentScreen();
         handleEscapeKey();
 
-        auto key = os->getFromKeyboardBuffer();
+        auto key   = os->getFromKeyboardBuffer();
+        auto mouse = os->getMouseStatus();
         if (key.code < 0x20 // windows sends $09 (ESC) and $10 when I press Ctrl+C, Ctrl+V
-            && key.code != U'\b' && key.code != U'\n' && key.code != U'\r') {
+            && key.code != U'\b' && key.code != U'\n' && key.code != U'\r'
+            && mouse.buttonBits == 0) {
             continue;
         }
 
@@ -5215,6 +5244,34 @@ std::string Basic::inputLine(bool allowVertical) {
                 startSelection = os->screen.getCursorPos();
             }
         };
+
+
+        // click mouse to set cursor
+        if (mouse.buttonBits & 0x01) {
+            ScreenBuffer::Cursor cur(os->screen.getCursorPos());
+            // mouse .x-25, .y-50
+            int mx = (int(mouse.x) - 25) / 8;
+            int my = (int(mouse.y) - 50) / 8;
+            if (!allowVertical) {
+                my = int(cur.y);
+            }
+            if (mx < 0) {
+                mx = 0;
+                my = int(cur.y);
+            }
+            if (mx >= os->screen.width) {
+                mx = int(os->screen.width) - 1;
+                my = int(cur.y);
+            }
+            if (my < 0) {
+                continue;
+            }
+            if (my >= int(os->screen.height)) {
+                continue;
+            }
+            os->screen.setCursorPos(ScreenBuffer::Cursor(mx, my));
+        }
+
 
         if (!key.printable) {
             if (key.holdCtrl) {
@@ -5363,6 +5420,11 @@ std::string Basic::inputLine(bool allowVertical) {
                     case uint32_t(Os::KeyConstant::CRSR_DOWN):  key.code = 0x11; break;
                     case uint32_t(Os::KeyConstant::HOME):       key.code = 0x13; break;
                     case uint32_t(Os::KeyConstant::END):        key.code = 0x93; break; // clear
+                    case U'\r':
+                    case U'\n':
+                        os->screen.insertNewEmptyLine(int(os->screen.getCursorPos().y));
+                        continue;
+                        break;
                     default:
                         // Alt and Shift+Alt produce the PETSCII characters as on the C128
                         key.code = PETSCII::unicodeFromAltKeyPress(char(key.code), key.holdShift);

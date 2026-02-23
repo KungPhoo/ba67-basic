@@ -427,8 +427,9 @@ Os::KeyPress OsWindowsConsole::getFromKeyboardBuffer() {
     }
     // Wait for an event on the console handle.
     DWORD dwWaitResult;
-    while (!this->keyboardBufferHasData()) {
-        dwWaitResult = WaitForSingleObject(hStdin, INFINITE);
+    while (!this->keyboardBufferHasData() && getMouseStatus().buttonBits == 0) {
+        // also returns when mouse button was clicked
+        dwWaitResult = WaitForSingleObject(hStdin, 50 /*ms*/);
         updateEvents();
     }
     return Os::getFromKeyboardBuffer();

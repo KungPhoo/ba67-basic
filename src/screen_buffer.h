@@ -210,7 +210,13 @@ private:
     MEMCELL defaultColor = 1;
 
     struct LineOverflow {
-        std::vector<MEMCELL> line; // TODO add color ram, too
+        void setWidth(size_t width) {
+            characters.resize(width);
+            colors.resize(width);
+        }
+        size_t width() const { return characters.size(); }
+        std::vector<MEMCELL> characters;
+        std::vector<uint8_t> colors;
         MEMCELL lineLink;
     };
     std::vector<LineOverflow> overflowTop, overflowBottom;
@@ -241,11 +247,10 @@ public:
     void putC(char32_t c);
 
     void deleteChar();
-
     void backspaceChar();
-
-
     void insertSpace();
+
+    void insertNewEmptyLine(int lineIndex);
     void scrollUpOne();
     void scrollDownOne();
 

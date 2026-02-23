@@ -272,6 +272,7 @@ The COMMODORE allowed `LETTER=1`, which was interpreted as
 `LET TER=1` instead of `LET LETTER=1`. Also `PRINT LETTER`
 was not possible, because the LET part was interpreted as a
 command instead of the variable name.
+`IF BORE=5` or is it `IF B OR D=5`?
 
 In order to avoid confusions, this BASIC requires separating
 commands from variables.
@@ -451,9 +452,11 @@ It is cleared by RUN or by printing a screen-clear character.
 The F1 .. F12 keys are pre-assigned with some BASIC keywords
 and can be configured using the KEY command.
 
-Use Alt+INS key to toggle between insert mode and overwrite
+Use `Alt+INS` to toggle between insert mode and overwrite
 mode. Use the INS key alone to insert a single character
 space.
+
+Pressing `Alt+Enter` will insert a new line below the cursor.
 
 When you press `CTRL+1..8` or `SHIFT+CTRL+1..8`, a special
 character is printed, that advices the interpreter to change

@@ -325,13 +325,27 @@ void OsSDL2::setClipboardData(const std::string utf8) {
 
 // --- MOUSE ---
 Os::MouseStatus OsSDL2::getMouseStatus() {
-    MouseStatus m {};
+    MouseStatus st {};
     int x, y;
     uint32_t btn = SDL_GetMouseState(&x, &y);
-    m.x          = x;
-    m.y          = y;
-    m.buttonBits = uint8_t(btn & 0xFF);
-    return m;
+
+    int w, h;
+    SDL_GetRendererOutputSize(renderer, &w, &h);
+    int pixelscalex = w / 320;
+    int pixelscaley = h / 240;
+    if (pixelscalex == 0) {
+        pixelscalex = 1;
+    }
+    if (pixelscaley == 0) {
+        pixelscaley = 1;
+    }
+    st.x = x / pixelscalex + 25;
+    st.y = y / pixelscaley + 50;
+
+    // st.x          = x;
+    // st.y          = y;
+    st.buttonBits = uint8_t(btn & 0xFF);
+    return st;
 }
 
 // captures all keys, that are not sent via SDL_TEXTINPUT

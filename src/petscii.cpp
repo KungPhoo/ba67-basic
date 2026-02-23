@@ -5,35 +5,33 @@
 // if you hold the ALT key and press a character, you get a petscii.
 // if you hold both: Shift+Alt you get another one.
 // the Alt one is the shifted on the CBM,
-// Shift+Alt simulated the CBM key.
+// Shift+Alt simulates the CBM key.
 // Returns 0 on error
 char32_t PETSCII::unicodeFromAltKeyPress(char keyChar, bool withShift) {
     const char puoundChar = '/'; // char('\xdf'); // German sz
-    char c                = keyChar;
-    if (c >= 'A' && c <= 'Z') {
-        c = c + 'a' - 'A';
+    uint8_t c             = uint8_t(keyChar);
+    if (c >= uint8_t('A') && c <= uint8_t('Z')) {
+        c = c + ('a' - 'A');
     }
 
-    if (c >= 'a' && c <= 'z') {
+    if (c >= uint8_t('a') && c <= uint8_t('z')) {
         if (withShift) {
             return toUnicode(c - 'a' + 0xc1);
         }
     }
     if (withShift) {
-        if (c == '+') {
-            return toUnicode(0x7b);
-        }
-        if (c == '-') {
-            return toUnicode(0x7d);
-        }
-        if (c == '@') {
-            return toUnicode(0xba);
-        }
-        if (c == '*') {
-            return toUnicode(0x60);
-        }
-        if (c == puoundChar) {
-            return toUnicode(0xa9);
+        switch (c) {
+        case '+':        return toUnicode(0x7b); break;
+        case '-':        return toUnicode(0x7d); break;
+        case '@':        return toUnicode(0xba); break;
+        case '*':        return toUnicode(0x60); break;
+        case puoundChar: return toUnicode(0xa9); break;
+        case 192 /*uint8_t('ö')*/:
+            return toUnicode(0xBA); // OPLÖ are the box corners
+            break;
+        case 186 /*uint8_t('ü')*/:
+            return toUnicode(0xA4); // thin bottom line
+            break;
         }
     } else {
         static uint8_t cbmmap[] = {
@@ -63,6 +61,10 @@ char32_t PETSCII::unicodeFromAltKeyPress(char keyChar, bool withShift) {
             uint8_t('x'), 0xBD,
             uint8_t('y'), 0xB7,
             uint8_t('z'), 0xAD,
+
+            // 222 /*ä*/
+            // 219 /*ß*/
+
             uint8_t('+'), 0x7f,
             uint8_t('-'), 0xA6,
             uint8_t('@'), 0x7c,

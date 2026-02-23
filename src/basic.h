@@ -17,7 +17,7 @@ class SoundSystem;
 
 class Basic {
 public:
-    static const std::string version() { return "7.02"; }
+    static const std::string version() { return "7.03"; }
     static const std::string buildVersion();
 
     Os* os;

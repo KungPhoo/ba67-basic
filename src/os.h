@@ -71,6 +71,7 @@ public:
 public:
     // --- KEYBOARD ---
     enum class KeyConstant : char32_t /* char32_t is unsigned */ {
+        // MOUSE = 0
         ESCAPE    = 27,
         BACKSPACE = '\b', // 8
         RETURN    = '\r', // 13
@@ -145,7 +146,8 @@ public:
 
     // returns a Unicode character or a KEY_CONSTANT for a pressed key
     // of the keyboard buffer. This function should block until a new key
-    // is pressed.
+    // is pressed or a mouse button is clicked.
+    // might return 0 to indicate no key (but mouse) was pressed
     virtual KeyPress getFromKeyboardBuffer();
 
     // peek and return the last key on the stack. Do not wait.
@@ -186,7 +188,7 @@ public:
     struct MouseStatus {
         // x,y coordinates of the screen -{50,50}, if the mouse is clicked
         int x, y;
-        uint8_t buttonBits;
+        uint8_t buttonBits; // 1:left 2:right 4:middle
     };
     virtual MouseStatus getMouseStatus() { return {}; }
 

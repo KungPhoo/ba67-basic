@@ -13,18 +13,21 @@
 BA68settings Os::settings = {};
 
 Os::KeyPress Os::getFromKeyboardBuffer() {
-    while (!keyboardBufferHasData()) {
+    while (!keyboardBufferHasData() && getMouseStatus().buttonBits == 0) {
         delay(150); // this cools the CPU when we wait for keyboard input
         updateEvents();
         presentScreen();
     }
-    auto k = keyboardBuffer.back();
-    keyboardBuffer.pop_back();
+
+    Os::KeyPress k;
+    if (keyboardBufferHasData()) {
+        k = keyboardBuffer.back();
+        keyboardBuffer.pop_back();
+        pokeKeyboardBuffer();
+    }
     if (settings.demoMode) {
         delay(200);
     }
-
-    pokeKeyboardBuffer();
 
     return k;
 }

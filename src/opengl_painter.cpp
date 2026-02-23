@@ -232,6 +232,11 @@ void OpenGLPainter::draw(size_t winWidth, size_t winHeight, size_t pixWidth, siz
     float offsetX = float(winWidth - drawW) / 2.0f;
     float offsetY = float(winHeight - drawH) / 2.0f;
 
+    // report sizes back
+    imgw    = drawW;
+    imgh    = drawH;
+    borderw = size_t(offsetX);
+    borderh = size_t(offsetY);
 
     glViewport(0, 0, GLsizei(winWidth), GLsizei(winHeight));
 

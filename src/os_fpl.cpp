@@ -408,6 +408,7 @@ void OsFPL::presentScreen() {
         videoW = winSize.width;
         videoH = winSize.height;
 
+
         backBuffer->palette.resize(16);
         for (size_t i = 0; i < 16; ++i) {
             backBuffer->palette[i] = screen.palette[i];
@@ -469,6 +470,12 @@ void OsFPL::renderOpenGL() {
              screen.height * ScreenInfo::charPixY,
              &backBuffer->memBackBuffer[0],
              screen.palette[screen.getBorderColor()]);
+
+    auto& wp       = backBuffer->windowPixels;
+    wp.borderx     = int(ogl.borderw);
+    wp.bordery     = int(ogl.borderh);
+    wp.pixelscalex = int(ogl.imgw / (screen.width * ScreenInfo::charPixX));
+    wp.pixelscaley = wp.pixelscalex;
 
     fplVideoFlip();
     #else

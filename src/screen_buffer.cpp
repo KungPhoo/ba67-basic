@@ -192,12 +192,12 @@ void ScreenBuffer::updateScreenPixelsPalette(bool highlightCursor, std::vector<u
         // C64/C128 sprite coordinates are relative to the screen - 0,0 is in the border
         const int sprbx = 25;
         const int sprby = 50;
-        drawSprPal(pixelsPal, sp.x + 0 - sprbx, sp.y + sprby, sp.charmap[0], sp.color);
-        drawSprPal(pixelsPal, sp.x + 8 - sprbx, sp.y + sprby, sp.charmap[1], sp.color);
-        drawSprPal(pixelsPal, sp.x + 16 - sprbx, sp.y + sprby, sp.charmap[2], sp.color);
-        drawSprPal(pixelsPal, sp.x + 0 - sprbx, sp.y + 8 + sprby, sp.charmap[3], sp.color);
-        drawSprPal(pixelsPal, sp.x + 8 - sprbx, sp.y + 8 + sprby, sp.charmap[4], sp.color);
-        drawSprPal(pixelsPal, sp.x + 16 - sprbx, sp.y + 8 + sprby, sp.charmap[5], sp.color);
+        drawSprPal(pixelsPal, sp.x + 0 - sprbx, sp.y - sprby, sp.charmap[0], sp.color);
+        drawSprPal(pixelsPal, sp.x + 8 - sprbx, sp.y - sprby, sp.charmap[1], sp.color);
+        drawSprPal(pixelsPal, sp.x + 16 - sprbx, sp.y - sprby, sp.charmap[2], sp.color);
+        drawSprPal(pixelsPal, sp.x + 0 - sprbx, sp.y + 8 - sprby, sp.charmap[3], sp.color);
+        drawSprPal(pixelsPal, sp.x + 8 - sprbx, sp.y + 8 - sprby, sp.charmap[4], sp.color);
+        drawSprPal(pixelsPal, sp.x + 16 - sprbx, sp.y + 8 - sprby, sp.charmap[5], sp.color);
     }
 }
 
@@ -513,14 +513,58 @@ size_t ScreenBuffer::lastUsedColumn(size_t r) const {
     return 0;
 }
 
+
+// lineIndex (base0) is the new line that will be inserted.
+void ScreenBuffer::insertNewEmptyLine(int lineIndex) {
+    if (lineIndex < 0 || lineIndex >= height) {
+        return;
+    }
+    auto cr = getCursorPos();
+    while (lineIndex < height - 1 && isContinuationRow(lineIndex + 1)) {
+        scrollUpOne();
+    }
+
+    const size_t rowCellCount = width;
+
+    // keep top line in overflow buffer
+    LineOverflow ovr;
+    ovr.setWidth(width);
+    for (size_t c = 0; c < width; ++c) {
+        ovr.characters[c] = charRam[c];
+        if (colRam) {
+            ovr.colors[c] = colRam[c];
+        }
+    }
+    ovr.lineLink = lineLinkTable[0];
+    overflowTop.push_back(ovr);
+
+    ++scrollCount;
+    std::memmove(charRam, charRam + rowCellCount, (lineIndex)*rowCellCount * sizeof(MEMCELL));
+    if (colRam) {
+        std::memmove(colRam, colRam + rowCellCount, (lineIndex)*rowCellCount * sizeof(MEMCELL));
+    }
+    for (size_t r = 0; r < lineIndex; ++r) {
+        lineLinkTable[r] = lineLinkTable[r + 1];
+    }
+
+    makeRowOwner(lineIndex);
+    setCursorPos(Cursor { 0, size_t(lineIndex) });
+    cleanCurrentLine();
+    setCursorPos(cr);
+    rebuildLineLinkAddresses();
+}
+
 void ScreenBuffer::scrollUpOne() {
     const size_t rowCellCount = width;
 
-    // keep in overflow buffer
+    // keep top line in overflow buffer
     LineOverflow ovr;
-    ovr.line.resize(width);
+    ovr.setWidth(width);
     for (size_t c = 0; c < width; ++c) {
-        ovr.line[c] = charRam[c];
+        ovr.characters[c] = charRam[c];
+        if (colRam) {
+            ovr.colors[c] = colRam[c];
+        }
     }
     ovr.lineLink = lineLinkTable[0];
     overflowTop.push_back(ovr);
@@ -532,14 +576,17 @@ void ScreenBuffer::scrollUpOne() {
     }
     MEMCELL curCol = currentColor();
     for (size_t c = 0; c < width; ++c) {
-        if (!overflowBottom.empty() && c < overflowBottom.back().line.size()) {
-            charRam[(height - 1) * width + c] = overflowBottom.back().line[c];
+        const size_t index = (height - 1) * width + c;
+        if (!overflowBottom.empty() && c < overflowBottom.back().width()) {
+            charRam[index] = overflowBottom.back().characters[c];
+            if (colRam) {
+                colRam[index] = overflowBottom.back().colors[c];
+            }
         } else {
-            charRam[(height - 1) * width + c] = blankChar;
-        }
-
-        if (colRam) {
-            colRam[(height - 1) * width + c] = curCol;
+            charRam[index] = blankChar;
+            if (colRam) {
+                colRam[index] = curCol;
+            }
         }
     }
 
@@ -565,9 +612,13 @@ void ScreenBuffer::scrollDownOne() {
     const size_t rowCellCount = width;
     // keep in overflow buffer
     LineOverflow ovr;
-    ovr.line.resize(width);
+    ovr.setWidth(width);
     for (size_t c = 0; c < width; ++c) {
-        ovr.line[c] = charRam[c + ((height - 1) * rowCellCount)];
+        const size_t index = c + ((height - 1) * rowCellCount);
+        ovr.characters[c]  = charRam[index];
+        if (colRam) {
+            ovr.colors[c] = colRam[index];
+        }
     }
     ovr.lineLink = lineLinkTable[height - 1];
     overflowBottom.push_back(ovr);
@@ -579,13 +630,16 @@ void ScreenBuffer::scrollDownOne() {
     }
     MEMCELL curCol = currentColor();
     for (size_t c = 0; c < width; ++c) {
-        if (!overflowTop.empty() && c < overflowTop.back().line.size()) {
-            charRam[c] = overflowTop.back().line[c];
+        if (!overflowTop.empty() && c < overflowTop.back().width()) {
+            charRam[c] = overflowTop.back().characters[c];
+            if (colRam) {
+                colRam[c] = overflowTop.back().colors[c];
+            }
         } else {
             charRam[c] = blankChar;
-        }
-        if (colRam) {
-            colRam[c] = curCol;
+            if (colRam) {
+                colRam[c] = curCol;
+            }
         }
     }
 
