@@ -28,6 +28,7 @@ public:
         bool dotAsZero        = true; // 'true' allows a=. instead of a=0
         bool uppercaseInput   = false; // 'true' returns only upper-case characters in GET/INPUT
         bool colorzizeListing = true;
+        bool listDelay        = true; // add delay when list lines
     };
     static Options options;
 

@@ -244,8 +244,6 @@ std::u32string ScreenBuffer::getSelectedText(Cursor start, Cursor end) const {
     return str;
 }
 
-
-
 void ScreenBuffer::defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     if (index > 15) {
         return;
@@ -256,6 +254,10 @@ void ScreenBuffer::defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, ui
 
 void ScreenBuffer::resetDefaultColors() {
     // C64 color palette             COLOR-ID (BASIC command)
+
+
+#if 0
+    // very vibrant
     defineColor(0, 0x00, 0x00, 0x00); //  1 Black
     defineColor(1, 0xFF, 0xFF, 0xFF); //  2 White
     defineColor(2, 0x96, 0x28, 0x2e); //  3 Red
@@ -272,6 +274,45 @@ void ScreenBuffer::resetDefaultColors() {
     defineColor(13, 0x91, 0xff, 0x84); // 14 Light Green
     defineColor(14, 0x68, 0x64, 0xff); // 15 Light Blue
     defineColor(15, 0xae, 0xae, 0xae); // 16 Light Gray
+#elif 0
+    // http:// unusedino.de/ec64/technical/misc/vic656x/colors/
+    // this seems more realistic - but include Hannover line effect
+    defineColor(0, 0x00, 0x00, 0x00); //  1 Black
+    defineColor(1, 0xFF, 0xFF, 0xFF); //  2 White
+    defineColor(2, 0x68, 0x37, 0x2B); //  3 Red
+    defineColor(3, 0x70, 0xA4, 0xB2); //  4 Cyan
+    defineColor(4, 0x6F, 0x3D, 0x86); //  5 Purple
+    defineColor(5, 0x58, 0x8D, 0x43); //  6 Green
+    defineColor(6, 0x35, 0x28, 0x79); //  7 Blue
+    defineColor(7, 0xB8, 0xC7, 0x6F); //  8 Yellow
+    defineColor(8, 0x6F, 0x4F, 0x25); //  9 Orange
+    defineColor(9, 0x43, 0x39, 0x00); //  0 Brown
+    defineColor(10, 0x9A, 0x67, 0x59); // 11 Light Red
+    defineColor(11, 0x44, 0x44, 0x44); // 12 Dark Gray
+    defineColor(12, 0x6C, 0x6C, 0x6C); // 13 Medium Gray
+    defineColor(13, 0x9A, 0xD2, 0x84); // 14 Light Green
+    defineColor(14, 0x6C, 0x5E, 0xB5); // 15 Light Blue
+    defineColor(15, 0x95, 0x95, 0x95); // 16 Light Gray
+#else
+    // https://www.colodore.com/ from https://www.pepto.de/projects/colorvic/
+    defineColor(0, 0x00, 0x00, 0x00); //  1 Black
+    defineColor(1, 0xFF, 0xFF, 0xFF); //  2 White
+    defineColor(2, 0x81, 0x33, 0x38); //  3 Red
+    defineColor(3, 0x75, 0xce, 0xc8); //  4 Cyan
+    defineColor(4, 0x8e, 0x3c, 0x97); //  5 Purple
+    defineColor(5, 0x56, 0xac, 0x4d); //  6 Green
+    defineColor(6, 0x2e, 0x2c, 0x9b); //  7 Blue
+    defineColor(7, 0xed, 0xf1, 0x71); //  8 Yellow
+    defineColor(8, 0x8e, 0x50, 0x29); //  9 Orange
+    defineColor(9, 0x55, 0x38, 0x00); //  0 Brown
+    defineColor(10, 0xc4, 0x6c, 0x71); // 11 Light Red
+    defineColor(11, 0x4a, 0x4a, 0x4a); // 12 Dark Gray
+    defineColor(12, 0x7b, 0x7b, 0x7b); // 13 Medium Gray
+    defineColor(13, 0xa9, 0xff, 0x9f); // 14 Light Green
+    defineColor(14, 0x70, 0x6d, 0xeb); // 15 Light Blue
+    defineColor(15, 0xb2, 0xb2, 0xb2); // 16 Light Gray
+
+#endif
 }
 
 void ScreenBuffer::resetCharmap(char32_t from, char32_t to) {
@@ -375,8 +416,13 @@ void ScreenBuffer::insertSpace() {
 
     assertCursor();
     size_t tailR, tailC;
-    findTailCell(getCursorPos().y, tailR, tailC);
+    auto crsr = getCursorPos();
+    findTailCell(crsr.y, tailR, tailC);
+    if (tailC < crsr.x) {
+        tailC = crsr.x;
+    }
     ensureOneCellAtTail(tailR, tailC);
+    crsr = getCursorPos(); // again. might have scrolled
 
     size_t r = tailR, c = tailC;
     while (true) {
@@ -396,7 +442,7 @@ void ScreenBuffer::insertSpace() {
         MEMCELL co = colorAt(r, c);
         setAt(dstR, dstC, ch, co);
 
-        if (r == getCursorPos().y && c == getCursorPos().x) {
+        if (r == crsr.y && c == crsr.x) {
             break;
         }
         if (c > 0) {
@@ -408,7 +454,7 @@ void ScreenBuffer::insertSpace() {
             c = width - 1;
         }
     }
-    setAt(getCursorPos().y, getCursorPos().x, blankChar, currentColor());
+    setAt(crsr.y, crsr.x, blankChar, currentColor());
 }
 
 // rebuild the line link table's low bits that indicate the
@@ -463,7 +509,9 @@ void ScreenBuffer::findTailCell(size_t startR, size_t& outR, size_t& outC) {
     while (rowContinues(r) && r + 1 < height) {
         r++;
     }
-    for (size_t rr = r + 1; rr-- > startR;) {
+
+
+    for (size_t rr = r; rr + 1 > startR; --rr) {
         for (size_t cc = width; cc-- > 0;) {
             if (charAt(rr, cc) != blankChar) {
                 outR = rr;
@@ -473,7 +521,7 @@ void ScreenBuffer::findTailCell(size_t startR, size_t& outR, size_t& outC) {
         }
     }
     outR = startR;
-    outC = size_t(-1);
+    outC = width - 1;
 }
 
 void ScreenBuffer::ensureOneCellAtTail(size_t tailR, size_t tailC) {

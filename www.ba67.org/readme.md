@@ -452,22 +452,25 @@ It is cleared by RUN or by printing a screen-clear character.
 The F1 .. F12 keys are pre-assigned with some BASIC keywords
 and can be configured using the KEY command.
 
-Use `Alt+INS` to toggle between insert mode and overwrite
+Use `ALT+INS` to toggle between insert mode and overwrite
 mode. Use the INS key alone to insert a single character
 space.
 
-Pressing `Alt+Enter` will insert a new line below the cursor.
+Pressing `ALT+Enter` will insert a new line below the cursor.
 
-When you press `CTRL+1..8` or `SHIFT+CTRL+1..8`, a special
+When you press `ALT+1..8` or `SHIFT+ALT+1..8`, a special
 character is printed, that advices the interpreter to change
 the text color.
 Pressing `ALT+CRSR` or `ALT+HOME` prints a character that
 moves the cursor.
 
 `ALT+END` is a character to clear the screen.
+`ALT+9` and `ALT+0` are characters to change text reverse mode.
 
-The `Pause` key saves the current state to a snapshot file.
-You can recover that state any time with `Shift-Pause`.
+The screen and history can be cleared with `SHIFT-HOME`.
+
+The `PAUSE` key saves the current state to a snapshot file.
+You can recover that state any time with `SHIFT-PAUSE`.
 
 Annex D shows the list of control characters.
 
@@ -1196,6 +1199,7 @@ REL files currently are not supported (random access files).
 Use `PRINT#1, "TEXT"` to print to the opened fileno #1.
 
 Don't forget to `CLOSE` the file afterwards.
+The standard-IO files 4, 5 and 6 can be re-opened without an error.
 
 #### Inter Process Communication
 The device numbers 4-6 allow you to access the main process'

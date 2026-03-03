@@ -37,12 +37,13 @@ uniform vec4 uBorderColor;  // RGBA color for out-of-range areas
 uniform bool crt_emulation;
 
 // Hard-coded 4x4 RGB multipliers
-const float drk=0.7;
-const float scn=0.85;
+const float drk=0.7; // darkening of rgb components
+const float scn=0.85; // scanline
 const vec3 blockMatrix[16] = vec3[16]( // vertically flipped
     scn*vec3(1.0, drk, drk), scn*vec3(drk, 1.0, drk), scn*vec3(drk, drk, 1.0), scn*vec3(drk, drk, drk),
     vec3(1.0, drk, drk),vec3(drk, 1.0, drk),vec3(drk, drk, 1.0),vec3(scn, scn, scn),
-    vec3(1.0, drk, drk),vec3(drk, 1.0, drk),vec3(drk, drk, 1.0),vec3(scn, scn, scn),
+    scn*vec3(1.0, drk, drk), scn*vec3(drk, 1.0, drk), scn*vec3(drk, drk, 1.0), scn*vec3(drk, drk, drk),
+    //vec3(1.0, drk, drk),vec3(drk, 1.0, drk),vec3(drk, drk, 1.0),vec3(scn, scn, scn),
     vec3(1.0, drk, drk),vec3(drk, 1.0, drk),vec3(drk, drk, 1.0),vec3(scn, scn, scn)
 );
 
@@ -176,7 +177,7 @@ void OpenGLPainter::initGL() {
 // pixWidth, pixHeight: texture bitmap size.
 // pixelsBGRA: pixel data (pixWidth * pixHeight)
 // frameColorBGRA: glClearColor
-void OpenGLPainter::draw(size_t winWidth, size_t winHeight, size_t pixWidth, size_t pixHeight, uint32_t* pixelsBGRA, uint32_t borderColorBGRA) {
+void OpenGLPainter::draw(size_t winWidth, size_t winHeight, size_t pixWidth, size_t pixHeight, uint32_t* pixelsBGRA, uint32_t borderColorBGRA, bool crtEmu) {
     if (pixWidth == 0 || pixHeight == 0) {
         return;
     }
@@ -242,7 +243,7 @@ void OpenGLPainter::draw(size_t winWidth, size_t winHeight, size_t pixWidth, siz
 
     // pass to pixel shader
     glUseProgram(shaderProgram);
-    glUniform1i(glGetUniformLocation(shaderProgram, "crt_emulation"), 1);
+    glUniform1i(glGetUniformLocation(shaderProgram, "crt_emulation"), crtEmu ? 1 : 0);
     glUniform2f(glGetUniformLocation(shaderProgram, "uWinSize"), (float)winWidth, (float)winHeight);
     glUniform2f(glGetUniformLocation(shaderProgram, "uDrawSize"), (float)drawW, (float)drawH);
     glUniform2f(glGetUniformLocation(shaderProgram, "uOffset"), (float)offsetX, (float)offsetY);
@@ -253,7 +254,7 @@ void OpenGLPainter::draw(size_t winWidth, size_t winHeight, size_t pixWidth, siz
     auto blue                = [one_over_255](uint32_t c) { return float((c >> 0) & 0xFF) * one_over_255; };
 
     // Assuming fully opaque border
-    glUseProgram(shaderProgram);
+    // glUseProgram(shaderProgram);
     GLint locBorder = glGetUniformLocation(shaderProgram, "uBorderColor");
     glUniform4f(locBorder,
                 red(borderColorBGRA),
@@ -266,7 +267,7 @@ void OpenGLPainter::draw(size_t winWidth, size_t winHeight, size_t pixWidth, siz
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, GLsizei(pixWidth), GLsizei(pixHeight), GL_BGRA, GL_UNSIGNED_BYTE, pixelsBGRA);
 
     // Render
-    glUseProgram(shaderProgram);
+    // glUseProgram(shaderProgram);
     glBindVertexArray(vao);
     glBindTexture(GL_TEXTURE_2D, texID);
     glDrawArrays(GL_TRIANGLES, 0, 6);

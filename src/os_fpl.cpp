@@ -405,6 +405,11 @@ void OsFPL::presentScreen() {
         if (winSize.width == 0) {
             return; // window minimized
         }
+
+        if (videoW != winSize.width) {
+            int pause = 1;
+        }
+
         videoW = winSize.width;
         videoH = winSize.height;
 
@@ -469,7 +474,8 @@ void OsFPL::renderOpenGL() {
              screen.width * ScreenInfo::charPixX,
              screen.height * ScreenInfo::charPixY,
              &backBuffer->memBackBuffer[0],
-             screen.palette[screen.getBorderColor()]);
+             screen.palette[screen.getBorderColor()],
+             settings.emulateCRT);
 
     auto& wp       = backBuffer->windowPixels;
     wp.borderx     = int(ogl.borderw);

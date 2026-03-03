@@ -548,7 +548,9 @@ void cmdFIND(Basic* basic, const std::vector<Basic::Value>& values) {
         basic->os->screen.cleanCurrentLine();
         basic->printUtf8String(sline);
         basic->handleEscapeKey(true);
-        basic->os->delay(50);
+        if (basic->options.listDelay) {
+            basic->os->delay(50);
+        }
     }
 }
 
@@ -776,8 +778,12 @@ void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     }
     // file slot is already open
     if (basic->fileHandles[ifile]) {
-        basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
-        throw Basic::Error(Basic::ErrorId::FILE_OPEN);
+        if (device < 4 || device > 6) {
+            basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
+            throw Basic::Error(Basic::ErrorId::FILE_OPEN);
+        } else {
+            return; // can re-OPEN 4-6 (stdin/stdout)
+        }
     }
 
     // printer -> stdout and stderr
@@ -1011,12 +1017,15 @@ void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
 
 void cmdREMODEL(Basic* basic, const std::vector<Basic::Value>& values) {
     auto& opt = basic->options;
+    auto& set = basic->os->settings;
     if (values.empty()) {
         // sort alphabetically, here
         basic->printUtf8String("REMODEL \"COLORLIST\", " + basic->valueToString(opt.colorzizeListing) + "\n");
+        basic->printUtf8String("REMODEL \"LISTDELAY\", " + basic->valueToString(opt.listDelay) + "\n");
         basic->printUtf8String("REMODEL \"SPACING\", " + basic->valueToString(opt.spacingRequired) + "\n");
         basic->printUtf8String("REMODEL \"UPPERCASE\", " + basic->valueToString(opt.uppercaseInput) + "\n");
         basic->printUtf8String("REMODEL \"ZERODOT\", " + basic->valueToString(opt.dotAsZero) + "\n");
+        basic->printUtf8String("REMODEL \"CRTEMULATION\", " + basic->valueToString(set.emulateCRT) + "\n");
         // basic->printUtf8String("REMODEL \"\", " + basic->valueToString(0));
         return;
     }
@@ -1035,6 +1044,10 @@ void cmdREMODEL(Basic* basic, const std::vector<Basic::Value>& values) {
         opt.uppercaseInput = (val != 0);
     } else if (key == "COLORLIST") {
         opt.colorzizeListing = (val != 0);
+    } else if (key == "LISTDELAY") {
+        opt.listDelay = (val != 0);
+    } else if (key == "CRTEMULATION") {
+        set.emulateCRT = (val != 0);
     } else {
         throw Basic::Error(Basic::ErrorId::UNDEFD_STATEMENT);
     }
@@ -1420,7 +1433,9 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
         basic->os->screen.cleanCurrentLine();
         basic->printUtf8String(str);
         basic->handleEscapeKey(true);
-        basic->os->delay(50);
+        if (basic->options.listDelay) {
+            basic->os->delay(50);
+        }
     }
     basic->os->screen.cleanCurrentLine();
     basic->printUtf8String(std::string((const char*)(u8"╚══Σ")) + niceSize(totalBytes) + (const char*)(u8"═══"));
@@ -3600,6 +3615,7 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
 
             str.clear();
 
+            // Keyboard
             if (currentFileNo == 0) {
                 Os::KeyPress key {};
                 if (waitForKeypress) {
@@ -3966,7 +3982,9 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
                 printUtf8String("MODULE \"" + lmd.first + "\"\n");
 
                 handleEscapeKey(true);
-                os->delay(50);
+                if (options.listDelay) {
+                    os->delay(50);
+                }
             }
             return;
         }
@@ -4102,7 +4120,9 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
         printUtf8String(sline, true /*ctrl*/, false /*but not in quotes*/);
 
         handleEscapeKey(true);
-        os->delay(50);
+        if (options.listDelay) {
+            os->delay(50);
+        }
     }
 }
 
@@ -4199,7 +4219,9 @@ void Basic::handleDUMP(const std::vector<Token>& tokens) {
         os->screen.cleanCurrentLine();
         printUtf8String(ln + "\n");
         handleEscapeKey(true);
-        os->delay(50);
+        if (options.listDelay) {
+            os->delay(50);
+        }
     }
 }
 
@@ -5133,6 +5155,7 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
                     case ControlCharacters::cursorLeft /*0x9d*/:              os->screen.moveCursorPos(-1, 0); break; // cursor left
                     case ControlCharacters::cursorHome /*0x13*/:              os->screen.setCursorPos({ 0, 0 }); break; // home
                     case ControlCharacters::backspaceChar /*0x14*/:           os->screen.backspaceChar(); break; // delete
+                    case ControlCharacters::insertChar /*0x94*/:              os->screen.insertSpace(); break; // insert
                     case ControlCharacters::clearScreen /*0x93*/:             os->screen.clear(); break; // clear
                     case ControlCharacters::reverseModeOn /*0x12*/:           os->screen.setReverseMode(true); break; // reverse on
                     case ControlCharacters::reverseModeOff /*0x92*/:          os->screen.setReverseMode(false); break; // reverse off
@@ -5315,6 +5338,7 @@ std::string Basic::inputLine(bool allowVertical) {
                     }
                     break;
                 }
+
                 case U'.':
                 case 190:  {
                     auto emoji = os->emojiPicker();
@@ -5323,77 +5347,28 @@ std::string Basic::inputLine(bool allowVertical) {
                     }
                     break;
                 }
-                case u'1':
-                    if (key.holdShift) {
-                        ctrlChar = 0x97; // dark gray
-                    } else {
-                        ctrlChar = 0x90; // black
-                    }
+                case uint32_t(Os::KeyConstant::INSERT):
+                    // ctrlChar = 0x94;
+                    insertMode           = !insertMode;
+                    os->screen.dirtyFlag = true;
+                    key.code             = 0;
                     break;
-                case u'2':
-                    if (key.holdShift) {
-                        ctrlChar = 0x9b; // light gray
-                    } else {
-                        ctrlChar = 0x05; // white
+
+                case uint32_t(Os::KeyConstant::PG_UP):
+                    if (allowVertical) {
+                        os->screen.setCursorPos({ os->screen.getCursorPos().x, 1 });
+                        startSel();
+                        movedVertical = true;
                     }
-                    break; // gray/ white
-                case u'3':
-                    if (key.holdShift) {
-                        ctrlChar = 0x96; // pink/light red
-                    } else {
-                        ctrlChar = 0x1c; // red
+                    continue;
+                case uint32_t(Os::KeyConstant::PG_DOWN):
+                    if (allowVertical) {
+                        os->screen.setCursorPos({ os->screen.getCursorPos().x, os->screen.height - 1 });
+                        startSel();
+                        movedVertical = true;
                     }
-                    break;
-                case u'4':
-                    if (key.holdShift) {
-                        ctrlChar = 0x98; // gray
-                    } else {
-                        ctrlChar = 0x9f; // cyan
-                    }
-                    break;
-                case u'5':
-                    if (key.holdShift) {
-                        ctrlChar = 0x81; // orange
-                    } else {
-                        ctrlChar = 0x9c; // purple
-                    }
-                    break;
-                case u'6':
-                    if (key.holdShift) {
-                        ctrlChar = 0x99; // light green
-                    } else {
-                        ctrlChar = 0x1e; // green
-                    }
-                    break;
-                case u'7':
-                    if (key.holdShift) {
-                        ctrlChar = 0x9a; // light blue
-                    } else {
-                        ctrlChar = 0x1f; // blue
-                    }
-                    break;
-                case u'8':
-                    if (key.holdShift) {
-                        ctrlChar = 0x95; // brown
-                    } else {
-                        ctrlChar = 0x9e; // yellow
-                    }
-                    break;
-                case u'9':
-                    if (key.holdShift) {
-                        // ctrlChar = 0x95; // brown
-                    } else {
-                        ctrlChar = 0x12; // reverse on
-                    }
-                    break;
-                case u'0':
-                    if (key.holdShift) {
-                        // ctrlChar = 0x95; // brown
-                    } else {
-                        ctrlChar = 0x92; // reverse off
-                    }
-                    break;
-                }
+                    continue;
+                } // switch
 
                 if (ctrlChar == 0) {
                     continue;
@@ -5405,26 +5380,64 @@ std::string Basic::inputLine(bool allowVertical) {
 
                 if (key.holdAlt) {
                     switch (key.code) {
-                    case uint32_t(Os::KeyConstant::INSERT):
-                        // ctrlChar = 0x94;
-                        insertMode           = !insertMode;
-                        os->screen.dirtyFlag = true;
-                        key.code             = 0;
-                        break;
-
-                    case uint32_t(Os::KeyConstant::BACKSPACE):  key.code = 0x14; break;
-                    case uint32_t(Os::KeyConstant::DEL):        key.code = 0x14; break;
-                    case uint32_t(Os::KeyConstant::CRSR_LEFT):  key.code = 0x9d; break;
-                    case uint32_t(Os::KeyConstant::CRSR_RIGHT): key.code = 0x1d; break;
-                    case uint32_t(Os::KeyConstant::CRSR_UP):    key.code = 0x91; break;
-                    case uint32_t(Os::KeyConstant::CRSR_DOWN):  key.code = 0x11; break;
-                    case uint32_t(Os::KeyConstant::HOME):       key.code = 0x13; break;
-                    case uint32_t(Os::KeyConstant::END):        key.code = 0x93; break; // clear
+                    case uint32_t(Os::KeyConstant::INSERT):     key.code = ControlCharacters::insertChar; break;
+                    case uint32_t(Os::KeyConstant::BACKSPACE):  key.code = ControlCharacters::backspaceChar; break;
+                    case uint32_t(Os::KeyConstant::DEL):        key.code = ControlCharacters::backspaceChar; break;
+                    case uint32_t(Os::KeyConstant::CRSR_LEFT):  key.code = ControlCharacters::cursorLeft; break;
+                    case uint32_t(Os::KeyConstant::CRSR_RIGHT): key.code = ControlCharacters::cursorRight; break;
+                    case uint32_t(Os::KeyConstant::CRSR_UP):    key.code = ControlCharacters::cursorUp; break;
+                    case uint32_t(Os::KeyConstant::CRSR_DOWN):  key.code = ControlCharacters::cursorDown; break;
+                    case uint32_t(Os::KeyConstant::HOME):       key.code = ControlCharacters::cursorHome; break;
+                    case uint32_t(Os::KeyConstant::END):        key.code = ControlCharacters::clearScreen; break;
                     case U'\r':
-                    case U'\n':
-                        os->screen.insertNewEmptyLine(int(os->screen.getCursorPos().y));
+                    case U'\n': // insert a new, empty line
+                    {
+                        auto crp              = os->screen.getCursorPos();
+                        std::string strLineNo = Unicode::toUtf8String(
+                            os->screen.getSelectedText(
+                                          os->screen.getStartOfLineAt(crp),
+                                          os->screen.getEndOfLineAt(crp))
+                                .c_str());
+                        int lineNo = int(StringHelper::strtoi64(strLineNo));
+
+                        // insert space for new line
+                        os->screen.insertNewEmptyLine(int(crp.y));
+                        os->screen.setCursorPos({ 0, os->screen.getCursorPos().y });
+
+                        // find new line number and print that
+                        auto& list = currentListing();
+                        auto itr   = list.find(lineNo);
+                        if (lineNo > 0 && itr != list.end()) {
+                            ++itr;
+                            if (itr != list.end()) {
+                                int nextLineNo = itr->first;
+                                if (nextLineNo > lineNo + 1) {
+                                    lineNo              = (nextLineNo + lineNo) / 2;
+                                    std::string strLiNo = this->valueToString(lineNo);
+                                    printUtf8String(strLiNo);
+                                    printUtf8String(" ");
+                                }
+                            }
+                        }
                         continue;
+                    } break;
+                    case u'1':
+                    case u'2':
+                    case u'3':
+                    case u'4':
+                    case u'5':
+                    case u'6':
+                    case u'7':
+                    case u'8':
+                        if (key.holdShift) {
+                            key.code = ControlCharacters::charForColor(key.code - u'1' + 8);
+                        } else {
+                            key.code = ControlCharacters::charForColor(key.code - u'1');
+                        }
                         break;
+                    case u'9': key.code = ControlCharacters::reverseModeOn; break;
+                    case u'0': key.code = ControlCharacters::reverseModeOff; break;
+
                     default:
                         // Alt and Shift+Alt produce the PETSCII characters as on the C128
                         key.code = PETSCII::unicodeFromAltKeyPress(char(key.code), key.holdShift);
@@ -5481,12 +5494,7 @@ std::string Basic::inputLine(bool allowVertical) {
                         os->screen.deleteChar();
                         continue;
                     case uint32_t(Os::KeyConstant::INSERT):
-                        if (key.holdAlt) {
-                            insertMode           = !insertMode;
-                            os->screen.dirtyFlag = true;
-                        } else {
-                            os->screen.insertSpace();
-                        }
+                        os->screen.insertSpace();
                         continue;
                     case uint32_t(Os::KeyConstant::CRSR_LEFT):
                         os->screen.moveCursorPos(-1, 0);
@@ -5507,23 +5515,34 @@ std::string Basic::inputLine(bool allowVertical) {
                         movedVertical = true;
                         continue;
                     case uint32_t(Os::KeyConstant::PG_UP):
-                        for (size_t i = 1; i < os->screen.height; ++i) {
-                            os->screen.moveCursorPos(0, -1);
-                            os->screen.scrollDownOne();
+                        if (allowVertical) {
+                            for (size_t i = 1; i < os->screen.height; ++i) {
+                                os->screen.moveCursorPos(0, -1);
+                                os->screen.scrollDownOne();
+                            }
+                            startSel();
+                            movedVertical = true;
                         }
-                        startSel();
-                        movedVertical = true;
                         continue;
                     case uint32_t(Os::KeyConstant::PG_DOWN):
-                        for (size_t i = 1; i < os->screen.height; ++i) {
-                            os->screen.moveCursorPos(0, 1);
-                            os->screen.scrollUpOne();
+                        if (allowVertical) {
+                            for (size_t i = 1; i < os->screen.height; ++i) {
+                                os->screen.moveCursorPos(0, 1);
+                                os->screen.scrollUpOne();
+                            }
+                            startSel();
+                            movedVertical = true;
                         }
-                        startSel();
-                        movedVertical = true;
                         continue;
                     case uint32_t(Os::KeyConstant::HOME):
-                        os->screen.setCursorPos({ 0, os->screen.getCursorPos().y });
+                        if (key.holdShift) {
+                            os->screen.clear();
+                            os->screen.clearHistory();
+                            os->screen.setCursorPos({ 0, 0 });
+                            movedVertical = true;
+                        } else {
+                            os->screen.setCursorPos({ 0, os->screen.getCursorPos().y });
+                        }
                         startSel();
                         continue;
                     case uint32_t(Os::KeyConstant::END): {
@@ -6127,7 +6146,9 @@ bool Basic::saveProgram(std::string filenameUtf8) {
                 printUtf8String(sline);
 
                 handleEscapeKey(true);
-                os->delay(50);
+                if (options.listDelay) {
+                    os->delay(50);
+                }
             }
         }
 
@@ -6163,6 +6184,7 @@ bool Basic::saveState(std::string& filenameUtf8) {
     cfg.set("options.dotAsZero", options.dotAsZero);
     cfg.set("options.uppercaseInput", options.uppercaseInput);
     cfg.set("options.colorizeListing", options.colorzizeListing);
+    cfg.set("options.listdelay", options.listDelay);
     cfg.set("memory", &memory[0], memory.size(), sizeof(memory[0]));
     cfg.set("time0", time0);
 
