@@ -1791,7 +1791,7 @@ Basic::Value& Basic::Array::at(const Basic::ArrayIndex& ix) {
             throw Error(ErrorId::BAD_SUBSCRIPT);
         } // DIM a(5): a(1,1) = 1
         i += ixn * blk;
-        blk *= bounds.index[n];
+        blk *= (1 + bounds.index[n]);
     }
     if (i < data.size()) {
         return data[i];
@@ -1832,7 +1832,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         auto& bmp = os->screen.getCharDefinition(char32_t(i));
         for (size_t y = 0; y < 8; ++y) {
             // uppercase char set
-            // memory[0xD000 + i * 8 + y] = bmp.bits[y];
+            memory[0xD000 + i * 8 + y] = bmp.bits[y];
 
             // lowercase char set (same, but reversed)
             memory[0xD800 + i * 8 + y] = ~bmp.bits[y];
