@@ -45,10 +45,12 @@ size_t ts_offset(int track, int sector) {
 // We need to manage BAM (Block Availability Map), allocate sectors, write linked sectors & directory
 
 struct Bam {
-    // For each track (1-based index), store bitmask of sectors (1=free). We'll use vector<uint8_t> as bytes in same layout
+    // For each track (1-based index), store bitmask of sectors (1=free). We'll use vector<uint8_t>
+    // as bytes in same layout.
     // Also store free-sector counts per track
     std::vector<uint8_t> freeCount; // [1..TRACKS]
-    // raw bitmaps as they appear in BAM sector: for track i, 3 bytes little-endian (up to 24 bits) but sector count <= 21 -> 3 bytes enough
+    // raw bitmaps as they appear in BAM sector: for track i, 3 bytes little-endian (up to 24 bits)
+    // but sector count <= 21 -> 3 bytes enough
     std::vector<std::vector<uint8_t>> map;
     Bam() {
         freeCount.assign(TRACKS + 1, 0);
@@ -122,7 +124,40 @@ static std::vector<uint8_t> ascii_name_to_petscii16(const std::string& name) {
 // }
 
 static void write_bam_to_image(std::vector<uint8_t>& img, const Bam& bam, const std::string& diskName) {
-    size_t bam_off = ts_offset(18, 0);
+    size_t bam_off = ts_offset(18, 0); // 0x16500
+
+    for (size_t i = 0; i < 0xAB; ++i) {
+        img[bam_off + i] = 0xA0;
+    }
+
+    // Set directory start pointer
+    img[bam_off + 0x00] = 0x12; // directory track 18
+    img[bam_off + 0x01] = 1; // directory sector
+
+    // DOS version type
+    img[bam_off + 0x02] = 0x41; // 'A'
+
+    // Typically 0x00 at 0x03
+    img[bam_off + 0x03] = 0x00;
+
+    // 04..8f BAM entries
+
+    // Disk ID (any 2 PETSCII chars) at $A0-$A1
+    img[bam_off + 0xA0] = 0xA0;
+    img[bam_off + 0xA1] = 0xA0;
+
+    // Disk ID at 0xA2-0xA3 (any 2 petscii - will expand BASIC commands)
+    img[bam_off + 0xA2] = 'i';
+    img[bam_off + 0xA3] = 'd';
+
+
+    img[bam_off + 0xA4] = 0xa0; // seems empty padding
+
+    // DOS type "2A"
+    img[bam_off + 0xA5] = 0x32;
+    img[bam_off + 0xA6] = 0x41;
+
+
     // write header: disk id / dos type left as zeros typically. We'll write disk name at offset 0x90
     std::vector<uint8_t> name_petscii = ascii_name_to_petscii16(diskName);
     for (size_t i = 0; i < name_petscii.size(); ++i) {
@@ -137,6 +172,7 @@ static void write_bam_to_image(std::vector<uint8_t>& img, const Bam& bam, const 
         img[base + 2] = bam.map[t][1];
         img[base + 3] = bam.map[t][2];
     }
+    size_t endOfBAM = bam_off + 4 + (TRACKS) * 4;
 }
 
 // Initialize BAM all-free according to maximum sectors per track

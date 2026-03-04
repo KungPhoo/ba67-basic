@@ -2281,6 +2281,24 @@ Image taken from [style64.org](https://style64.org/petscii/)
 This is the character set that will be switched to with the `GO 64`
 command.
 
+When you press the `ALT` key, you can produce these PETSCII
+characters in the editor (best viewed with the BA67 font):
+```
+q w e r t z u i o p
+┣ ┫ ┻ ┳ £ ┗ 🮃 ▄ ▃ ▂
+a s d f g h j k l
+┏ ┓ ▗ ▖ ▏ ▎ ▍ ▌ 🮈
+y x c v b n m
+🮂 ┛ ▝ ▘ ▚ 🮇 ▕
+Q W E R T Z U I O P
+● ○ 🭶 🭻 🭰 ♦ ╭ ╮ 🭽 🭾
+A S D F G H J K L Ö
+♠ ♥ 🭷 🭺 🭱 🭴 ╰ ╯ 🭼 🭿
+Y X C V B N M
+🭵 ♣ ━ ╳ ❘ ╱ ╲
+```
+
+
 ## H - Hardcore Assembler Language
 
 Your program relies on an assembler subroutine?
