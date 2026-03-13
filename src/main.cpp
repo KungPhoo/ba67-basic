@@ -126,6 +126,11 @@ int main(int argc, char** argv) {
 
 
     auto& sets = Os::settings;
+
+#if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
+    sets.renderMode = BA68settings::RenderMode::OpenGL;
+#endif
+
     args.push_back(""); // ensure [i] and [i+1]
     for (size_t i = 0; i + 1 < args.size(); ++i) {
         if (args[i] == "--help") {
@@ -174,8 +179,12 @@ int main(int argc, char** argv) {
         if (basic.loadProgram("boot.bas")) {
             basic.parseInput("RUN");
             basic.parseInput("NEW");
+        } else {
+            printf("boot.bas not found\n");
+            printf("cd: %s\n", os->getCurrentDirectory().c_str());
         }
     } catch (...) {
+        printf("exception while executing boot.bas\n");
     }
 
     // run bas program from command line

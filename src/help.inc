@@ -77,7 +77,7 @@
 ,{"COS", R"RAW(COS(expr))RAW"}
 ,{"DEC", R"RAW(PRINT DEC("FF"))RAW"}
 ,{"EXP", R"RAW(EXP(expr))RAW"}
-,{"FRE", R"RAW(FRE(0))RAW"}
+,{"FRE", R"RAW(FRE(1))RAW"}
 ,{"HEX$", R"RAW(PRINT HEX$( $ff001234 ))RAW"}
 ,{"INSTR", R"RAW(position=INSTR(haystack$, needle$, [start__pos]))RAW"}
 ,{"INT", R"RAW(INT(expr))RAW"}

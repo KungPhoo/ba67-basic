@@ -147,6 +147,13 @@ const char* PrgTool::gettoken(const uint8_t*& prg) {
         // 0xfe PREFIX
 
         // with 0xfe PREFIX:
+        { 0xfe10,    "BSAVE" },
+        { 0xfe11,    "BLOAD" },
+        { 0xfe04,     "PLAY" },
+        { 0xfe06,   "MOVSPR" },
+        { 0xfe07,   "SPRITE" },
+        { 0xfe16,   "SPRSAV" },
+        { 0xfe1d,   "SPRDEF" },
         { 0xfe1e,     "QUIT" },
         { 0xfe1f,    "STASH" },
         { 0xfe21,    "FETCH" },

@@ -47,6 +47,8 @@ struct KernalAddress {
     // screen size
     const size_t LLEN   = 0xE506; // 40 columns - hardcoded
     const size_t NLINES = 0xE508; // 25 lines   - hardcoded
+
+    const size_t REVISION = 0xFF80; // KERNAL revision byte
 };
 
 inline constexpr KernalAddress krnl {};

@@ -31,6 +31,7 @@ public:
     };
     std::vector<FILE> files;
 
+    void clear();
     bool load(std::string path);
     bool save(std::string path) const;
     bool removeFile(std::string filename);

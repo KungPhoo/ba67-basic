@@ -736,6 +736,7 @@ void cmdSCRATCH(Basic* basic, const std::vector<Basic::Value>& values) {
             basic->os->screen.cleanCurrentLine();
             basic->printUtf8String("SCRATCH ");
             basic->printUtf8String(fn);
+            basic->printUtf8String("\n");
             if (!basic->AreYouSureQuestion()) {
                 break;
             }
@@ -1823,6 +1824,9 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memcellcpy8(&memory[0xA000], RomImage::BASIC_V2(), 0x2000);
     memcellcpy8(&memory[0xE000], RomImage::KERNAL_C64(), 0x2000);
     memcellcpy8(&memory[0x0000], RomImage::LOW_RAM(), 0x1000);
+
+    // Kernal version. $AA=1, $00=2, $03=3, $43=SX64, $64=CBM 4064
+    memory[krnl.REVISION] = 0x67; // Kernal OS ROM version
 
     // copy the BA67 font to the CHARROM memory.
     // --this is never used. BA67 takes the PRINT-ing role--
@@ -5421,18 +5425,18 @@ std::string Basic::inputLine(bool allowVertical) {
                         }
                         continue;
                     } break;
-                    case u'1':
-                    case u'2':
-                    case u'3':
-                    case u'4':
-                    case u'5':
-                    case u'6':
-                    case u'7':
-                    case u'8':
+                    case U'1':
+                    case U'2':
+                    case U'3':
+                    case U'4':
+                    case U'5':
+                    case U'6':
+                    case U'7':
+                    case U'8':
                         if (key.holdShift) {
-                            key.code = ControlCharacters::charForColor(key.code - u'1' + 8);
+                            key.code = ControlCharacters::charForColor(key.code - U'1' + 8);
                         } else {
-                            key.code = ControlCharacters::charForColor(key.code - u'1');
+                            key.code = ControlCharacters::charForColor(key.code - U'1');
                         }
                         break;
                     case u'9': key.code = ControlCharacters::reverseModeOn; break;

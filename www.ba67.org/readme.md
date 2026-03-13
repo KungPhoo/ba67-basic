@@ -560,6 +560,8 @@ Load a binary file to the given memory address.
 The end must not exceed the internal memory or an error
 will be printed.
 
+> The command syntax is not compatible with CBM BASIC V7.
+
 
 ### BSAVE
 **Usage:** `BSAVE filename$, startAddress, endAddress+1`
@@ -567,6 +569,8 @@ will be printed.
 Saves the memory from startAddress to endAddress excluded
 to the given file.
 The endAddress is the first byte that's not written anymore.
+
+> The command syntax is not compatible with CBM BASIC V7.
 
 
 ### CATALOG
@@ -1682,11 +1686,12 @@ See also [HEX$](#hex$).
 Returns `e` (2.71828183..) raised to a power.
 
 ### FRE
-**Usage:** `FRE(0)`
+**Usage:** `FRE(1)`
 
 Returns the amount of memory for PEEK and POKE operations.
 On a C64, this would print the memory available for your
-BASIC program.
+BASIC program. Use the argument 1 on the C128 to trigger
+the garbage collection.
 
 ### HEX$
 **Usage:** `PRINT HEX$( $ff001234 )`
@@ -2393,7 +2398,8 @@ The memory address `$E48B` contains the string
 `BASIC V2` on the C64. On the C128, it's part
 of a routine that sends data to the serial bus.
 In BA67, the `BASIC V2` is overwritten with
-`BA67  V2`.
+`BA67  V2`. This way you can detect on what computer
+your program is running.
 
 Thus, peeking $E48D(58509) yields:
 
@@ -2405,6 +2411,8 @@ Thus, peeking $E48D(58509) yields:
 | $00   | $FF   | $F9 | $53 | $AD  | $36  |
 +-------+-------+-----+-----+------+------+
 
+BA67 also patches the kernal revision rom number at
+$FF80 to $67. It's a KERNAL Revision 3 ROM, btw.
 
 
 ## M - Machine Language Monitor

@@ -172,7 +172,6 @@ static void write_bam_to_image(std::vector<uint8_t>& img, const Bam& bam, const 
         img[base + 2] = bam.map[t][1];
         img[base + 3] = bam.map[t][2];
     }
-    size_t endOfBAM = bam_off + 4 + (TRACKS) * 4;
 }
 
 // Initialize BAM all-free according to maximum sectors per track
@@ -394,6 +393,11 @@ static void write_directory_to_image(std::vector<uint8_t>& img, Bam& bam, const 
     }
 }
 
+void D64::clear() {
+    files.clear();
+    diskName.clear();
+}
+
 bool D64::load(std::string path) {
     FilePtr f(os);
     if (!f.fopenLocal(path, "rb")) {
@@ -428,6 +432,7 @@ bool D64::removeFile(std::string filename) {
 
 // --- Parsing D64 image -> populate D64 structure
 bool D64::load_d64_from_image(const std::vector<uint8_t>& img) {
+    clear();
     if (img.size() < IMAGE_SIZE) {
         return false;
         // throw "image too small or truncated";

@@ -78,7 +78,6 @@ public:
 
 
 
-        dirtyFlag = true;
         // cursorPosition    = ptrAt(crsr.y, crsr.x);
         memory[krnl.PNTR] = MEMCELL(crsr.x);
         memory[krnl.TBLX] = MEMCELL(crsr.y);
@@ -87,6 +86,7 @@ public:
         memory[krnl.PNT]     = pnt & 0xff;
         memory[krnl.PNT + 1] = (pnt >> 8) & 0xff;
         assertCursor();
+        dirtyFlag = true;
     }
     inline void setCursorPtr(MEMCELL* pos) {
         setCursorPos({ colOf(pos), rowOf(pos) });

@@ -98,24 +98,33 @@ bool FilePtr::close() {
 
 
 #ifdef __EMSCRIPTEN__
+    // clang-format off
     EM_ASM(
-
-        FS.syncfs(function(err) {
-            // Error
-        });
+        // TODO somehow my files are not stored in the mobile browser...
+        try {
+            FS.syncfs(false, function(err) {
+            if (err){ console.error("FS.syncfs(save failed):", err);
+        } });
+        } catch (e) {}
 
         // // make a promise to await the sync
-        // function syncfs(populate) {
-        //     return new Promise((resolve, reject) = > {
-        //         FS.syncfs(populate, (err) = > {
-        // if (err) reject(err);
-        // else resolve(); });
-        //     });
-        // }
-        //
+        // syncfs = function(populate) {
+        //     return new Promise((resolve, reject)
+        //                        => {
+        //                              FS.syncfs(populate, err => {
+        //             if (err){
+        //                 console.error("FS.syncfs(save failed):", err);
+        //                 reject(err);
+        //             }
+        //             else{
+        //                 resolve();
+        //             } });
+        //                          });
+        // };
+        // 
         // await syncfs(false);
-        // end
     );
+    // clang-format on
 #endif
 
     // TODO throw, maybe

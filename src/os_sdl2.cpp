@@ -42,6 +42,29 @@ bool OsSDL2::init(Basic* basic, SoundSystem* sound) {
     start_os_sdl2();
     Os::init(basic, sound);
 
+    #ifdef __EMSCRIPTEN__
+    // Create a mount point EMSCRIPTEN_HOME_SEE_HERE
+    EM_ASM(
+        try {
+            try {
+                FS.mkdir('/home/web_user/BASIC');
+            } catch (e) { }
+            FS.mount(IDBFS, {}, '/home/web_user/BASIC');
+
+            // Load previously saved files (async)
+            FS.syncfs(true, function(err) {
+                if (err) {
+                    console.error("Failed to load persistent data:", err);
+                    return;
+                }
+
+                console.log("Filesystem restored"); //
+            });
+        } catch {}
+
+    ); // EM_ASM
+    #endif
+
     setCurrentDirectory(getHomeDirectory());
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER) != 0) {
@@ -77,19 +100,7 @@ bool OsSDL2::init(Basic* basic, SoundSystem* sound) {
 std::string OsSDL2::getHomeDirectory() {
 
     #ifdef __EMSCRIPTEN__
-
-    // Create a mount point
-    EM_ASM(
-        try {
-            FS.mkdir('/home/web_user/BASIC');
-            FS.mount(IDBFS, {}, '/home/web_user/BASIC');
-
-            // Load previously saved files (async)
-            FS.syncfs(true, function(err) { console.error("Error loading persistent data:", err); });
-        } catch {}
-
-    ); // EM_ASM
-
+    // EMSCRIPTEN_HOME_SEE_HERE
     std::string home = "/home/web_user";
     #elif defined(_WIN32)
         #error implement OsSDL2::getHomeDirectory()
@@ -353,29 +364,30 @@ void OsSDL2::codepointFromSDLKey(const SDL_Keysym& keysym, Os::KeyPress& k) {
     k.code      = 0; // all others are handled with SDL_TEXTINPUT
     k.printable = false;
     switch (keysym.sym) {
-    case SDLK_ESCAPE: k.code = uint32_t(KeyConstant::ESCAPE); break;
-    case SDLK_F1:     k.code = uint32_t(KeyConstant::F1); break;
-    case SDLK_F2:     k.code = uint32_t(KeyConstant::F2); break;
-    case SDLK_F3:     k.code = uint32_t(KeyConstant::F3); break;
-    case SDLK_F4:     k.code = uint32_t(KeyConstant::F4); break;
-    case SDLK_F5:     k.code = uint32_t(KeyConstant::F5); break;
-    case SDLK_F6:     k.code = uint32_t(KeyConstant::F6); break;
-    case SDLK_F7:     k.code = uint32_t(KeyConstant::F7); break;
-    case SDLK_F8:     k.code = uint32_t(KeyConstant::F8); break;
-    case SDLK_F9:     k.code = uint32_t(KeyConstant::F9); break;
-    case SDLK_F10:    k.code = uint32_t(KeyConstant::F10); break;
-    case SDLK_F11:    k.code = uint32_t(KeyConstant::F11); break;
-    case SDLK_F12:    k.code = uint32_t(KeyConstant::F12); break;
-
-    case SDLK_HOME:   k.code = uint32_t(KeyConstant::HOME); break;
-    case SDLK_END:    k.code = uint32_t(KeyConstant::END); break;
-    case SDLK_UP:     k.code = uint32_t(KeyConstant::CRSR_UP); break;
-    case SDLK_DOWN:   k.code = uint32_t(KeyConstant::CRSR_DOWN); break;
-    case SDLK_LEFT:   k.code = uint32_t(KeyConstant::CRSR_LEFT); break;
-    case SDLK_RIGHT:  k.code = uint32_t(KeyConstant::CRSR_RIGHT); break;
-    case SDLK_INSERT: k.code = uint32_t(KeyConstant::INSERT); break;
-    case SDLK_DELETE: k.code = uint32_t(KeyConstant::DEL); break;
-    case SDLK_LSHIFT: k.code = uint32_t(KeyConstant::SHIFT_LEFT); break;
+    case SDLK_ESCAPE:   k.code = uint32_t(KeyConstant::ESCAPE); break;
+    case SDLK_F1:       k.code = uint32_t(KeyConstant::F1); break;
+    case SDLK_F2:       k.code = uint32_t(KeyConstant::F2); break;
+    case SDLK_F3:       k.code = uint32_t(KeyConstant::F3); break;
+    case SDLK_F4:       k.code = uint32_t(KeyConstant::F4); break;
+    case SDLK_F5:       k.code = uint32_t(KeyConstant::F5); break;
+    case SDLK_F6:       k.code = uint32_t(KeyConstant::F6); break;
+    case SDLK_F7:       k.code = uint32_t(KeyConstant::F7); break;
+    case SDLK_F8:       k.code = uint32_t(KeyConstant::F8); break;
+    case SDLK_F9:       k.code = uint32_t(KeyConstant::F9); break;
+    case SDLK_F10:      k.code = uint32_t(KeyConstant::F10); break;
+    case SDLK_F11:      k.code = uint32_t(KeyConstant::F11); break;
+    case SDLK_F12:      k.code = uint32_t(KeyConstant::F12); break;
+    case SDLK_HOME:     k.code = uint32_t(KeyConstant::HOME); break;
+    case SDLK_END:      k.code = uint32_t(KeyConstant::END); break;
+    case SDLK_UP:       k.code = uint32_t(KeyConstant::CRSR_UP); break;
+    case SDLK_DOWN:     k.code = uint32_t(KeyConstant::CRSR_DOWN); break;
+    case SDLK_LEFT:     k.code = uint32_t(KeyConstant::CRSR_LEFT); break;
+    case SDLK_RIGHT:    k.code = uint32_t(KeyConstant::CRSR_RIGHT); break;
+    case SDLK_PAGEUP:   k.code = uint32_t(KeyConstant::PG_UP); break;
+    case SDLK_PAGEDOWN: k.code = uint32_t(KeyConstant::PG_DOWN); break;
+    case SDLK_INSERT:   k.code = uint32_t(KeyConstant::INSERT); break;
+    case SDLK_DELETE:   k.code = uint32_t(KeyConstant::DEL); break;
+    case SDLK_LSHIFT:   k.code = uint32_t(KeyConstant::SHIFT_LEFT); break;
     case SDLK_RSHIFT:
         k.code = uint32_t(KeyConstant::SHIFT_RIGHT);
         break;

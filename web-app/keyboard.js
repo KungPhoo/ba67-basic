@@ -6,7 +6,8 @@ let altActive = false;
 let ctrlActive = false;
 
 // Key definition array: [label, key, code]
-// key-codes: https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values
+// key-codes for key='code':
+// https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values
 const keys = [
     //label key      code
     // ---------------------
@@ -93,10 +94,10 @@ const shiftedKeys = [
     //label key      code   
     // ---------------------
     ['☒', '\u0027', 'Escape'],
-    ['↑', 'code', 'ArrowUp'],
-    ['↓', 'code', 'ArrowDown'],
-    ['←', 'code', 'ArrowLeft'],
-    ['→', 'code', 'ArrowRight'],
+    ['↥', 'code', 'PageUp'],
+    ['↧', 'code', 'PageDown'],
+    ['⌂', 'code', 'Home'],
+    ['↦', 'code', 'End'],
     ['F2', 'code', 'F2'],
     ['F4', 'code', 'F4'],
     ['F6', 'code', 'F6'],
