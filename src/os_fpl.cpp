@@ -530,11 +530,10 @@ void OsFPL::updateEvents() {
             }
         } else if (event.type == fplEventType_Keyboard) {
             KeyPress keyPress;
-            keyPress.holdShift = event.keyboard.modifiers & (fplKeyboardModifierFlags_LShift | fplKeyboardModifierFlags_RShift);
-            keyPress.holdCtrl  = event.keyboard.modifiers & (fplKeyboardModifierFlags_LCtrl | fplKeyboardModifierFlags_RCtrl);
-            keyPress.holdAlt   = event.keyboard.modifiers & fplKeyboardModifierFlags_LAlt;
-            keyPress.holdAltGr = event.keyboard.modifiers & fplKeyboardModifierFlags_RAlt;
-            keyPress.code      = uint32_t(event.keyboard.keyCode); // has umlaut characters
+
+            // event.keyboard.mappedKey - on Windows, Umlaut hat 0 here
+            // event.keyboard.keyCode   - on Windows Umlaut is correct
+            keyPress.code = uint32_t(event.keyboard.keyCode);
 
             //
             if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Release) {
@@ -542,6 +541,9 @@ void OsFPL::updateEvents() {
             }
 
             if (event.keyboard.type == fplKeyboardEventType_Input) {
+                // the modifier key state is not sent on Windows.
+                // I can't detect Shift-A or a here - only different characters are keyCodes are sent.
+
                 if (keyPress.code == 0x7f) { // DEL (only sent on Linux)
                     lastCharPress.code = 0;
                     continue;
@@ -549,13 +551,19 @@ void OsFPL::updateEvents() {
 
                 keyPress.printable = true;
                 if (keyPress.code != lastAltKey && keyPress.code - 'a' + 'A' != lastAltKey) {
+                    // printf("input $%x key code: $%x shift %c alt %c ctrl %c \n", int(event.keyboard.mappedKey), int(event.keyboard.keyCode), keyPress.holdShift ? 'X' : 'O', keyPress.holdAlt ? 'X' : 'O', keyPress.holdCtrl ? 'X' : 'O');
                     putToKeyboardBuffer(keyPress);
                 }
                 lastAltKey    = -1;
                 lastCharPress = keyPress;
-
-
-            } else if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Press) {
+            } else if (event.keyboard.type == fplKeyboardEventType_Button
+                       && event.keyboard.buttonState == fplButtonState_Press) {
+                // Here we have modifiers, but an input event is sent, too.
+                // So, here I just pick the special keys and use input for A-Z and Greek etc.
+                keyPress.holdShift = event.keyboard.modifiers & (fplKeyboardModifierFlags_LShift | fplKeyboardModifierFlags_RShift);
+                keyPress.holdCtrl  = event.keyboard.modifiers & (fplKeyboardModifierFlags_LCtrl | fplKeyboardModifierFlags_RCtrl);
+                keyPress.holdAlt   = event.keyboard.modifiers & fplKeyboardModifierFlags_LAlt;
+                keyPress.holdAltGr = event.keyboard.modifiers & fplKeyboardModifierFlags_RAlt;
                 // keyPress.code = 0;
                 keyPress.printable = false;
                 keyPress.code      = uint32_t(event.keyboard.mappedKey); // here, the keyCode on Linux is just wrong
@@ -674,6 +682,10 @@ void OsFPL::updateEvents() {
 
                     if (keyPress.holdAlt) {
                         lastAltKey = keyPress.code;
+                        if (lastAltKey == 0xc0) {
+                            // HACK when Shift+Alt+Ö is pressed, an input even with code b6 follows in Windows
+                            lastAltKey = 0xb6;
+                        }
                     }
 
                     if (repeatable) {
@@ -682,7 +694,8 @@ void OsFPL::updateEvents() {
                         lastCharPress.code = 0;
                     }
                 }
-            } else if (event.keyboard.type == fplKeyboardEventType_Button && event.keyboard.buttonState == fplButtonState_Repeat) {
+            } else if (event.keyboard.type == fplKeyboardEventType_Button
+                       && event.keyboard.buttonState == fplButtonState_Repeat) {
                 if (lastCharPress.code != 0
                     && event.keyboard.mappedKey != fplKey_Shift
                     && event.keyboard.mappedKey != fplKey_Alt) {

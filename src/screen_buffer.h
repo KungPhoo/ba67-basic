@@ -82,9 +82,15 @@ public:
         memory[krnl.PNTR] = MEMCELL(crsr.x);
         memory[krnl.TBLX] = MEMCELL(crsr.y);
 
-        size_t pnt           = (charRam + width * crsr.y) - memory;
+        size_t pnt           = (charRam - memory) + width * crsr.y;
         memory[krnl.PNT]     = pnt & 0xff;
         memory[krnl.PNT + 1] = (pnt >> 8) & 0xff;
+
+        if (colRam != nullptr) {
+            pnt                     = (colRam - memory) + width * crsr.y;
+            memory[krnl.CLRPNT]     = pnt & 0xff;
+            memory[krnl.CLRPNT + 1] = (pnt >> 8) & 0xff;
+        }
         assertCursor();
         dirtyFlag = true;
     }
@@ -112,6 +118,9 @@ public:
 
     std::u32string getSelectedText(Cursor start, Cursor end) const;
 
+    void defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xff);
+    void resetDefaultColors();
+
     // set the color index [0..15]
     void setColors(uint8_t text, uint8_t back) {
         setTextColor(text);
@@ -120,7 +129,8 @@ public:
 
     // get/set the text foreground color
     void setTextColor(int index) {
-        memory[krnl.COLOR] = (index & 0x0f) | ((memory[krnl.VIC_BKGND] & 0x0f) << 4); // BACKGROUND_COLOR_ALSO_SEE_HERE
+        // BACKGROUND_COLOR_ALSO_SEE_HERE
+        memory[krnl.COLOR] = (index & 0x0f) | ((memory[krnl.VIC_BKGND] & 0x0f) << 4);
     }
     inline uint8_t getTextColor() const { return memory[krnl.COLOR] & 0x0f; }
     // get/set text background color
@@ -140,8 +150,6 @@ public:
     void setReverseMode(bool enable) { memory[krnl.RVS] = enable ? 1 : 0; } // reverse text and background colors
     bool getReverseMode() const { return memory[krnl.RVS] != 0; }
 
-    void defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xff);
-    void resetDefaultColors();
 
     void resetCharmap(char32_t from = 0, char32_t to = 127);
     void defineChar(char32_t codePoint, const CharBitmap& bits);
@@ -160,16 +168,21 @@ public:
 
     // save/restore screen for emoji picker etc.
     struct SaveState {
-        std::vector<MEMCELL> screen;
+        std::vector<MEMCELL> chars;
+        std::vector<MEMCELL> colr;
         Cursor crsr;
         uint8_t c1, c2;
         bool rvs;
     };
-    SaveState saveState() const {
+    SaveState saveState(bool getCharRam = true) const {
         SaveState s;
-        s.screen.resize(width * height);
-        for (size_t n = 0; n < width * height; ++n) {
-            s.screen[n] = charRam[n];
+        if (getCharRam) {
+            s.chars.resize(width * height);
+            s.colr.resize(width * height);
+            for (size_t n = 0; n < width * height; ++n) {
+                s.chars[n] = charRam[n];
+                s.colr[n]  = colRam[n];
+            }
         }
         s.crsr = getCursorPos();
         s.c1   = getTextColor();
@@ -179,8 +192,9 @@ public:
         return s;
     }
     void restoreState(const SaveState& s) {
-        for (size_t n = 0; n < s.screen.size(); ++n) {
-            charRam[n] = s.screen[n];
+        for (size_t n = 0; n < s.chars.size(); ++n) {
+            charRam[n] = s.chars[n];
+            colRam[n]  = s.colr[n];
         }
         setCursorPos(s.crsr);
         setTextColor(s.c1);

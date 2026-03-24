@@ -245,6 +245,22 @@ std::string Unicode::toLowerAscii(const char* utf8) {
     return str;
 }
 
+std::string Unicode::toAscii(const char* utf8, char badCharacter) {
+    std::string str;
+    while (*utf8 != '\0') {
+        char32_t cp = parseNextUtf8(utf8);
+        if (cp == 0) {
+            break;
+        }
+        if (cp < 128) {
+            str += char(cp);
+        } else if (badCharacter != 0) {
+            str += badCharacter;
+        }
+    }
+    return str;
+}
+
 // extern from unicode_case.cpp
 extern char32_t ucase32(char32_t p);
 extern char32_t lcase32(char32_t p);

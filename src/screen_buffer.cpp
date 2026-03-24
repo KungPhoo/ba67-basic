@@ -26,8 +26,9 @@ static CharMap& charMap() {
 // SCNCLR
 void ScreenBuffer::clear() {
     dirtyFlag = true;
-    size_t n  = ScreenInfo::charsX * ScreenInfo::charsY; // 80!x25 width * height;
-    auto col  = currentColor();
+    // if width is 80, this will overwrite the C64 BASIC program memory!
+    size_t n = width * height; // 80!x25 width * height;
+    auto col = currentColor();
     for (size_t i = 0; i < n; ++i) {
         charRam[i] = U' ';
         colRam[i]  = col;
@@ -77,6 +78,7 @@ void ScreenBuffer::moveCursorPos(int dx, int dy) {
     setCursorPtr(newPos);
 }
 
+// get start of logical line from cursor position
 ScreenBuffer::Cursor ScreenBuffer::getStartOfLineAt(Cursor crsr) {
     if (!charRam || !lineLinkTable) {
         return crsr;
@@ -91,6 +93,7 @@ ScreenBuffer::Cursor ScreenBuffer::getStartOfLineAt(Cursor crsr) {
     return Cursor(0, r);
 }
 
+// get end of logical line from cursor position
 ScreenBuffer::Cursor ScreenBuffer::getEndOfLineAt(Cursor crsr) {
     if (!charRam || !lineLinkTable) {
         return crsr;
@@ -141,6 +144,7 @@ void ScreenBuffer::initMemory(MEMCELL* mem) {
     resetDefaultColors();
     setColors(1, 0);
     setBorderColor(1);
+    setReverseMode(false);
 
     overflowTop.reserve(0x10000);
     overflowBottom.reserve(0x10000);
@@ -463,7 +467,9 @@ void ScreenBuffer::insertSpace() {
 void ScreenBuffer::rebuildLineLinkAddresses() {
     size_t charAddress = size_t(memory[krnl.HIBASE]) << 8;
 
-    for (size_t i = 0; i < height; ++i) {
+    const size_t llheight = 25; // hard-coded 25 lines in the line link table
+
+    for (size_t i = 0; i < llheight; ++i) {
         MEMCELL hi       = lineLinkTable[i] & 0x80;
         MEMCELL value    = MEMCELL(((charAddress + i * width) >> 8) | 0x80);
         lineLinkTable[i] = (value & 0x7f) | hi;

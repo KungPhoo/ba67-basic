@@ -37,8 +37,177 @@
         }                                                 \
     }
 
+
+namespace ASM {
+
+void runAssemblerCode(Basic* basic) {
+    int counter       = 0;
+    basic->cpu.cpuJam = false;
+    bool stoppedByEsc = false;
+
+#if _DEBUG
+    printf("---Run Machine Code---\n");
+#endif
+
+    auto& cpu = basic->cpu;
+    for (;;) {
+        auto PC = cpu.PC;
+
+        if (cpu.breakPointHit) {
+            basic->monitor();
+        }
+
+        switch (PC) {
+        case 0xE5C6:
+            // BASIF has decreased the keyboard buffer count
+            // clear kb buffer, because BASIC might have changed the NDX value.
+            // we would duplicate the input character otherwise.
+            while (basic->os->keyboardBufferHasData()) {
+                basic->os->getFromKeyboardBuffer();
+            }
+            break;
+
+        case 0XF142: // CHIN - get character from keyboard
+            basic->os->updateEvents(); // pokes to keyboard buffer
+            //            if (basic->os->peekKeyboardBuffer().code != 0) {
+            //                cpu.A = uint8_t(basic->os->getFromKeyboardBuffer().code);
+            //            }
+            //            cpu.rts();
+            //
+            break;
+        case 0xFFD5: // LOAD (vector)
+        case 0xF49E: // LOAD implementation
+        {
+            // LOAD RAM FUNCTION
+            // LOADS FROM CASSETTE 1 OR 2, OR
+            // SERIAL BUS DEVICES >= 4 TO 31
+            // AS DETERMINED BY CONTENTS OF
+            // VARIABLE FA.VERIFY FLAG IN.A
+            // ALT LOAD IF SA = 0, NORMAL SA = 1
+            // .X, .Y LOAD ADDRESS IF SA     = 0
+            // .A = 0 PERFORMS LOAD, <> IS VERIFY
+            // HIGH LOAD RETURN IN X, Y.
+
+            uint8_t fnlen = cpu.memory[0xB7];
+            uint8_t dev1  = cpu.memory[0xBA]; // primary device number   ,!8!, 1
+            uint8_t dev2  = cpu.memory[0xB9]; // secondary device number , 8 ,!1!
+
+            // see set filename: FDF9
+            uint16_t fnaddr = (cpu.memory[0xBB] & 0xff) | ((cpu.memory[0xBC] & 0xff) << 8);
+            if (fnaddr + fnlen >= 0x10000) {
+                throw Basic::ErrorId::OUT_OF_MEMORY;
+            }
+
+            std::string fname;
+            for (size_t i = 0; i < fnlen; ++i) {
+                auto c = cpu.memory[fnaddr + i];
+                if (c == 0) {
+                    break;
+                }
+                fname += c;
+            }
+
+            fname = basic->os->findFirstFileNameWildcard(fname);
+            if (!basic->os->doesFileExist(fname)) {
+                cpu.memory[krnl.STATUS] = Basic::FS_ERROR_READ;
+                cpu.rts();
+                break;
+            }
+
+            if (cpu.A == 0) {
+                FilePtr pf(basic->os);
+                pf.open(fname, "rb");
+                auto bytes = pf.readAll();
+                pf.close();
+
+                //
+                uint16_t addr = (cpu.X & 0xff) | ((cpu.Y & 0xff) << 8);
+                if (dev2 == 0) {
+                    // use 2 byte header of PRG file
+                    if (bytes.size() >= 2) {
+                        addr = (bytes[1] << 8) | bytes[0];
+                        bytes.erase(bytes.begin(), bytes.begin() + 2);
+                    }
+                }
+
+#if _DEBUG
+                basic->printUtf8String("LOADING $" + StringHelper::int2hex(addr, true, 2) + "-$" + StringHelper::int2hex(addr + bytes.size(), true, 2) + "\n");
+#endif
+
+                for (size_t i = 0; i < bytes.size(); ++i) {
+                    cpu.memory[addr] = bytes[i];
+                    ++addr;
+                }
+                cpu.X            = addr | 0xff;
+                cpu.Y            = addr >> 8;
+                cpu.memory[0xAE] = cpu.X;
+                cpu.memory[0xAF] = cpu.Y;
+                cpu.clearFlag(CPU6502::PF_CARRY);
+            }
+            cpu.rts();
+            break;
+        }
+
+
+            // case 0xFFD8: // SAVE implementation
+            //     cpu.rts();
+            //     break;
+        }
+
+        if (!cpu.executeNext()) {
+            break;
+        }
+
+        if (++counter == 0xff) {
+            counter = 0;
+            basic->os->updateEvents();
+            basic->os->presentScreen();
+
+            // basic->handleEscapeKey();
+            //
+            // break with escape
+            if (basic->os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
+                stoppedByEsc = true;
+                break;
+            }
+            if (basic->os->isKeyPressed(Os::KeyConstant::PAUSE)) {
+                basic->monitor();
+            }
+
+            // overwrite the jiffy clock
+            int64_t TI                   = (basic->os->tick() * 60LL) / 1000LL;
+            basic->memory[krnl.TIME + 2] = TI & 0xff;
+            basic->memory[krnl.TIME + 1] = (TI << 8) & 0xff;
+            basic->memory[krnl.TIME + 0] = (TI << 16) & 0xff;
+        }
+    }
+
+    if (stoppedByEsc) {
+        // when execution continues, indicate that the STOP key was pressed
+        cpu.setByte(0x091, 0x7f);
+
+        if (cpu.enableHeatmap) {
+            cpu.printHeatMap();
+        }
+    }
+
+
+
+    if (cpu.cpuJam || stoppedByEsc) {
+        std::string err = (cpu.cpuJam ? ("CPU JAM\n" + cpu.registers()) : "EXIT TO BA67")
+                        + "\n";
+        basic->restoreColorsAndCursor(false);
+        basic->printUtf8String(err);
+        throw Basic::Error(Basic::ErrorId::INTERNAL);
+    }
+}
+
+} // ASM
+
+
+namespace CMD {
 // Built In Commands
-void cmdABOUT(Basic* basic, const std::vector<Basic::Value>&) {
+void ABOUT(Basic* basic, const std::vector<Basic::Value>&) {
 
     std::string raw = about::text();
     StringHelper::replace(raw, "{VERSION}", Basic::version());
@@ -83,7 +252,7 @@ void cmdABOUT(Basic* basic, const std::vector<Basic::Value>&) {
     }
 }
 
-void cmdAUTO(Basic* basic, const std::vector<Basic::Value>& values) {
+void AUTO(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.empty() || basic->valueToInt(values[0]) < 1) {
         basic->currentModule().autoNumbering = 0;
     }
@@ -101,7 +270,9 @@ void bakePRGtoC64(Basic* basic) {
     }
 
     std::vector<std::pair<int, std::string>> errorDetails;
-    auto prg = PrgTool::BASICtoPRG(all.c_str(), &errorDetails);
+    PrgTool prgTool;
+    prgTool.startAddressOfPRG = int(krnl.BASICCODE);
+    auto prg                  = prgTool.BASICtoPRG(all.c_str());
 
     size_t address = krnl.BASICCODE;
     for (size_t i = 2; i < prg.size(); ++i) {
@@ -110,17 +281,23 @@ void bakePRGtoC64(Basic* basic) {
             throw Basic::ErrorId::OUT_OF_MEMORY;
         }
     }
-    basic->printUtf8String("BAKE TO $" + StringHelper::int2hex(krnl.BASICCODE, true, 2) + "-$" + StringHelper::int2hex(address, true, 2) + "\n");
+    // basic->memory[address++] = 0;
+    // basic->memory[address++] = 0;
 
-    // BASIC warm-start clears the variables and BASIC program here
-    basic->memory[0xA4ED + 0] = 0xEA; // NOP
-    basic->memory[0xA4ED + 1] = 0xEA; // NOP
-    basic->memory[0xA4ED + 2] = 0xEA; // NOP
+    // pointer to end of program loading
+    basic->memory[0x00AE] = address & 0xff;
+    basic->memory[0x00AF] = (address >> 8) & 0xff;
+
+
+
+
+    basic->printUtf8String("BAKE TO $" + StringHelper::int2hex(krnl.BASICCODE, true, 2)
+                           + "-$" + StringHelper::int2hex(address, true, 2) + "\n");
 }
 
 
 
-void cmdBAKE(Basic* basic, const std::vector<Basic::Value>& values) {
+void BAKE(Basic* basic, const std::vector<Basic::Value>& values) {
 
     bool bakeToC64 = false;
     if (values.size() > 0 && basic->valueIsInt(values[0]) && basic->valueToInt(values[0]) == 64) {
@@ -199,7 +376,7 @@ void cmdBAKE(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
+void CHAR(Basic* basic, const std::vector<Basic::Value>& values) {
     auto curPos = basic->os->screen.getCursorPos();
     int color = 0, x = int(curPos.x), y = int(curPos.y);
     std::string text;
@@ -281,7 +458,7 @@ void cmdCHAR(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->os->presentScreen();
 }
 
-void cmdCHDIR(Basic* basic, const std::vector<Basic::Value>& values) {
+void CHDIR(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -293,7 +470,7 @@ void cmdCHDIR(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-void cmdCOLOR(Basic* basic, const std::vector<Basic::Value>& values) {
+void COLOR(Basic* basic, const std::vector<Basic::Value>& values) {
     int colorsource = 1, color = 1;
 
     if (values.size() < 3) {
@@ -353,7 +530,7 @@ void cmdCOLOR(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-void cmdCHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
+void CHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
     // TODO #error ARM is big endian?
     char32_t codePoint = 0;
     uint64_t bytes8;
@@ -417,7 +594,7 @@ void cmdCHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->os->screen.defineChar(codePoint, CharBitmap(&bytes[0], iarg - 1));
 }
 
-void cmdSPRDEF(Basic* basic, const std::vector<Basic::Value>& values) {
+void SPRDEF(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -443,7 +620,7 @@ void cmdSPRDEF(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->os->screen.dirtyFlag = true;
 }
 
-void cmdSPRITE(Basic* basic, const std::vector<Basic::Value>& values) {
+void SPRITE(Basic* basic, const std::vector<Basic::Value>& values) {
     // `SPRITE nr, on, color, prio, x2, y2`
     Sprite* sprite = nullptr;
 
@@ -474,7 +651,7 @@ void cmdSPRITE(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->os->screen.dirtyFlag = true;
 }
 
-void cmdMOVSPR(Basic* basic, const std::vector<Basic::Value>& values) {
+void MOVSPR(Basic* basic, const std::vector<Basic::Value>& values) {
     Sprite* sprite = nullptr;
 
     int ipara = 0;
@@ -499,11 +676,13 @@ void cmdMOVSPR(Basic* basic, const std::vector<Basic::Value>& values) {
     }
     basic->os->screen.dirtyFlag = true;
 }
-void cmdMONITOR(Basic* basic, const std::vector<Basic::Value>& values) {
-    basic->monitor();
+void MONITOR(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (basic->monitor()) {
+        ASM::runAssemblerCode(basic);
+    }
 }
 
-void cmdQUIT(Basic* basic, const std::vector<Basic::Value>& values) {
+void QUIT(Basic* basic, const std::vector<Basic::Value>& values) {
     int code = 0;
     if (values.size() == 1) {
         code = int(Basic::valueToInt(values[0]));
@@ -511,7 +690,7 @@ void cmdQUIT(Basic* basic, const std::vector<Basic::Value>& values) {
     exit(code);
 }
 
-void cmdFIND(Basic* basic, const std::vector<Basic::Value>& values) {
+void FIND(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -554,46 +733,50 @@ void cmdFIND(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values);
-void cmdGO(Basic* basic, const std::vector<Basic::Value>& values) {
+void SYS(Basic* basic, const std::vector<Basic::Value>& values);
+void GO(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
     int64_t where = int(Basic::valueToInt(values[0]));
 
     if (where == 64) {
-        if (basic->AreYouSureQuestion()) {
+        // if (basic->AreYouSureQuestion()) {        }
 
-            // GO 64
-            // prepare the original C64 font
-            // copy the BA67 font to the CHARROM memory.
-            // --this is never used. BA67 takes the PRINT-ing role--
-            for (size_t i = 0; i < 0x100; ++i) {
-                char32_t unicode = PETSCII::toUnicode(uint8_t(i));
+        // GO 64
+        static bool mustReset = true;
+        if (mustReset) {
+            mustReset = false;
+            // $FCE2 system cold start
+            CMD::SYS(basic, { 0xFCE2 });
+        } else {
 
-                const CharBitmap& bmp = basic->os->screen.getCharDefinition(unicode);
-                basic->os->screen.defineChar(char32_t(i), bmp);
+            basic->os->screen.setColors(14, 6);
+
+            basic->os->screen.setSize(40, 25);
+            // 80 column screen would overwrite the BASIC program area
+            basic->os->screen.clear();
+            basic->printUtf8String("C64 MODE\n\nREADY.\n");
+
+            // $E5CD BASIC interpreter loop
+
+            if ((basic->cpu.PC >= 0xA000 && basic->cpu.PC <= 0xAFFF)
+                || basic->cpu.PC >= 0xE000) {
+                ASM::runAssemblerCode(basic); // continue
+            } else {
+                // CMD::SYS(basic, { 0xA659 }); // BASIC warm start
+                // CMD::SYS(basic, { 0xE394 }); // BASIC cold start
+                CMD::SYS(basic, { 0xA832 }); // BASIC STOP command
             }
-
-            // basic->os->screen.setBackgroundColor(6);
-            // basic->os->screen.setTextColor(14);
-            // basic->os->screen.setBorderColor(14);
-            // basic->os->screen.clear();
-            // basic->printUtf8String("\n    **** COMMODORE 64 BASIC V2 ****     "
-            //                        "\n                                        "
-            //                        "\n 64K RAM SYSTEM - BA67 EMULATION MODE   "
-            //                        "\n");
-            // cmdSYS(basic, { 0xA474 }); // print BASIC "READY." and go
-
-            cmdSYS(basic, { 0xFCE2 }); // 64738 system cold start
-            basic->restoreColorsAndCursor(true);
         }
+
+        basic->restoreColorsAndCursor(true);
     } else {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
 }
 
-void cmdGRAPHIC(Basic* basic, const std::vector<Basic::Value>& values) {
+void GRAPHIC(Basic* basic, const std::vector<Basic::Value>& values) {
     int code = 0;
     if (values.size() == 1) {
         code = int(Basic::valueToInt(values[0]));
@@ -606,7 +789,7 @@ void cmdGRAPHIC(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
-void cmdLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
+void LOAD(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -625,23 +808,27 @@ void cmdLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->currentModule().filenameQSAVE = path;
 }
 
-void cmdSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
-    if (values.size() != 1) {
+void SAVE(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() > 3 || values.size() < 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
     std::string filename = basic->valueToString(values[0]);
     if (basic->fileExists(filename, false)) {
         basic->os->screen.cleanCurrentLine();
-        basic->printUtf8String("FILE EXISTS. OVERWRITE (Y/N)?");
-        std::string yesno = basic->inputLine(false);
-        if (yesno.length() == 0 || Unicode::toUpperAscii(yesno[0]) != u'Y') {
+        basic->printUtf8String("OVERWRITES FILE. ");
+        if (!basic->AreYouSureQuestion()) {
             return;
         }
     }
 
+    int startAddressOfPRG = int(krnl.BASICCODE);
+    if (values.size() > 2) {
+        startAddressOfPRG = int(basic->valueToInt(values[2]));
+    }
+
     basic->os->screen.cleanCurrentLine();
     basic->printUtf8String("SAVING\n");
-    if (!basic->saveProgram(filename)) {
+    if (!basic->saveProgram(filename, startAddressOfPRG)) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
     }
 
@@ -649,7 +836,7 @@ void cmdSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
-void cmdQSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
+void QSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 0) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -661,11 +848,11 @@ void cmdQSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->printUtf8String("SAVE \"");
     basic->printUtf8String(filename);
     basic->printUtf8String("\" \n");
-    cmdSAVE(basic, { filename });
+    CMD::SAVE(basic, { filename });
 }
 
 
-void cmdBLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
+void BLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -690,7 +877,7 @@ void cmdBLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-void cmdBSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
+void BSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 5) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -716,7 +903,7 @@ void cmdBSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
-void cmdSCRATCH(Basic* basic, const std::vector<Basic::Value>& values) {
+void SCRATCH(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -749,7 +936,7 @@ void cmdSCRATCH(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 // TODO: OPEN no, drive(8,9,...), !!15!!: direct mode "S:file" = scratch
-void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
+void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() < 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -889,7 +1076,7 @@ void cmdOPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->memory[krnl.STATUS] = Basic::FS_OK;
 }
 
-void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
+void CLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -917,7 +1104,7 @@ void cmdCLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
+void RENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
     // RENUMBER new_start, step, start_from_old, milestone
 
     int newstart      = 10;
@@ -1016,7 +1203,7 @@ void cmdRENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->currentModule().forceTokenizing();
 }
 
-void cmdREMODEL(Basic* basic, const std::vector<Basic::Value>& values) {
+void REMODEL(Basic* basic, const std::vector<Basic::Value>& values) {
     auto& opt = basic->options;
     auto& set = basic->os->settings;
     if (values.empty()) {
@@ -1054,7 +1241,7 @@ void cmdREMODEL(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-void cmdPLAY(Basic* basic, const std::vector<Basic::Value>& values) {
+void PLAY(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1067,7 +1254,7 @@ void cmdPLAY(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->os->soundSystem().PLAY(cmd);
 }
 
-void cmdPOKE(Basic* basic, const std::vector<Basic::Value>& values) {
+void POKE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1087,7 +1274,7 @@ void cmdPOKE(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
-void cmdSOUND(Basic* basic, const std::vector<Basic::Value>& values) {
+void SOUND(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1101,177 +1288,10 @@ void cmdSOUND(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->os->soundSystem().SOUND(voice, cmd);
 }
 
-void runAssemblerCode(Basic* basic) {
-    int counter       = 0;
-    basic->cpu.cpuJam = false;
-    uint16_t raster   = 0;
-    bool stoppedByEsc = false;
-
-#if _DEBUG
-    printf("---Run Machine Code---\n");
-#endif
-
-    auto& cpu = basic->cpu;
-    for (;;) {
-        auto PC = cpu.PC;
-
-        if (cpu.breakPointHit) {
-            basic->monitor();
-        }
-
-        switch (PC) {
-        case 0xE5C6:
-            // BASIF has decreased the keyboard buffer count
-            // clear kb buffer, because BASIC might have changed the NDX value.
-            // we would duplicate the input character otherwise.
-            while (basic->os->keyboardBufferHasData()) {
-                basic->os->getFromKeyboardBuffer();
-            }
-            break;
-
-        case 0XF142: // CHIN - get character from keyboard
-            basic->os->updateEvents(); // pokes to keyboard buffer
-            //            if (basic->os->peekKeyboardBuffer().code != 0) {
-            //                cpu.A = uint8_t(basic->os->getFromKeyboardBuffer().code);
-            //            }
-            //            cpu.rts();
-            //
-            break;
-        case 0xFFD5: // LOAD (vector)
-        case 0xF49E: // LOAD implementation
-        {
-            // LOAD RAM FUNCTION
-            // LOADS FROM CASSETTE 1 OR 2, OR
-            // SERIAL BUS DEVICES >= 4 TO 31
-            // AS DETERMINED BY CONTENTS OF
-            // VARIABLE FA.VERIFY FLAG IN.A
-            // ALT LOAD IF SA = 0, NORMAL SA = 1
-            // .X, .Y LOAD ADDRESS IF SA     = 0
-            // .A = 0 PERFORMS LOAD, <> IS VERIFY
-            // HIGH LOAD RETURN IN X, Y.
-
-            uint8_t fnlen = cpu.memory[0xB7];
-            uint8_t dev1  = cpu.memory[0xBA]; // primary device number   ,!8!, 1
-            uint8_t dev2  = cpu.memory[0xB9]; // secondary device number , 8 ,!1!
-
-            // see set filename: FDF9
-            uint16_t fnaddr = (cpu.memory[0xBB] & 0xff) | ((cpu.memory[0xBC] & 0xff) << 8);
-            if (fnaddr + fnlen >= 0x10000) {
-                throw Basic::ErrorId::OUT_OF_MEMORY;
-            }
-
-            std::string fname;
-            for (size_t i = 0; i < fnlen; ++i) {
-                auto c = cpu.memory[fnaddr + i];
-                if (c == 0) {
-                    break;
-                }
-                fname += c;
-            }
-
-            fname = basic->os->findFirstFileNameWildcard(fname);
-            if (!basic->os->doesFileExist(fname)) {
-                cpu.memory[krnl.STATUS] = Basic::FS_ERROR_READ;
-                cpu.rts();
-                break;
-            }
-
-            if (cpu.A == 0) {
-                FilePtr pf(basic->os);
-                pf.open(fname, "rb");
-                auto bytes = pf.readAll();
-                pf.close();
-
-                //
-                uint16_t addr = (cpu.X & 0xff) | ((cpu.Y & 0xff) << 8);
-                if (dev2 == 0) {
-                    // use 2 byte header of PRG file
-                    if (bytes.size() >= 2) {
-                        addr = (bytes[1] << 8) | bytes[0];
-                        bytes.erase(bytes.begin(), bytes.begin() + 2);
-                    }
-                }
-
-#if _DEBUG
-                basic->printUtf8String("LOADING $" + StringHelper::int2hex(addr, true, 2) + "-$" + StringHelper::int2hex(addr + bytes.size(), true, 2) + "\n");
-#endif
-
-                for (size_t i = 0; i < bytes.size(); ++i) {
-                    cpu.memory[addr] = bytes[i];
-                    ++addr;
-                }
-                cpu.X            = addr | 0xff;
-                cpu.Y            = addr >> 8;
-                cpu.memory[0xAE] = cpu.X;
-                cpu.memory[0xAF] = cpu.Y;
-                cpu.clearFlag(CPU6502::PF_CARRY);
-            }
-            cpu.rts();
-            break;
-        }
-
-
-            // case 0xFFD8: // SAVE implementation
-            //     cpu.rts();
-            //     break;
-        }
-
-        if (!cpu.executeNext()) {
-            break;
-        }
-
-        if (++counter == 0xff) {
-            counter = 0;
-            basic->os->updateEvents();
-            basic->os->presentScreen();
-
-
-            // basic->handleEscapeKey();
-            //
-            // break with escape
-            if (basic->os->isKeyPressed(Os::KeyConstant::ESCAPE)) {
-                stoppedByEsc = true;
-                break;
-            }
-            if (basic->os->isKeyPressed(Os::KeyConstant::PAUSE)) {
-                basic->monitor();
-            }
-
-            // overwrite the jiffy clock
-            int64_t TI                   = (basic->os->tick() * 60LL) / 1000LL;
-            basic->memory[krnl.TIME + 2] = TI & 0xff;
-            basic->memory[krnl.TIME + 1] = (TI << 8) & 0xff;
-            basic->memory[krnl.TIME + 0] = (TI << 16) & 0xff;
-
-            ++raster;
-            if (raster > 312) {
-                raster = 0;
-            }
-            basic->memory[krnl.VIC_RASTER] = raster & 0xff;
-
-            // high bit in CTRL1 is used for lines 256..312
-            if (raster > 255) {
-                basic->memory[krnl.VIC_CTRL1] |= 0x80;
-            } else {
-                basic->memory[krnl.VIC_CTRL1] &= 0x7f;
-            }
-        }
-    }
-    if (cpu.cpuJam || stoppedByEsc) {
-        std::string err = (cpu.cpuJam ? ("CPU JAM\n" + cpu.registers()) : "EXIT TO BA67")
-                        + "\n";
-        basic->restoreColorsAndCursor(false);
-        basic->printUtf8String(err);
-        throw Basic::Error(Basic::ErrorId::INTERNAL);
-    }
-}
-
-void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
+void SYS(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() == 0) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
-
-
 
     // address specified
     if (!basic->valueIsString(values[0])) {
@@ -1336,7 +1356,7 @@ void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
             throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
         }
 
-        runAssemblerCode(basic);
+        ASM::runAssemblerCode(basic);
 
         // read registers back into memory
         basic->memory[0x030C + 0] = basic->cpu.A;
@@ -1357,7 +1377,7 @@ void cmdSYS(Basic* basic, const std::vector<Basic::Value>& values) {
     // system(cmd.c_str());
 }
 
-void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
+void CATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() > 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1442,7 +1462,7 @@ void cmdCATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->printUtf8String(std::string((const char*)(u8"╚══Σ")) + niceSize(totalBytes) + (const char*)(u8"═══"));
 }
 
-void cmdCLOUD(Basic* basic, const std::vector<Basic::Value>& values) {
+void CLOUD(Basic* basic, const std::vector<Basic::Value>& values) {
     if (values.size() == 0) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1453,7 +1473,7 @@ void cmdCLOUD(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
-void cmdCONT(Basic* basic, const std::vector<Basic::Value>& values) {
+void CONT(Basic* basic, const std::vector<Basic::Value>& values) {
     auto& modl = basic->currentModule();
     auto ln    = modl.listing.find(modl.lineNumberForCONT);
     if (ln != modl.listing.end()) {
@@ -1461,8 +1481,12 @@ void cmdCONT(Basic* basic, const std::vector<Basic::Value>& values) {
         modl.programCounter.cmdpos = modl.tokenIndexForCONT;
     }
 }
+}; // CMD
 
-Basic::Value fktCHR$(Basic* basic, const std::vector<Basic::Value>& args) {
+
+namespace FKT {
+
+Basic::Value CHR$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1477,14 +1501,14 @@ Basic::Value fktCHR$(Basic* basic, const std::vector<Basic::Value>& args) {
     return s;
 }
 
-Basic::Value fktDEC(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value DEC(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
     return basic->strToInt("$" + basic->valueToString(args[0]));
 }
 
-Basic::Value fktHEX$(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value HEX$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1493,7 +1517,7 @@ Basic::Value fktHEX$(Basic* basic, const std::vector<Basic::Value>& args) {
     return StringHelper::int2hex(n);
 }
 
-Basic::Value fktINSTR(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value INSTR(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() < 3 || args.size() > 5) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1514,7 +1538,7 @@ Basic::Value fktINSTR(Basic* basic, const std::vector<Basic::Value>& args) {
     return int64_t(pos + 1);
 }
 
-Basic::Value fktJOY(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value JOY(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1558,7 +1582,7 @@ Basic::Value fktJOY(Basic* basic, const std::vector<Basic::Value>& args) {
     return joy;
 }
 
-Basic::Value fktMAX(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value MAX(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() == 0) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1591,7 +1615,7 @@ Basic::Value fktMAX(Basic* basic, const std::vector<Basic::Value>& args) {
     return ret;
 }
 
-Basic::Value fktMIN(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value MIN(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() == 0) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1625,7 +1649,7 @@ Basic::Value fktMIN(Basic* basic, const std::vector<Basic::Value>& args) {
 }
 
 
-Basic::Value fktLEFT$(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value LEFT$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1633,7 +1657,7 @@ Basic::Value fktLEFT$(Basic* basic, const std::vector<Basic::Value>& args) {
     return Unicode::substr(basic->valueToString(args[0]), 0, length);
 }
 
-Basic::Value fktMID$(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value MID$(Basic* basic, const std::vector<Basic::Value>& args) {
     // str$, start, [length]
     if (args.size() < 3 || args.size() > 5) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -1651,7 +1675,7 @@ Basic::Value fktMID$(Basic* basic, const std::vector<Basic::Value>& args) {
     return Unicode::substr(basic->valueToString(args[0]), start, length);
 }
 
-Basic::Value fktRIGHT$(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value RIGHT$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1664,34 +1688,41 @@ Basic::Value fktRIGHT$(Basic* basic, const std::vector<Basic::Value>& args) {
     return Unicode::substr(str, length - right);
 }
 
-Basic::Value fktRND(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value RND(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
+
+    static int seed = 123;
+
     int64_t n = basic->valueToInt(args[0]);
-    if (n < 0) {
-        srand(int(-n));
-    } else if (n == 0) {
-        srand(int(basic->os->tick()) + rand());
+    if (n < 0) { // <0: use hard coded seed value
+        seed = -int(n);
+    } else if (n == 0) { // 0: from timer
+        seed = int(basic->os->tick()) + seed;
     }
-    return double(rand()) / double(RAND_MAX);
+    // >0: next random from previous seed
+    srand(seed);
+    seed = rand();
+
+    return double(seed) / double(RAND_MAX);
 }
 
 
-Basic::Value fktLCASE$(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value LCASE$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
     return Unicode::toLower(basic->valueToString(args[0]).c_str());
 }
-Basic::Value fktUCASE$(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value UCASE$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
     return Unicode::toUpper(basic->valueToString(args[0]).c_str());
 }
 
-Basic::Value fktTAB(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value TAB(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1702,7 +1733,7 @@ Basic::Value fktTAB(Basic* basic, const std::vector<Basic::Value>& args) {
     }
     return std::string();
 }
-Basic::Value fktSPC(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value SPC(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1715,7 +1746,7 @@ Basic::Value fktSPC(Basic* basic, const std::vector<Basic::Value>& args) {
 }
 
 
-Basic::Value fktPEN(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value PEN(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1731,7 +1762,7 @@ Basic::Value fktPEN(Basic* basic, const std::vector<Basic::Value>& args) {
     throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
 }
 
-Basic::Value fktPETSCII$(Basic* basic, const std::vector<Basic::Value>& args) {
+Basic::Value PETSCII$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
@@ -1747,7 +1778,7 @@ Basic::Value fktPETSCII$(Basic* basic, const std::vector<Basic::Value>& args) {
     return Basic::Value(str);
 }
 
-
+}; // FKT
 
 void Basic::Array::dim(Value init, size_t i0, size_t i1, size_t i2, size_t i3) {
     dim(init, { i0, i1, i2, i3 });
@@ -1809,24 +1840,47 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     memory.resize(0x20000);
     cpu.memory = &memory[0];
 
+    for (size_t i = 0; i < memory.size(); ++i) {
+        memory[i] = ((i >> 6) & 2) ? 0xff : 0x00;
+    }
+
+    memory[0x0289] = 10; // keyboard buffer size
+
+
     static auto memcellcpy8 = [](MEMCELL* dst, const uint8_t* src, size_t count) {
         while (count != 0) {
             --count;
             *dst++ = *src++;
         }
     };
-    auto memcellcpycell = [this](size_t dst, size_t src, size_t count) {
-        for (size_t i = 0; i < count; ++i) {
-            memory[dst + i] = memory[src + i];
-        }
-    };
 
-    memcellcpy8(&memory[0xA000], RomImage::BASIC_V2(), 0x2000);
-    memcellcpy8(&memory[0xE000], RomImage::KERNAL_C64(), 0x2000);
+    auto* kernalRom = RomImage::KERNAL_C64();
+
+
+    RomImage::PatchROM();
+    // memcellcpy8(&memory[0xA000], RomImage::BASIC_V2(), 0x2000);
+    // memcellcpy8(&memory[0xE000], RomImage::KERNAL_C64(), 0x2000);
     memcellcpy8(&memory[0x0000], RomImage::LOW_RAM(), 0x1000);
 
-    // Kernal version. $AA=1, $00=2, $03=3, $43=SX64, $64=CBM 4064
-    memory[krnl.REVISION] = 0x67; // Kernal OS ROM version
+    memory[1]    = 0x37; // BANK ROMs in so BASIC won't overwrite
+    memory[0xd0] = 0;
+    memory[0xd4] = 0;
+    memory[0xd8] = 0;
+
+
+    // // TODO: NOP-out RAMTAS to set upper/lower BASIC memory
+    // for (int i = 0xfd38; i < 0xfd90; ++i) {
+    //     memory[i] = 0xEA;
+    // }
+    // // and do this manually
+    // memory[krnl.MEMSTR_ON_RST + 0] = 0x00;
+    // memory[krnl.MEMSTR_ON_RST + 1] = 0x80;
+    // memory[krnl.MEMSIZ_ON_RST + 0] = 0x00;
+    // memory[krnl.MEMSIZ_ON_RST + 1] = 0xA0;
+
+    // set screen page to $0400
+    memory[krnl.HIBASE] = 0x04;
+
 
     // copy the BA67 font to the CHARROM memory.
     // --this is never used. BA67 takes the PRINT-ing role--
@@ -1835,48 +1889,16 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 
         auto& bmp = os->screen.getCharDefinition(char32_t(i));
         for (size_t y = 0; y < 8; ++y) {
+            uint8_t* m = RomImage::ROM(0xD000);
             // uppercase char set
-            memory[0xD000 + i * 8 + y] = bmp.bits[y];
+            m[i * 8 + y] = bmp.bits[y];
 
             // lowercase char set (same, but reversed)
-            memory[0xD800 + i * 8 + y] = ~bmp.bits[y];
+            m[0x0800 + i * 8 + y] = ~bmp.bits[y];
         }
     }
 
-    // start C64 BASIC with SYS $FCE2 or GO 64
-    memory[0xE739 + 1] = 0xff; // don't convert PETSCII to screen code
-    memory[0xE73D + 1] = 0xff; // don't convert PETSCII to screen code
 
-    memory[0xE640 + 0] = 0x4c; // JMP $E654 skips conversion of screen code to PETSCII
-    memory[0xE640 + 1] = 0x54;
-    memory[0xE640 + 2] = 0xe6;
-
-    // return from a BASIC error back to BA67.
-    // memory[0xA46C] = 0x00; // brk instead of going to C64 editor
-
-
-    // COMMODORE BASIC V2 -> COMMODORE+BA67  V2
-    memory[0xE48A] = '+';
-    // BA..
-    memory[0xE48D] = '6'; // make sure $E48D is '6' as stated in the readme.md
-    memory[0xE48E] = '7';
-    memory[0xE48F] = ' ';
-
-    // set screen page to $0400
-    memory[krnl.HIBASE] = 0x04;
-
-#if 0
-    // CHRGET: copy BASIC's MOVCHG to zero page
-    memcellcpycell(0x0073, 0xE3A2, 24);
-
-    // prepare BASIC Indirect Vectors
-    uint8_t basic_ptr[] = { 0x8b, 0xe3, 0x83, 0xa4, 0x7c, 0xa5, 0x1a, 0xa7, 0xe4, 0xa7, 0x86, 0xae };
-    memcellcpy8(&memory[0x0300], &basic_ptr[0], 12);
-
-
-    // copy and prepare Kernal Indirect Vectors
-    memcellcpycell(0x0314, 0xFD30, 34);
-#endif
 
 
     memory[krnl.DFLTI] = 0; // input = keyboard
@@ -1919,17 +1941,17 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     this->os             = os;
     time0                = os->tick();
     std::string charLogo = Unicode::toUtf8String(U"🌈"); // rainbow - 1F308
-    cmdCHARDEF(this, {
-                         Value(charLogo),
-                         Value(int64_t(0xbbbbb222LL)), // red
-                         Value(int64_t(0xbbb22888LL)), // orange
-                         Value(int64_t(0xbb288888LL)), // orange
-                         Value(int64_t(0xb2888777LL)), // yellow
-                         Value(int64_t(0xb2887777LL)), // yellow
-                         Value(int64_t(0x22877dddLL)), // green
-                         Value(int64_t(0x287dddeeLL)), // green
-                         Value(int64_t(0x287ddeeeLL)), // blue
-                     });
+    CMD::CHARDEF(this, {
+                           Value(charLogo),
+                           Value(int64_t(0xbbbbb222LL)), // red
+                           Value(int64_t(0xbbb22888LL)), // orange
+                           Value(int64_t(0xbb288888LL)), // orange
+                           Value(int64_t(0xb2888777LL)), // yellow
+                           Value(int64_t(0xb2887777LL)), // yellow
+                           Value(int64_t(0x22877dddLL)), // green
+                           Value(int64_t(0x287dddeeLL)), // green
+                           Value(int64_t(0x287ddeeeLL)), // blue
+                       });
 
     os->init(this, ss);
     os->screen.setColors(13, 11);
@@ -1956,38 +1978,38 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 
     // commands
     commands.insert({
-        { "ABOUT", cmdABOUT },
-        { "AUTO", cmdAUTO },
-        { "BAKE", cmdBAKE },
-        { "CHAR", cmdCHAR },
-        { "CHDIR", cmdCHDIR },
-        { "COLOR", cmdCOLOR },
-        { "CATALOG", cmdCATALOG },
-        { "CONT", cmdCONT },
-        { "CLOUD", cmdCLOUD },
-        { "CHARDEF", cmdCHARDEF },
-        { "SPRDEF", cmdSPRDEF },
-        { "SPRITE", cmdSPRITE },
-        { "MOVSPR", cmdMOVSPR },
-        { "MONITOR", cmdMONITOR },
-        { "QUIT", cmdQUIT },
-        { "FIND", cmdFIND },
-        { "GO", cmdGO },
-        { "GRAPHIC", cmdGRAPHIC },
-        { "LOAD", cmdLOAD },
-        { "OPEN", cmdOPEN },
-        { "CLOSE", cmdCLOSE },
-        { "SAVE", cmdSAVE },
-        { "QSAVE", cmdQSAVE },
-        { "BLOAD", cmdBLOAD },
-        { "BSAVE", cmdBSAVE },
-        { "RENUMBER", cmdRENUMBER },
-        { "SCRATCH", cmdSCRATCH },
-        { "SYS", cmdSYS },
-        { "PLAY", cmdPLAY },
-        { "POKE", cmdPOKE },
-        { "REMODEL", cmdREMODEL },
-        { "SOUND", cmdSOUND },
+        { "ABOUT", CMD::ABOUT },
+        { "AUTO", CMD::AUTO },
+        { "BAKE", CMD::BAKE },
+        { "CHAR", CMD::CHAR },
+        { "CHDIR", CMD::CHDIR },
+        { "COLOR", CMD::COLOR },
+        { "CATALOG", CMD::CATALOG },
+        { "CONT", CMD::CONT },
+        { "CLOUD", CMD::CLOUD },
+        { "CHARDEF", CMD::CHARDEF },
+        { "SPRDEF", CMD::SPRDEF },
+        { "SPRITE", CMD::SPRITE },
+        { "MOVSPR", CMD::MOVSPR },
+        { "MONITOR", CMD::MONITOR },
+        { "QUIT", CMD::QUIT },
+        { "FIND", CMD::FIND },
+        { "GO", CMD::GO },
+        { "GRAPHIC", CMD::GRAPHIC },
+        { "LOAD", CMD::LOAD },
+        { "OPEN", CMD::OPEN },
+        { "CLOSE", CMD::CLOSE },
+        { "SAVE", CMD::SAVE },
+        { "QSAVE", CMD::QSAVE },
+        { "BLOAD", CMD::BLOAD },
+        { "BSAVE", CMD::BSAVE },
+        { "RENUMBER", CMD::RENUMBER },
+        { "SCRATCH", CMD::SCRATCH },
+        { "SYS", CMD::SYS },
+        { "PLAY", CMD::PLAY },
+        { "POKE", CMD::POKE },
+        { "REMODEL", CMD::REMODEL },
+        { "SOUND", CMD::SOUND },
         { "STOP", [&](Basic* basic, const std::vector<Basic::Value>&) { throw Error(ErrorId::BREAK); } },
         { "SLOW", [&](Basic* basic, const std::vector<Basic::Value>&) { basic->moduleVariableStack.back()->second.fastMode = false; } },
         { "FAST", [&](Basic* basic, const std::vector<Basic::Value>&) { basic->moduleVariableStack.back()->second.fastMode = true; } },
@@ -2009,31 +2031,31 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "ABS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return fabs(basic->valueToDouble(args[0])); } },
         { "ASC", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); std::string s = Basic::valueToString(args[0]); const char* p = s.c_str(); return (int64_t)Unicode::parseNextUtf8(p); } },
         { "ATN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return atan(basic->valueToDouble(args[0])); } },
-        { "CHR$", fktCHR$ },
+        { "CHR$", FKT::CHR$ },
         { "COS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return cos(basic->valueToDouble(args[0])); } },
-        { "DEC", fktDEC },
+        { "DEC", FKT::DEC },
         { "EXP", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return exp(basic->valueToDouble(args[0])); } },
         { "FRE", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return (int64_t)basic->os->getFreeMemoryInBytes(); } },
-        { "HEX$", fktHEX$ },
+        { "HEX$", FKT::HEX$ },
         { "INT", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return basic->valueToInt(args[0]); } },
-        { "INSTR", fktINSTR },
-        { "JOY", fktJOY },
-        { "LEFT$", fktLEFT$ },
-        { "LCASE$", fktLCASE$ },
-        { "UCASE$", fktUCASE$ },
+        { "INSTR", FKT::INSTR },
+        { "JOY", FKT::JOY },
+        { "LEFT$", FKT::LEFT$ },
+        { "LCASE$", FKT::LCASE$ },
+        { "UCASE$", FKT::UCASE$ },
         { "LEN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return (int64_t)Unicode::utf8StrLen(basic->valueToString(args[0])); } },
         { "LOG", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return log(basic->valueToDouble(args[0])); } },
         { "MOD", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 3); auto div = basic->valueToInt(args[2]); if (div == 0) { throw Error(ErrorId::ILLEGAL_QUANTITY); }return basic->valueToInt(args[0]) % div; } },
-        { "MAX", fktMAX },
-        { "MIN", fktMIN },
-        { "MID$", fktMID$ },
+        { "MAX", FKT::MAX },
+        { "MIN", FKT::MIN },
+        { "MID$", FKT::MID$ },
         { "PEEK", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(memory[basic->valueToInt(args[0])]); } },
-        { "PEN", fktPEN },
-        { "PETSCII$", fktPETSCII$ },
+        { "PEN", FKT::PEN },
+        { "PETSCII$", FKT::PETSCII$ },
         { "POS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().x); } },
         { "POSY", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().y); } },
-        { "RIGHT$", fktRIGHT$ },
-        { "RND", fktRND },
+        { "RIGHT$", FKT::RIGHT$ },
+        { "RND", FKT::RND },
         { "SGN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value {
              nargs(args, 1);
              double d = basic->valueToDouble(args[0]);
@@ -2041,10 +2063,10 @@ Basic::Basic(Os* os, SoundSystem* ss) {
          } },
         { "SIN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return sin(basic->valueToDouble(args[0])); } },
 
-        { "SPC", fktSPC },
+        { "SPC", FKT::SPC },
         { "SQR", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return sqrt(basic->valueToDouble(args[0])); } },
         { "STR$", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return basic->valueToString(args[0]); } },
-        { "TAB", fktTAB },
+        { "TAB", FKT::TAB },
         { "TAN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return tan(basic->valueToDouble(args[0])); } },
         { "VAL", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return basic->valueToDoubleOrZero(args[0]); } },
         { "XOR", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 3); return basic->valueToInt(args[0]) ^ basic->valueToInt(args[2]); } }
@@ -4629,31 +4651,31 @@ void Basic::handleFOR(const std::vector<Token>& tokens) {
     if (values.size() != 1) {
         throw Error(ErrorId::SYNTAX);
     }
-    int64_t start = valueToInt(values.back());
+    double start = valueToDouble(values.back());
 
     auto& modl = currentModule();
 
     modl.variables[varName] = values.back();
 
-    int64_t toEnd = start;
-    int64_t step  = 1;
+    double toEnd = start;
+    double step  = 1;
     for (size_t i = 4; i < tokens.size(); ++i) {
         if (tokens[i].value == "TO") {
             auto values = evaluateExpression(tokens, i + 1);
             if (values.size() != 1) {
                 throw Error(ErrorId::SYNTAX);
             }
-            toEnd = valueToInt(values.back());
+            toEnd = valueToDouble(values.back());
         }
         if (tokens[i].value == "STEP") {
             auto values = evaluateExpression(tokens, i + 1);
             if (values.size() != 1) {
                 throw Error(ErrorId::SYNTAX);
             }
-            step = valueToInt(values.back());
+            step = valueToDouble(values.back());
         }
     }
-    modl.variables[varName] = int64_t(start);
+    modl.variables[varName] = start;
 
     // re-use the same loop variable if it's on the stack.
     Basic::LoopItem loopParam { Basic::LoopItem::FORNEXT, varName, start, toEnd, step, modl.programCounter };
@@ -4686,6 +4708,12 @@ C64 BASIC deals with information about FOR-NEXT loops on the return stack in one
     - If a FOR statement is encountered, any existing loop using the same variable name along with
       any subsequent unfinished FOR-NEXT loops are terminated and their information removed from
       the return stack.
+
+Internal works
+100 :I=AW                : REM FOR ...
+110 PRINT I
+120 :I = I+SW            : REM NEXT ...
+121 :IF SGN(I-EW) <> SGN(SW) GOTO 110
 
 Examples:
 // NEXT searches for the matching FOR, but not beyond a GOSUB!
@@ -4739,19 +4767,28 @@ void Basic::handleNEXT(const std::vector<Token>& tokens) {
     if (modl.loopStack.empty()) {
         throw Error(ErrorId::NEXT_WITHOUT_FOR);
     }
-    if (!varName.empty() && modl.loopStack.back().varName != varName) {
+    if (varName.empty()) {
+        if (modl.loopStack.back().type != Basic::LoopItem::FORNEXT) {
+            throw Error(ErrorId::NEXT_WITHOUT_FOR);
+        }
+    } else if (modl.loopStack.back().varName != varName) {
         throw Error(ErrorId::NEXT_WITHOUT_FOR);
     }
 
 
+
     const auto& loop = modl.loopStack.back();
     Value& v         = modl.variables[loop.varName];
-    int64_t loopVar  = valueToInt(v) + loop.step;
+    double loopVar   = valueToDouble(v) + loop.step;
     v                = loopVar;
 
     // debug("next "); debug(loop.varName.c_str()); debug("="); debug(valueToString(v).c_str()); debug("\n");
 
-    if ((loop.step > 0 && loopVar <= loop.end) || (loop.step < 0 && loopVar >= loop.end)) {
+    auto sgn = [](double n) -> int { return (n > 0.0) ? 1 : (n < 0.0 ? -1 : 0); };
+    if (sgn(loopVar - loop.end) != sgn(loop.step)) {
+        // (loop.step > 0 && loopVar <= loop.end)
+        // || (loop.step < 0 && loopVar >= loop.end)
+        // ) {
         modl.programCounter = loop.jump;
     } else {
         modl.loopStack.pop_back();
@@ -4767,6 +4804,10 @@ void Basic::handleIFTHEN(const std::vector<Token>& tokens) {
     if (valueToInt(values[0]) != 0 && endtok > 0) {
         auto copyTok = tokens; // TODO you can do better than this
         copyTok.erase(copyTok.begin(), copyTok.begin() + (endtok));
+
+        if (copyTok.empty()) { // IF foo:
+            throw Error(ErrorId::SYNTAX);
+        }
 
         // THEN 110
         if (copyTok.size() > 1 && copyTok[1].type == TokenType::INTEGER) {
@@ -5128,7 +5169,6 @@ void Basic::uppercaseProgram(std::string& codeline) {
         { 0x9f,  color (cyan)
 * */
 void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCodes, bool ctrlInQuotes) {
-    bool quotes1 = false, quotes2 = false;
 
     if (pend == nullptr) {
         pend = utf8;
@@ -5136,22 +5176,25 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
             ++pend;
         }
     }
-
+    char32_t quote = 0;
     if (currentFileNo == 0) {
         if (applyCtrlCodes) {
             while (utf8 < pend) {
                 char32_t c = Unicode::parseNextUtf8(utf8);
 
                 if (!ctrlInQuotes) {
-                    if (c == '\"') {
-                        quotes1 = !quotes1;
-                    }
-                    if (c == '\'') {
-                        quotes1 = !quotes1;
+                    if (quote == 0) {
+                        if (c == '\"' || c == '\'') {
+                            quote = c;
+                        }
+                    } else {
+                        if (quote == c) {
+                            quote = 0;
+                        }
                     }
                 }
 
-                if (!quotes1 && !quotes2) {
+                if (quote == 0) {
                     switch (c) {
                     case ControlCharacters::cursorDown /*0x11*/:              os->screen.moveCursorPos(0, 1); break; // cursor down
                     case ControlCharacters::cursorRight /*0x1d*/:             os->screen.moveCursorPos(1, 0); break; // cursor right
@@ -5558,10 +5601,14 @@ std::string Basic::inputLine(bool allowVertical) {
                         continue;
                     case uint32_t(Os::KeyConstant::PAUSE): {
                         std::string statePath(os->getHomeDirectory() + "/quicksave.state67");
-                        if (key.holdShift) {
-                            loadState(statePath);
-                        } else {
-                            saveState(statePath);
+                        try {
+                            if (key.holdShift) {
+                                loadState(statePath);
+                            } else {
+                                saveState(statePath);
+                            }
+                        } catch (...) {
+                            throw ErrorId::INTERNAL;
                         }
                     }
                         continue;
@@ -5594,17 +5641,15 @@ std::string Basic::inputLine(bool allowVertical) {
     ScreenBuffer::Cursor istart {}, iend {};
 
     std::u32string screenchars;
-    if (cursorAtStartOfInput.y != crsr.y) {
+    if (allowVertical) {
         // Moved a line up
         startCrsr   = crsr;
         startCrsr.x = 0;
         istart      = os->screen.getStartOfLineAt(startCrsr);
         iend        = os->screen.getEndOfLineAt(crsr); // that's the '\n' character
-
         screenchars = os->screen.getSelectedText(istart, iend);
-
-        crsr   = iend;
-        crsr.x = 0;
+        crsr        = iend;
+        crsr.x      = 0;
         crsr.y++;
         if (crsr.y >= os->screen.height) {
             os->screen.scrollUpOne();
@@ -5612,6 +5657,7 @@ std::string Basic::inputLine(bool allowVertical) {
         }
         os->screen.setCursorPos(crsr);
     } else {
+        // INPUT command
         istart = (startCrsr);
         iend   = os->screen.getEndOfLineAt(startCrsr);
         if (iend < istart) {
@@ -5689,6 +5735,10 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
 
                 prgline.code = pc;
                 StringHelper::trimRight(prgline.code, " \r\n\t");
+
+#if _DEBUG
+                printf("%5d %s\n", int(n), prgline.code.c_str());
+#endif
 
                 tokenizeLine(prgline); // check sanity, but don't execute
 
@@ -5776,8 +5826,6 @@ void Basic::handleEscapeKey(bool allowPauseWithShift) {
         throw Error(ErrorId::BREAK);
     }
     if (os->isKeyPressed(Os::KeyConstant::PAUSE) && os->isKeyPressed(Os::KeyConstant::ALT_LEFT)) {
-
-
         monitor();
     }
 
@@ -5869,19 +5917,22 @@ void Basic::runToEnd() {
             int line = programCounter().line->first;
             if (lastTraceLine != line) {
                 lastTraceLine = line;
-                os->screen.cleanCurrentLine();
-                printUtf8String("[" + valueToString(line) + "]");
+                auto& scn     = os->screen;
+                auto state    = scn.saveState(false);
+                scn.setTextColor(1);
+                scn.setBackgroundColor(0);
+                auto crsr        = scn.getCursorPos();
+                std::string text = "[" + valueToString(line) + "]\n";
+                crsr.x           = scn.width - text.length();
+                scn.setCursorPos(crsr);
+                printUtf8String(text);
+                scn.restoreState(state);
+                // printf("%s", text.c_str());
             }
         }
 
         // debug("MODULE VARS "); debug(moduleVariableStack.back()->first.c_str()); debug("\n");
         // debug("MODULE CODE "); debug(moduleListingStack.back()->first.c_str()); debug("\n");
-
-#if 0
-            std::cout << "                                     LINE ";
-            std::cout << valueToString(int64_t(programCounter().line->first)).c_str();
-            std::cout << "\n";
-#endif
         auto& pc = programCounter();
 
         // might need to tokenize when first encountering a loaded program line.
@@ -6103,7 +6154,7 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
     return rv;
 }
 
-bool Basic::saveProgram(std::string filenameUtf8) {
+bool Basic::saveProgram(std::string filenameUtf8, int startAddressOfPRG) {
 
     std::string password;
     size_t posLock = filenameUtf8.find(",P");
@@ -6111,6 +6162,15 @@ bool Basic::saveProgram(std::string filenameUtf8) {
         password     = filenameUtf8.substr(posLock + 2);
         filenameUtf8 = filenameUtf8.substr(0, posLock);
     }
+
+    bool compressPRG      = false;
+    size_t posCompression = filenameUtf8.find(",C");
+    if (posCompression != std::string::npos) {
+        filenameUtf8 = filenameUtf8.substr(0, posCompression) + filenameUtf8.substr(posCompression + 2);
+        compressPRG  = true;
+    }
+
+
 
     FilePtr file(os);
     file.setPassword(password);
@@ -6132,13 +6192,15 @@ bool Basic::saveProgram(std::string filenameUtf8) {
             all += std::to_string(ln.first) + " " + ln.second.code + "\n";
         }
 
-        std::vector<std::pair<int, std::string>> errorDetails;
-        auto prg = PrgTool::BASICtoPRG(all.c_str(), &errorDetails);
+        PrgTool prgTool;
+        prgTool.startAddressOfPRG = startAddressOfPRG;
+        prgTool.compress          = compressPRG;
+        auto prg                  = prgTool.BASICtoPRG(all.c_str());
         file.write(&prg[0], prg.size());
 
-        if (!errorDetails.empty()) {
+        if (!prgTool.errorDetails.empty()) {
             std::string sline;
-            for (auto& ln : errorDetails) {
+            for (auto& ln : prgTool.errorDetails) {
                 sline = std::to_string(ln.first);
                 for (size_t s = sline.length(); s < 3; ++s) {
                     sline += ' ';
@@ -6155,7 +6217,6 @@ bool Basic::saveProgram(std::string filenameUtf8) {
                 }
             }
         }
-
     } else {
 
         for (auto& ln : currentModule().listing) {
@@ -6283,15 +6344,38 @@ bool Basic::AreYouSureQuestion() {
 }
 
 // machine memory monitor
-void Basic::monitor() {
+// returns true if emulation must continue
+bool Basic::monitor() {
     static bool inMonitor = false;
 
     if (inMonitor) {
-        return;
+        return false;
     }
+
+    static std::vector<MEMCELL> cpmem(0x1000);
+    // store and recall CPU memory from temp buffer
+    for (size_t i = 0; i < cpmem.size(); ++i) {
+        cpmem[i] = cpu.memory[i];
+    }
+    auto swapm = [&]() {for (size_t i = 0; i < cpmem.size(); ++i) {std::swap(cpmem[i], cpu.memory[i]);} };
 
     cpu.breakPointHit = false;
 
+    bool isTracePoint = false;
+    auto itBreakPoint = cpu.breakpoints.find(cpu.PC);
+    if (itBreakPoint != cpu.breakpoints.end() && !itBreakPoint->second.stop) {
+        isTracePoint = true;
+
+        std::string str = cpu.disassemble(cpu.PC, true);
+        while (str.length() < 30) {
+            str += " ";
+        }
+        str += cpu.registers();
+        printf("%s\n", str.c_str());
+        return false;
+    }
+
+    // E74C EA30
 
     inMonitor      = true;
     auto& scn      = os->screen;
@@ -6302,6 +6386,7 @@ void Basic::monitor() {
     scn.setReverseMode(false);
     bool assemblerMode  = false;
     uint16_t assembleAt = 0;
+    bool rv             = false;
     for (;;) {
         os->updateEvents();
         os->presentScreen();
@@ -6323,10 +6408,15 @@ void Basic::monitor() {
             break;
         }
 
-
         printUtf8String("\n");
         scn.cleanCurrentLine();
         auto args = StringHelper::split(cmd, " \t");
+        // remove quotes
+        for (auto& arg : args) {
+            if (arg.length() > 1 && arg.starts_with('\"') && arg.ends_with('\"')) {
+                arg = arg.substr(1, arg.length() - 2);
+            }
+        }
 
         // ==
         auto argi = [&args](size_t i) -> int {
@@ -6348,9 +6438,13 @@ void Basic::monitor() {
 
         // ==
         auto disassemble = [&](uint16_t addr) -> uint16_t {
-            auto info = CPU6502::getOpcodeInfo(cpu.memory[addr]);
+            swapm();
+            auto info = CPU6502::getOpcodeInfo(cpu.readByte(addr));
+            std::string dis(cpu.disassemble(addr));
+            swapm();
+
             scn.cleanCurrentLine();
-            printUtf8String("." + StringHelper::int2hex(addr, true, 2) + "  " + cpu.disassemble(addr) + "\n");
+            printUtf8String("." + StringHelper::int2hex(addr, true, 2) + "  " + dis + "\n");
             addr += info.length;
             return addr;
         };
@@ -6362,7 +6456,9 @@ void Basic::monitor() {
                 continue;
             }
             Unicode::toUpper(cmd);
+            swapm();
             uint16_t newAddr = cpu.assemble(cmd.c_str(), assembleAt);
+            swapm();
             if (newAddr == 0) {
                 printUtf8String("ERROR\n");
             } else {
@@ -6381,27 +6477,32 @@ void Basic::monitor() {
 
         if (args[0] == "h" || args[0] == "help") {
             //              "0123456789012345678901234567890123456789"
-            printUtf8String("g [address]     - continue execution\n");
-            printUtf8String("x               - exit monitor\n");
-            printUtf8String("z               - single step\n");
-            printUtf8String("m [from] [to]   - memory display\n");
-            printUtf8String("d [from] [to]   - disassemble\n");
-            printUtf8String("r               - registers\n");
-            printUtf8String("> address xx    - poke bytes into memory\n");
-            printUtf8String("bk [l|s|x] a    - add breakpoint\n");
-            printUtf8String("del [addr]      - remove breakpoints\n");
-            printUtf8String("a address       - start assembler mode.\n");
+            printUtf8String("g [address]        - continue execution\n");
+            printUtf8String("x                  - exit monitor\n");
+            printUtf8String("z                  - single step\n");
+            printUtf8String("m [from] [to]      - memory display\n");
+            printUtf8String("d [from] [to]      - disassemble\n");
+            printUtf8String("r                  - registers\n");
+            printUtf8String("> address xx       - poke bytes\n");
+            printUtf8String("bk [l|s|x] a       - add breakpoint\n");
+            printUtf8String("tr [l|s|x] a [end] - add tracepoint\n");
+            printUtf8String("del [addr]         - remove breakpoints\n");
+            printUtf8String("a address          - assembler mode\n");
+            printUtf8String("bs path from to    - save to file\n");
+            printUtf8String("bl path from to    - load from file\n");
         } else if (args[0] == "g") {
             // --goto--
             if (args.size() > 1) {
                 cpu.PC = argi(1);
             }
+            rv = true;
             break; // monitor loop
         } else if (args[0] == "x" || args[0] == "exit") {
             break; // monitor loop
         } else if (args[0] == "z") {
             // --single step--
             cpu.breakPointHit = true;
+            rv                = true;
             break; // monitor loop
         } else if (args[0] == "m") {
             // --memory--
@@ -6410,18 +6511,18 @@ void Basic::monitor() {
                 to = from + 0x8f;
             }
             while (from < to) {
-                scn.cleanCurrentLine();
+                swapm();
                 std::string str = StringHelper::int2hex(from, true, 2);
                 for (int i = 0; i < 8; ++i) {
                     if ((i % 4) == 0 && i != 0) {
                         str += " ";
                     }
-                    str += " " + StringHelper::int2hex(memory[from + i], true, 1);
+                    str += " " + StringHelper::int2hex(cpu.readByte(from + i), true, 1);
                 }
 
                 str += " ";
                 for (int i = 0; i < 8; ++i) {
-                    char32_t c = memory[from + i];
+                    char32_t c = cpu.readByte(from + i);
                     if (c < 0x20) {
                         c = U'.';
                     }
@@ -6429,6 +6530,8 @@ void Basic::monitor() {
                 }
                 str += "\n";
                 from += 8;
+                swapm();
+                scn.cleanCurrentLine();
                 printUtf8String(str);
             }
         } else if (args[0] == "a") {
@@ -6454,6 +6557,48 @@ void Basic::monitor() {
                 }
                 from = disassemble(from);
             }
+        } else if (args[0] == "bs" || args[0] == "bsave" && args.size() == 5) {
+            // --bsave--
+            std::string path = args[1];
+            uint16_t from    = argi(2);
+            uint16_t to      = argi(3);
+            if (to > from) {
+                FilePtr file(os);
+                file.open(path, "wb");
+                if (file) {
+                    swapm();
+                    for (size_t i = from; i <= to; ++i) {
+                        uint8_t b = cpu.readByte(uint16_t(i));
+                        file.write(&b, 1);
+                    }
+                    swapm();
+                    file.close();
+                    printUtf8String("SAVED\n");
+                }
+            }
+        } else if (args[0] == "bl" || args[0] == "bload" && args.size() >= 4) {
+            // --bload--
+            std::string path = args[1];
+            uint16_t from    = argi(2);
+            uint16_t to      = argi(3);
+            FilePtr file(os);
+            file.open(path, "rb");
+            if (file) {
+                swapm();
+                if (to == 0) {
+                    file.seek(0, SEEK_END);
+                    to = uint16_t(from + file.tell());
+                    file.seek(0, SEEK_SET);
+                }
+                for (size_t i = from; i <= to; ++i) {
+                    uint8_t b = 0;
+                    file.read(&b, 1);
+                    cpu.setByte(uint16_t(i), b);
+                }
+                swapm();
+                file.close();
+                printUtf8String("LOADED\n");
+            }
         } else if (args[0][0] == '>') {
             // --poke--
             if (args[0].length() > 1) { // >0801 00 00 instead of > 0801 00 00
@@ -6461,15 +6606,17 @@ void Basic::monitor() {
             }
             int addr = argi(1);
             if (addr >= 0 && addr < memory.size()) {
+                swapm();
                 for (size_t i = 2; i < args.size(); ++i) {
-                    memory[addr + i - 2] = argi(i);
+                    cpu.setByte(addr + i - 2, argi(i));
                 }
+                swapm();
             }
         } else if (args[0] == "r") {
             // --registers--
             printUtf8String(cpu.registers() + "\n");
-        } else if (args[0] == "break" || args[0] == "bk") {
-            // --break--
+        } else if (args[0] == "break" || args[0] == "bk" || args[0] == "trace" || args[0] == "tr") {
+            // --break/trace--
             CPU6502::BreakPoint opt;
             opt.onExec = false;
 
@@ -6488,18 +6635,30 @@ void Basic::monitor() {
                     continue;
                 }
 
-                int16_t addr = argi(i);
+                int16_t addr  = argi(i);
+                int16_t addr2 = argi(i + 1);
                 if (!opt.onExec && !opt.onRead && !opt.onWrite) {
                     opt.onExec = true;
                 }
-                auto& br = cpu.breakpoints[addr];
-                br.onExec |= opt.onExec;
-                br.onRead |= opt.onRead;
-                br.onWrite |= opt.onWrite;
+
+                if (addr2 < addr) {
+                    addr2 = addr;
+                }
+                for (int16_t a = addr; a <= addr2; ++a) {
+                    auto& br = cpu.breakpoints[a];
+                    br.stop  = args[0].starts_with('b');
+                    br.onExec |= opt.onExec;
+                    br.onRead |= opt.onRead;
+                    br.onWrite |= opt.onWrite;
+                }
             }
             // list all
             for (auto& bk : cpu.breakpoints) {
-                printUtf8String("BREAK: $" + StringHelper::int2hex(bk.first, true, 2));
+                if (bk.second.stop) {
+                    printUtf8String("BREAK: $" + StringHelper::int2hex(bk.first, true, 2));
+                } else {
+                    printUtf8String("TRACE: $" + StringHelper::int2hex(bk.first, true, 2));
+                }
                 if (bk.second.onExec) {
                     printUtf8String(" ON EXEC");
                 }
@@ -6532,4 +6691,5 @@ void Basic::monitor() {
 
     inMonitor = false;
     scn.restoreState(oldScreen);
+    return rv;
 }

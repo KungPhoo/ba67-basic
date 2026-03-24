@@ -232,7 +232,7 @@ public:
 
     std::unordered_map<std::string, cmdpointer, string_hash, std::equal_to<>> commands;
     std::unordered_map<std::string, fktpointer, string_hash, std::equal_to<>> functions;
-    std::vector<MEMCELL> memory; // for PEEK&POKE. charram, colram, lineLinkTable,...
+    std::vector<MEMCELL> memory; // RAM for PEEK&POKE. charram, colram, lineLinkTable,...
 
     CPU6502 cpu;
 
@@ -322,9 +322,9 @@ public:
             = GOSUB;
 
         std::string varName; // FOR variable name or "GOSUB"
-        int64_t start = 0;
-        int64_t end   = 0;
-        int64_t step  = 1;
+        double start = 0;
+        double end   = 0;
+        double step  = 1;
 
         // int line_number;
         // size_t char_position;
@@ -514,6 +514,7 @@ protected:
     void handleKEY(const std::vector<Token>& tokens);
     void handleRCHARDEF(const std::vector<Token>& tokens);
 
+
     // find assignable value from 'a' or arr(1+3). returns nullptr on error
     Value* findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr, bool allowDimArray = false);
 
@@ -574,12 +575,12 @@ public:
 
     bool loadProgram(const char* filenameUtf8);
     bool loadProgram(std::string& inOutFilenameUtf8);
-    bool saveProgram(std::string filenameUtf8);
+    bool saveProgram(std::string filenameUtf8, int startAddressOfPRG);
     bool fileExists(const std::string& filenameUtf8, bool allowWildCard);
 
     bool saveState(std::string& filenameUtf8);
     bool loadState(std::string& filenameUtf8);
 
     bool AreYouSureQuestion();
-    void monitor();
+    bool monitor();
 };

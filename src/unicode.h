@@ -28,6 +28,8 @@ public:
     static std::string toUpperAscii(const char* utf8);
     static std::string toLowerAscii(const char* utf8);
 
+    static std::string toAscii(const char* utf8, char badCharacter = '-');
+
     // true Unicode conversion - might be slow!
     static char32_t toUpper(char32_t c);
     static char32_t toLower(char32_t c);

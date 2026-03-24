@@ -58,7 +58,7 @@
 ,{"RESTORE", R"RAW(RESTORE [line])RAW"}
 ,{"RETURN", R"RAW(RETURN)RAW"}
 ,{"RUN", R"RAW(RUN [start_line_number])RAW"}
-,{"SAVE", R"RAW(SAVE "test.bas")RAW"}
+,{"SAVE", R"RAW(SAVE "test.bas" [,basicstart])RAW"}
 ,{"SCNCLR", R"RAW(SCNCLR [n])RAW"}
 ,{"SCRATCH", R"RAW(SCRATCH "FILENAME")RAW"}
 ,{"SLOW", R"RAW(SLOW)RAW"}

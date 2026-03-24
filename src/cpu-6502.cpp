@@ -9,10 +9,13 @@
 
 void CPU6502::reset() {
     cpuJam = false;
-    A = X = Y = 0;
-    SP        = 0xFF;
-    PC        = readWord(0xFFFC); // Reset vector
-    P         = 0x24; // IRQ disabled by default
+    A = X = Y         = 0;
+    SP                = 0xFF;
+    PC                = readWord(0xFFFC); // Reset vector
+    P                 = 0x24; // IRQ disabled by default
+    cycleCount        = 0;
+    lastCycleSnapshot = 0;
+    heatmap.clear();
 }
 
 bool CPU6502::sys(uint16_t address) {
@@ -497,172 +500,195 @@ const char* kernalRoutineName(uint16_t PC) {
 }
 
 
-CPU6502::OpCodeInfo CPU6502::getOpcodeInfo(uint8_t op) {
+const CPU6502::OpCodeInfo& CPU6502::getOpcodeInfo(uint8_t op) {
     static CPU6502::OpCodeInfo info[256] = {};
     if (info[0].mnemonic == nullptr || info[0].length != 1) {
-        auto add = [&](size_t op, const char* mn, AddrMode ops, int c) {
-            info[op].mnemonic = mn;
-            info[op].admode   = ops;
-            info[op].length   = c;
+        auto add = [&](int op, const char* mn, AddrMode ops, int c, int cycles) {
+            auto& iop    = info[op];
+            iop.mnemonic = mn;
+            iop.admode   = ops;
+            iop.length   = uint8_t(c);
+            iop.cycles   = uint8_t(cycles);
         };
-        add(0x00, "BRK", IMP, 1);
-        add(0x01, "ORA", INDX, 2);
-        add(0x05, "ORA", ZPG, 2);
-        add(0x06, "ASL", ZPG, 2);
-        add(0x08, "PHP", IMP, 1);
-        add(0x09, "ORA", IMM, 2);
-        add(0x0a, "ASL", ACC, 1);
-        add(0x0d, "ORA", ABS, 3);
-        add(0x0e, "ASL", ABS, 3);
-        add(0x10, "BPL", REL, 2);
-        add(0x11, "ORA", INDY, 2);
-        add(0x15, "ORA", ZPX, 2);
-        add(0x16, "ASL", ZPX, 2);
-        add(0x18, "CLC", IMP, 1);
-        add(0x19, "ORA", ABSY, 3);
-        add(0x1d, "ORA", ABSX, 3);
-        add(0x1e, "ASL", ABSX, 3);
-        add(0x20, "JSR", ABS, 3);
-        add(0x21, "AND", INDX, 2);
-        add(0x24, "BIT", ZPG, 2);
-        add(0x25, "AND", ZPG, 2);
-        add(0x26, "ROL", ZPG, 2);
-        add(0x28, "PLP", IMP, 1);
-        add(0x29, "AND", IMM, 2);
-        add(0x2a, "ROL", ACC, 1);
-        add(0x2c, "BIT", ABS, 3);
-        add(0x2d, "AND", ABS, 3);
-        add(0x2e, "ROL", ABS, 3);
-        add(0x30, "BMI", REL, 2);
-        add(0x31, "AND", INDY, 2);
-        add(0x35, "AND", ZPX, 2);
-        add(0x36, "ROL", ZPX, 2);
-        add(0x38, "SEC", IMP, 1);
-        add(0x39, "AND", ABSY, 3);
-        add(0x3d, "AND", ABSX, 3);
-        add(0x3e, "ROL", ABSX, 3);
-        add(0x40, "RTI", IMP, 1);
-        add(0x41, "EOR", INDX, 2);
-        add(0x45, "EOR", ZPG, 2);
-        add(0x46, "LSR", ZPG, 2);
-        add(0x48, "PHA", IMP, 1);
-        add(0x49, "EOR", IMM, 2);
-        add(0x4a, "LSR", ACC, 1);
-        add(0x4c, "JMP", ABS, 3);
-        add(0x4d, "EOR", ABS, 3);
-        add(0x4e, "LSR", ABS, 3);
-        add(0x50, "BVC", REL, 2);
-        add(0x51, "EOR", INDY, 2);
-        add(0x55, "EOR", ZPX, 2);
-        add(0x56, "LSR", ZPX, 2);
-        add(0x58, "CLI", IMP, 1);
-        add(0x59, "EOR", ABSY, 3);
-        add(0x5d, "EOR", ABSX, 3);
-        add(0x5e, "LSR", ABSX, 3);
-        add(0x60, "RTS", IMP, 1);
-        add(0x61, "ADC", INDX, 2);
-        add(0x65, "ADC", ZPG, 2);
-        add(0x66, "ROR", ZPG, 2);
-        add(0x68, "PLA", IMP, 1);
-        add(0x69, "ADC", IMM, 2);
-        add(0x6a, "ROR", ACC, 1);
-        add(0x6c, "JMP", IND, 3);
-        add(0x6d, "ADC", ABS, 3);
-        add(0x6e, "ROR", ABS, 3);
-        add(0x70, "BVS", REL, 2);
-        add(0x71, "ADC", INDY, 2);
-        add(0x75, "ADC", ZPX, 2);
-        add(0x76, "ROR", ZPX, 2);
-        add(0x78, "SEI", IMP, 1);
-        add(0x79, "ADC", ABSY, 3);
-        add(0x7d, "ADC", ABSX, 3);
-        add(0x7e, "ROR", ABSX, 3);
-        add(0x81, "STA", INDX, 2);
-        add(0x84, "STY", ZPG, 2);
-        add(0x85, "STA", ZPG, 2);
-        add(0x86, "STX", ZPG, 2);
-        add(0x88, "DEY", IMP, 1);
-        add(0x8a, "TXA", IMP, 1);
-        add(0x8c, "STY", ABS, 3);
-        add(0x8d, "STA", ABS, 3);
-        add(0x8e, "STX", ABS, 3);
-        add(0x90, "BCC", REL, 2);
-        add(0x91, "STA", INDY, 2);
-        add(0x94, "STY", ZPX, 2);
-        add(0x95, "STA", ZPX, 2);
-        add(0x96, "STX", ZPY, 2);
-        add(0x98, "TYA", IMP, 1);
-        add(0x99, "STA", ABSY, 3);
-        add(0x9a, "TXS", IMP, 1);
-        add(0x9d, "STA", ABSX, 3);
-        add(0xa0, "LDY", IMM, 2);
-        add(0xa1, "LDA", INDX, 2);
-        add(0xa2, "LDX", IMM, 2);
-        add(0xa4, "LDY", ZPG, 2);
-        add(0xa5, "LDA", ZPG, 2);
-        add(0xa6, "LDX", ZPG, 2);
-        add(0xa8, "TAY", IMP, 1);
-        add(0xa9, "LDA", IMM, 2);
-        add(0xaa, "TAX", IMP, 1);
-        add(0xac, "LDY", ABS, 3);
-        add(0xad, "LDA", ABS, 3);
-        add(0xae, "LDX", ABS, 3);
-        add(0xb0, "BCS", REL, 2);
-        add(0xb1, "LDA", INDY, 2);
-        add(0xb4, "LDY", ZPX, 2);
-        add(0xb5, "LDA", ZPX, 2);
-        add(0xb6, "LDX", ZPY, 2);
-        add(0xb8, "CLV", IMP, 1);
-        add(0xb9, "LDA", ABSY, 3);
-        add(0xba, "TSX", IMP, 1);
-        add(0xbc, "LDY", ABSX, 3);
-        add(0xbd, "LDA", ABSX, 3);
-        add(0xbe, "LDX", ABSY, 3);
-        add(0xc0, "CPY", IMM, 2);
-        add(0xc1, "CMP", INDX, 2);
-        add(0xc4, "CPY", ZPG, 2);
-        add(0xc5, "CMP", ZPG, 2);
-        add(0xc6, "DEC", ZPG, 2);
-        add(0xc8, "INY", IMP, 1);
-        add(0xc9, "CMP", IMM, 2);
-        add(0xca, "DEX", IMP, 1);
-        add(0xcc, "CPY", ABS, 3);
-        add(0xcd, "CMP", ABS, 3);
-        add(0xce, "DEC", ABS, 3);
-        add(0xd0, "BNE", REL, 2);
-        add(0xd1, "CMP", INDY, 2);
-        add(0xd5, "CMP", ZPX, 2);
-        add(0xd6, "DEC", ZPX, 2);
-        add(0xd8, "CLD", IMP, 1);
-        add(0xd9, "CMP", ABSY, 3);
-        add(0xdd, "CMP", ABSX, 3);
-        add(0xde, "DEC", ABSX, 3);
-        add(0xe0, "CPX", IMM, 2);
-        add(0xe1, "SBC", INDX, 2);
-        add(0xe4, "CPX", ZPG, 2);
-        add(0xe5, "SBC", ZPG, 2);
-        add(0xe6, "INC", ZPG, 2);
-        add(0xe8, "INX", IMP, 1);
-        add(0xe9, "SBC", IMM, 2);
-        add(0xea, "NOP", IMP, 1);
-        add(0xec, "CPX", ABS, 3);
-        add(0xed, "SBC", ABS, 3);
-        add(0xee, "INC", ABS, 3);
-        add(0xf0, "BEQ", REL, 2);
-        add(0xf1, "SBC", INDY, 2);
-        add(0xf5, "SBC", ZPX, 2);
-        add(0xf6, "INC", ZPX, 2);
-        add(0xf8, "SED", IMP, 1);
-        add(0xf9, "SBC", ABSY, 3);
-        add(0xfd, "SBC", ABSX, 3);
-        add(0xfe, "INC", ABSX, 3);
-        for (size_t i = 0; i <= 0xff; ++i) {
+        add(0x00, "BRK", IMP, 1, 7);
+        add(0x01, "ORA", INDX, 2, 6);
+        add(0x05, "ORA", ZPG, 2, 3);
+        add(0x06, "ASL", ZPG, 2, 5);
+        add(0x08, "PHP", IMP, 1, 3);
+        add(0x09, "ORA", IMM, 2, 2);
+        add(0x0a, "ASL", ACC, 1, 2);
+        add(0x0d, "ORA", ABS, 3, 4);
+        add(0x0e, "ASL", ABS, 3, 6);
+        add(0x10, "BPL", REL, 2, 2);
+        add(0x11, "ORA", INDY, 2, 5);
+        add(0x15, "ORA", ZPX, 2, 4);
+        add(0x16, "ASL", ZPX, 2, 6);
+        add(0x18, "CLC", IMP, 1, 2);
+        add(0x19, "ORA", ABSY, 3, 4);
+        add(0x1d, "ORA", ABSX, 3, 4);
+        add(0x1e, "ASL", ABSX, 3, 7);
+        add(0x20, "JSR", ABS, 3, 6);
+        add(0x21, "AND", INDX, 2, 6);
+        add(0x24, "BIT", ZPG, 2, 3);
+        add(0x25, "AND", ZPG, 2, 3);
+        add(0x26, "ROL", ZPG, 2, 5);
+        add(0x28, "PLP", IMP, 1, 4);
+        add(0x29, "AND", IMM, 2, 2);
+        add(0x2a, "ROL", ACC, 1, 2);
+        add(0x2c, "BIT", ABS, 3, 4);
+        add(0x2d, "AND", ABS, 3, 4);
+        add(0x2e, "ROL", ABS, 3, 6);
+        add(0x30, "BMI", REL, 2, 2);
+        add(0x31, "AND", INDY, 2, 5);
+        add(0x35, "AND", ZPX, 2, 4);
+        add(0x36, "ROL", ZPX, 2, 6);
+        add(0x38, "SEC", IMP, 1, 2);
+        add(0x39, "AND", ABSY, 3, 4);
+        add(0x3d, "AND", ABSX, 3, 4);
+        add(0x3e, "ROL", ABSX, 3, 7);
+        add(0x40, "RTI", IMP, 1, 6);
+        add(0x41, "EOR", INDX, 2, 6);
+        add(0x45, "EOR", ZPG, 2, 3);
+        add(0x46, "LSR", ZPG, 2, 5);
+        add(0x48, "PHA", IMP, 1, 3);
+        add(0x49, "EOR", IMM, 2, 2);
+        add(0x4a, "LSR", ACC, 1, 2);
+        add(0x4c, "JMP", ABS, 3, 3);
+        add(0x4d, "EOR", ABS, 3, 4);
+        add(0x4e, "LSR", ABS, 3, 6);
+        add(0x50, "BVC", REL, 2, 2);
+        add(0x51, "EOR", INDY, 2, 5);
+        add(0x55, "EOR", ZPX, 2, 4);
+        add(0x56, "LSR", ZPX, 2, 6);
+        add(0x58, "CLI", IMP, 1, 2);
+        add(0x59, "EOR", ABSY, 3, 4);
+        add(0x5d, "EOR", ABSX, 3, 4);
+        add(0x5e, "LSR", ABSX, 3, 7);
+        add(0x60, "RTS", IMP, 1, 6);
+        add(0x61, "ADC", INDX, 2, 6);
+        add(0x65, "ADC", ZPG, 2, 3);
+        add(0x66, "ROR", ZPG, 2, 5);
+        add(0x68, "PLA", IMP, 1, 4);
+        add(0x69, "ADC", IMM, 2, 2);
+        add(0x6a, "ROR", ACC, 1, 2);
+        add(0x6c, "JMP", IND, 3, 5);
+        add(0x6d, "ADC", ABS, 3, 4);
+        add(0x6e, "ROR", ABS, 3, 6);
+        add(0x70, "BVS", REL, 2, 2);
+        add(0x71, "ADC", INDY, 2, 5);
+        add(0x75, "ADC", ZPX, 2, 4);
+        add(0x76, "ROR", ZPX, 2, 6);
+        add(0x78, "SEI", IMP, 1, 2);
+        add(0x79, "ADC", ABSY, 3, 4);
+        add(0x7d, "ADC", ABSX, 3, 4);
+        add(0x7e, "ROR", ABSX, 3, 7);
+        add(0x81, "STA", INDX, 2, 6);
+        add(0x84, "STY", ZPG, 2, 3);
+        add(0x85, "STA", ZPG, 2, 3);
+        add(0x86, "STX", ZPG, 2, 3);
+        add(0x88, "DEY", IMP, 1, 2);
+        add(0x8a, "TXA", IMP, 1, 2);
+        add(0x8c, "STY", ABS, 3, 4);
+        add(0x8d, "STA", ABS, 3, 4);
+        add(0x8e, "STX", ABS, 3, 4);
+        add(0x90, "BCC", REL, 2, 2);
+        add(0x91, "STA", INDY, 2, 6);
+        add(0x94, "STY", ZPX, 2, 4);
+        add(0x95, "STA", ZPX, 2, 4);
+        add(0x96, "STX", ZPY, 2, 4);
+        add(0x98, "TYA", IMP, 1, 2);
+        add(0x99, "STA", ABSY, 3, 5);
+        add(0x9a, "TXS", IMP, 1, 2);
+        add(0x9d, "STA", ABSX, 3, 5);
+        add(0xa0, "LDY", IMM, 2, 2);
+        add(0xa1, "LDA", INDX, 2, 6);
+        add(0xa2, "LDX", IMM, 2, 2);
+        add(0xa4, "LDY", ZPG, 2, 3);
+        add(0xa5, "LDA", ZPG, 2, 3);
+        add(0xa6, "LDX", ZPG, 2, 3);
+        add(0xa8, "TAY", IMP, 1, 2);
+        add(0xa9, "LDA", IMM, 2, 2);
+        add(0xaa, "TAX", IMP, 1, 2);
+        add(0xac, "LDY", ABS, 3, 4);
+        add(0xad, "LDA", ABS, 3, 4);
+        add(0xae, "LDX", ABS, 3, 4);
+        add(0xb0, "BCS", REL, 2, 2);
+        add(0xb1, "LDA", INDY, 2, 5);
+        add(0xb4, "LDY", ZPX, 2, 4);
+        add(0xb5, "LDA", ZPX, 2, 4);
+        add(0xb6, "LDX", ZPY, 2, 4);
+        add(0xb8, "CLV", IMP, 1, 2);
+        add(0xb9, "LDA", ABSY, 3, 4);
+        add(0xba, "TSX", IMP, 1, 2);
+        add(0xbc, "LDY", ABSX, 3, 4);
+        add(0xbd, "LDA", ABSX, 3, 4);
+        add(0xbe, "LDX", ABSY, 3, 4);
+        add(0xc0, "CPY", IMM, 2, 2);
+        add(0xc1, "CMP", INDX, 2, 6);
+        add(0xc4, "CPY", ZPG, 2, 3);
+        add(0xc5, "CMP", ZPG, 2, 3);
+        add(0xc6, "DEC", ZPG, 2, 5);
+        add(0xc8, "INY", IMP, 1, 2);
+        add(0xc9, "CMP", IMM, 2, 2);
+        add(0xca, "DEX", IMP, 1, 2);
+        add(0xcc, "CPY", ABS, 3, 4);
+        add(0xcd, "CMP", ABS, 3, 4);
+        add(0xce, "DEC", ABS, 3, 6);
+        add(0xd0, "BNE", REL, 2, 2);
+        add(0xd1, "CMP", INDY, 2, 5);
+        add(0xd5, "CMP", ZPX, 2, 4);
+        add(0xd6, "DEC", ZPX, 2, 6);
+        add(0xd8, "CLD", IMP, 1, 2);
+        add(0xd9, "CMP", ABSY, 3, 4);
+        add(0xdd, "CMP", ABSX, 3, 4);
+        add(0xde, "DEC", ABSX, 3, 7);
+        add(0xe0, "CPX", IMM, 2, 2);
+        add(0xe1, "SBC", INDX, 2, 6);
+        add(0xe4, "CPX", ZPG, 2, 3);
+        add(0xe5, "SBC", ZPG, 2, 3);
+        add(0xe6, "INC", ZPG, 2, 5);
+        add(0xe8, "INX", IMP, 1, 2);
+        add(0xe9, "SBC", IMM, 2, 2);
+        add(0xea, "NOP", IMP, 1, 2);
+        add(0xec, "CPX", ABS, 3, 4);
+        add(0xed, "SBC", ABS, 3, 4);
+        add(0xee, "INC", ABS, 3, 6);
+        add(0xf0, "BEQ", REL, 2, 2);
+        add(0xf1, "SBC", INDY, 2, 5);
+        add(0xf5, "SBC", ZPX, 2, 4);
+        add(0xf6, "INC", ZPX, 2, 6);
+        add(0xf8, "SED", IMP, 1, 2);
+        add(0xf9, "SBC", ABSY, 3, 4);
+        add(0xfd, "SBC", ABSX, 3, 4);
+        add(0xfe, "INC", ABSX, 3, 7);
+
+        for (int i = 0; i <= 0xff; ++i) {
             if (info[i].mnemonic == nullptr) {
-                add(i, "???", INVALID, 1);
+                add(i, "???", INVALID, 1, 1);
             }
         }
     }
     return info[op & 0xff];
+}
+
+void CPU6502::updateRasterBeam() {
+    size_t rasterFromCycle = cycleCount / 64; // approximately
+    rasterFromCycle %= 312;
+
+    if (rasterFromCycle == vic_current_raster) {
+        return;
+    }
+
+    // this is what the CPU reads at krnl.VIC_RASTER
+    vic_current_raster = uint16_t(rasterFromCycle);
+
+    // this is what the CPU writes to krnl.VIC_RASTER
+    uint16_t rasterTarget = memory[krnl.VIC_RASTER]
+                          | ((memory[krnl.VIC_CTRL1] & 0x80) << 1);
+    if (rasterTarget == vic_current_raster) {
+        memory[krnl.VIC_IRQ] |= 0x01; // set raster IRQ flag
+        updateVicIrq();
+    }
 }
 
 uint8_t CPU6502::fetchOperand(AddrMode mode) {
@@ -670,50 +696,91 @@ uint8_t CPU6502::fetchOperand(AddrMode mode) {
     case IMM: return fetchByte();
     case ZPG: {
         uint8_t addr = fetchByte();
-        return memory[addr];
+        return readByte(addr);
     }
     case ZPX: {
         uint8_t addr = (fetchByte() + X) & 0xFF;
-        return memory[addr];
+        return readByte(addr);
     }
     case ZPY: {
         uint8_t addr = (fetchByte() + Y) & 0xFF;
-        return memory[addr];
+        return readByte(addr);
     }
     case ABS: {
         uint16_t addr = fetchWord();
-        return memory[addr];
+        return readByte(addr);
     }
     case ABSX: {
         uint16_t addr = (fetchWord() + X) & 0xFFFF;
-        return memory[addr];
+        return readByte(addr);
     }
     case ABSY: {
         uint16_t addr = (fetchWord() + Y) & 0xFFFF;
-        return memory[addr];
+        return readByte(addr);
     }
     case INDX: {
         uint8_t zp    = (fetchByte() + X) & 0xFF;
-        uint16_t addr = memory[zp] | (memory[(zp + 1) & 0xFF] << 8);
-        return memory[addr];
+        uint16_t addr = readByte(zp) | (readByte(zp + 1) << 8);
+        return readByte(addr);
     }
     case INDY: {
         uint8_t zp     = fetchByte();
-        uint16_t addr  = memory[zp] | (memory[(zp + 1) & 0xFF] << 8);
+        uint16_t addr  = readByte(zp) | (readByte(zp + 1) << 8);
         uint16_t addrY = (addr + Y) & 0xFFFF;
-        return memory[addrY];
+        return readByte(addrY);
     }
     default: return 0;
     }
 }
 
 
+// void CPU6502::brk() {
+//     PC++;
+//     pushWord(PC);
+//     push(P | PF_BREAK);
+//     P |= PF_INTERRUPT;
+//     setPC(readWord(0xFFFE));
+// }
 
+
+void CPU6502::handle_interrupt(uint16_t vector, bool is_brk) {
+    pushWord(PC);
+    // push((PC >> 8) & 0xFF);
+    // push(PC & 0xFF);
+
+    uint8_t status = P;
+    if (is_brk) {
+        status |= PF_BREAK; // B flag set
+    } else {
+        status &= ~PF_BREAK; // B flag clear
+    }
+
+    push(status);
+
+    P |= PF_INTERRUPT; // Set I flag
+    PC = readWord(vector);
+}
 
 
 bool CPU6502::executeNext() {
     if (PC == 0x080C) {
         return false; // back to BASIC
+    }
+
+
+    if (PC == 0xe8a5) {
+        int pause = 1;
+    }
+
+
+    updateRasterBeam();
+
+    const uint16_t NMI_VECTOR = 0xFFFA;
+    const uint16_t IRQ_VECTOR = 0xFFFE;
+    if (nmiPending) {
+        handle_interrupt(NMI_VECTOR, false);
+    } else if (irqPending && !(P & PF_INTERRUPT)) {
+        handle_interrupt(IRQ_VECTOR, false);
     }
 
     // pre C++20 versions (no template, but costly)
@@ -738,7 +805,7 @@ bool CPU6502::executeNext() {
             case ABSX: addr = (fetchWord() + X) & 0xFFFF; break;
             default:   return;
             }
-            setByte(addr, op(memory[addr]));
+            setByte(addr, op(readByte(addr)));
         }
     };
 
@@ -870,6 +937,14 @@ bool CPU6502::executeNext() {
 
     opcode = fetchByte();
 
+    auto& info = getOpcodeInfo(opcode);
+    cycleCount += info.cycles;
+
+    // when in BASIC ROM, sample heat-map
+    if (PC >= 0xA000 && PC <= 0xBFFF) {
+        updateBasicHeatmap();
+    }
+
 
     switch (opcode) {
     case LDA_IMM:  executeOp(IMM, LDA); break;
@@ -980,8 +1055,9 @@ bool CPU6502::executeNext() {
     case ROR_ABSX: executeRMW(ABSX, ROR); break;
 
     case BRK:
-        brk();
-        return false; /*stop asm*/
+        ++PC; // padding byte
+        handle_interrupt(0xFFFE, true);
+        // return false; /*stop asm*/
         break;
 
         // Register increments/decrements
@@ -1008,58 +1084,58 @@ bool CPU6502::executeNext() {
     // Memory increments
     case INC_ZP: {
         uint8_t addr = fetchByte();
-        setByte(addr, 1 + memory[addr]);
-        setZN(memory[addr]);
+        setByte(addr, 1 + readByte(addr));
+        setZN(readByte(addr));
         break;
     }
 
     case INC_ZPX: {
         uint8_t addr = (fetchByte() + X) & 0xFF;
-        setByte(addr, 1 + memory[addr]);
-        setZN(memory[addr]);
+        setByte(addr, 1 + readByte(addr));
+        setZN(readByte(addr));
         break;
     }
 
     case INC_ABS: {
         uint16_t addr = fetchWord();
-        setByte(addr, 1 + memory[addr]);
-        setZN(memory[addr]);
+        setByte(addr, 1 + readByte(addr));
+        setZN(readByte(addr));
         break;
     }
 
     case INC_ABSX: {
         uint16_t addr = (fetchWord() + X) & 0xFFFF;
-        setByte(addr, 1 + memory[addr]);
-        setZN(memory[addr]);
+        setByte(addr, 1 + readByte(addr));
+        setZN(readByte(addr));
         break;
     }
 
     // Memory decrements
     case DEC_ZP: {
         uint8_t addr = fetchByte();
-        setByte(addr, memory[addr] - 1);
-        setZN(memory[addr]);
+        setByte(addr, readByte(addr) - 1);
+        setZN(readByte(addr));
         break;
     }
 
     case DEC_ZPX: {
         uint8_t addr = (fetchByte() + X) & 0xFF;
-        setByte(addr, memory[addr] - 1);
-        setZN(memory[addr]);
+        setByte(addr, readByte(addr) - 1);
+        setZN(readByte(addr));
         break;
     }
 
     case DEC_ABS: {
         uint16_t addr = fetchWord();
-        setByte(addr, memory[addr] - 1);
-        setZN(memory[addr]);
+        setByte(addr, readByte(addr) - 1);
+        setZN(readByte(addr));
         break;
     }
 
     case DEC_ABSX: {
         uint16_t addr = (fetchWord() + X) & 0xFFFF;
-        setByte(addr, memory[addr] - 1);
-        setZN(memory[addr]);
+        setByte(addr, readByte(addr) - 1);
+        setZN(readByte(addr));
         break;
     }
 
@@ -1071,13 +1147,13 @@ bool CPU6502::executeNext() {
     case STA_ABSY: setByte(fetchWord() + Y, A); break;
     case STA_INDX: {
         uint8_t zpAddr = (fetchByte() + X) & 0xFF;
-        uint16_t addr  = (memory[zpAddr] & 0xFF) | (memory[(zpAddr + 1) & 0xFF] << 8);
+        uint16_t addr  = readByte(zpAddr) | (readByte(zpAddr + 1) << 8);
         setByte(addr, A);
         break;
     }
     case STA_INDY: {
         uint8_t zpAddr = fetchByte();
-        uint16_t addr  = (memory[zpAddr] & 0xFF) | (memory[(zpAddr + 1) & 0xFF] << 8);
+        uint16_t addr  = readByte(zpAddr) | (readByte(zpAddr + 1) << 8);
         setByte(addr + Y, A);
         break;
     }
@@ -1109,20 +1185,20 @@ bool CPU6502::executeNext() {
     case JMP_ABS: setPC(fetchWord()); break;
     case JMP_IND: {
         uint16_t addr = fetchWord();
-        uint8_t lo    = memory[addr];
-        uint8_t hi    = memory[(addr & 0xFF00) | ((addr + 1) & 0x00FF)];
+        uint8_t lo    = readByte(addr);
+        uint8_t hi    = readByte((addr & 0xFF00) | ((addr + 1) & 0x00FF));
         setPC((hi << 8) | lo);
         break;
     }
 
     case BIT_ZP: {
-        uint8_t val = memory[fetchByte()];
+        uint8_t val = readByte(fetchByte());
         P           = (P & ~(PF_ZERO | PF_NEGATIVE | PF_OVERFLOW)) | ((A & val) == 0 ? PF_ZERO : 0) | (val & 0xC0);
         break;
     }
     case BIT_ABS: {
         uint16_t addr = fetchWord();
-        uint8_t val   = memory[addr];
+        uint8_t val   = readByte(addr);
         P             = (P & ~(PF_ZERO | PF_NEGATIVE | PF_OVERFLOW))
           | ((A & val) == 0 ? PF_ZERO : 0)
           | (val & 0xC0); // Copy bits 7 (N) and 6 (V) from memory
@@ -1133,56 +1209,56 @@ bool CPU6502::executeNext() {
     case BEQ: {
         int8_t offset = static_cast<int8_t>(fetchByte());
         if (P & PF_ZERO) {
-            setPC(PC + offset);
+            branchTo(PC + offset);
         }
         break;
     }
     case BNE: {
         int8_t offset = static_cast<int8_t>(fetchByte());
         if (!(P & PF_ZERO)) {
-            setPC(PC + offset);
+            branchTo(PC + offset);
         }
         break;
     }
     case BCC: {
         int8_t offset = static_cast<int8_t>(fetchByte());
         if (!(P & PF_CARRY)) {
-            setPC(PC + offset);
+            branchTo(PC + offset);
         }
         break;
     }
     case BCS: {
         int8_t o = static_cast<int8_t>(fetchByte());
         if (P & PF_CARRY) {
-            setPC(PC + o);
+            branchTo(PC + o);
         }
         break;
     }
     case BMI: {
         int8_t offset = static_cast<int8_t>(fetchByte());
         if (P & PF_NEGATIVE) {
-            setPC(PC + offset);
+            branchTo(PC + offset);
         }
         break;
     }
     case BPL: {
         int8_t offset = static_cast<int8_t>(fetchByte());
         if (!(P & PF_NEGATIVE)) {
-            setPC(PC + offset);
+            branchTo(PC + offset);
         }
         break;
     }
     case BVC: {
         int8_t offset = static_cast<int8_t>(fetchByte());
         if (!(P & PF_OVERFLOW)) {
-            setPC(PC + offset);
+            branchTo(PC + offset);
         }
         break;
     }
     case BVS: {
         int8_t offset = static_cast<int8_t>(fetchByte());
         if (P & PF_OVERFLOW) {
-            setPC(PC + offset);
+            branchTo(PC + offset);
         }
         break;
     }
@@ -1196,8 +1272,6 @@ bool CPU6502::executeNext() {
     case SED:
         P |= PF_DECIMAL;
         break;
-
-
 
         // Stack ops
     case PHA: push(A); break;
@@ -1280,14 +1354,6 @@ void CPU6502::setZN(uint8_t value) {
     }
 }
 
-void CPU6502::brk() {
-    PC++;
-    pushWord(PC);
-    push(P | PF_BREAK);
-    P |= PF_INTERRUPT;
-    setPC(readWord(0xFFFE));
-}
-
 void CPU6502::printState() {
     const char* kernal = kernalRoutineName(PC);
     if (kernal != nullptr) {
@@ -1322,14 +1388,14 @@ static std::string hex16(uint16_t i) {
 
 std::string CPU6502::disassemble(uint16_t address, bool showBytes) {
 
-    uint8_t op = memory[address];
+    uint8_t op = readByte(address);
     auto info  = getOpcodeInfo(op);
 
     std::string out;
 
 
-    uint8_t lo = memory[address + 1];
-    uint8_t hi = memory[address + 2];
+    uint8_t lo = readByte(address + 1);
+    uint8_t hi = readByte(address + 2);
     uint16_t w = lo | (hi << 8);
 
     if (showBytes) {
@@ -1425,28 +1491,30 @@ std::string CPU6502::disassemble(uint16_t address, bool showBytes) {
 
 
 #if _DEBUG
+    // assemble the disassembly to RAM and verify it
     if (info.admode != INVALID) {
         uint8_t org[3] = { uint8_t(memory[address]),
                            uint8_t(memory[address + 1]),
                            uint8_t(memory[address + 2]) };
-
         for (int i = 0; i < info.length; ++i) {
             memory[address + i] = 0xdc;
         }
         std::string scode = out.substr(showBytes ? 10 : 0);
         const char* code  = scode.c_str();
-        assemble(code, address);
+        assemble(code, address); // always in RAM
 
-        bool same = (memory[address] == org[0] && memory[address + 1] == org[1] && memory[address + 2] == org[2]);
-        if (!same) {
-            assemble(code, address);
+        for (int i = 0; i < info.length; ++i) {
+            uint8_t b = readByte(address + i);
+            uint8_t m = memory[address + i];
+
+            if (b != m) {
+                assemble(code, address);
+                throw "Fix assembler";
+            }
+            memory[address + i] = org[i];
         }
     }
 #endif
-
-
-
-
 
     return out;
 }
@@ -1651,164 +1719,6 @@ int16_t CPU6502::assemble(const char* line, int16_t addr) {
 }
 
 
-#if 0
-
-// returns next address or 0 on error
-int16_t CPU6502::assemble(const char* line, int16_t addr) {
-
-    const char* str = line;
-    const char* cmd = str;
-    auto next       = [](const char*& s) -> char {
-        // remember char
-        char c = *s;
-
-        // proceed one
-        if (*s != '\0') {
-            ++s;
-        }
-        // skip whitespace
-        while (*s <= ' ' && *s != '\0') {
-            ++s;
-        }
-        return c;
-    };
-
-    auto parseNumber = [](const char*& s, size_t& num) -> int {
-        int base = 10;
-        if (*s == '$') {
-            base = 16;
-            ++s;
-        }
-        char* endInt  = (char*)s;
-        num           = strtoull(s, &endInt, base);
-        bool ok       = (endInt > s);
-        int bytecount = int(endInt - s) / 2;
-        if (base == 10) {
-            bytecount = 1;
-        }
-        s = endInt;
-        // skip whitespace
-        while (*s <= ' ' && *s != '\0') {
-            ++s;
-        }
-        if (!ok) {
-            bytecount = 0;
-        }
-        return bytecount;
-    };
-
-    next(str);
-    next(str);
-    next(str);
-
-    bool indirect = false;
-    if (*str == '(') {
-        indirect = true;
-        next(str);
-    }
-    bool isConstant = (*str == '#');
-    if (isConstant) {
-        next(str);
-    }
-
-    size_t n      = 0;
-    int hasNumber = parseNumber(str, n); // 0:no 1:byte 2:word
-
-    char XY = '\0';
-    // ),Y or ,X)
-    while (*str != '\0' && *str != 'X' && *str != 'Y') {
-        next(str);
-        XY = *str;
-    }
-
-    std::vector<uint8_t> bytes;
-    std::string mode;
-    if (indirect) {
-        if (!hasNumber) {
-            return 0;
-        }
-
-        bytes.push_back(n & 0xff);
-
-        switch (XY) {
-        default:
-        case 0:
-            mode += "(IND)";
-            bytes.push_back((n >> 8) & 0xff);
-            break;
-        case 'X':
-            mode += INDX;
-            XY = 0;
-            break;
-        case 'Y':
-            mode += INDY;
-            XY = 0;
-            break;
-        }
-    } else if (hasNumber) {
-        if (isConstant) {
-            mode += "#";
-            bytes.push_back(n & 0xff);
-        } else {
-            if (n > 0xff) {
-                mode += "ABS";
-                bytes.push_back(n & 0xff);
-                if (hasNumber == 2) {
-                    bytes.push_back((n >> 8) & 0xff);
-                }
-            } else {
-                if (*cmd == 'B') {
-                    mode = "REL";
-                } else {
-                    mode += "ZPG";
-                }
-                bytes.push_back(n & 0xff);
-            }
-        }
-    } else {
-        // NOP, BRK...
-    }
-
-    // there is $,X   $,Y   ($,X) and ($),Y
-    if (XY == 'X') {
-        mode += ",X";
-        if (indirect) {
-            mode += ")";
-        }
-    }
-    if (XY == 'Y') {
-        if (indirect) {
-            mode += ")";
-        }
-        mode += ",Y";
-    }
-    for (int op = 0; op < 255; ++op) {
-        auto info = getOpcodeInfo(op);
-        if (strnicmp(info.mnemonic, cmd, 3) != 0) {
-            continue;
-        }
-        if (info.length > 1 && strncmp(mode.c_str(), info.operands, mode.length()) != 0) {
-            continue;
-        }
-
-        if (info.length != int(1 + bytes.size())) {
-            continue;
-        }
-
-        setByte(addr++, op);
-        for (auto b : bytes) {
-            setByte(addr++, b);
-        }
-
-        return addr;
-    }
-    return 0;
-}
-
-#endif
-
-
-
 std::string CPU6502::registers() {
     static char buf[256];
     memset(buf, 0, sizeof(buf));
@@ -1817,4 +1727,89 @@ std::string CPU6502::registers() {
             int(PC),
             int(A), int(X), int(Y), int(P), int(SP));
     return std::string(buf);
+}
+
+void CPU6502::printHeatMap() {
+    if (heatmap.empty()) {
+        return;
+    }
+    size_t greatest = 1;
+    for (auto& h : heatmap) {
+        if (h.second > greatest) {
+            greatest = h.second;
+        }
+    }
+    printf("BASIC HeatMap:\n");
+    printf("LINE  CYCLES   CODE\n");
+
+    uint16_t ptr = 0x0801;
+    auto getword = [&]() -> uint16_t {uint16_t m = memory[ptr] + (memory[ptr+1]<<8); ptr+=2; return m; };
+    for (;;) {
+        uint16_t nxt = getword();
+        if (nxt == 0) {
+            break;
+        }
+        uint16_t line = getword();
+        size_t cycles = heatmap[line];
+        printf("%6d %8d ", int(line), int(cycles));
+
+        size_t bar = (cycles * 24 + 1) / greatest;
+        for (size_t i = 0; i < 24; ++i) {
+            if (i < bar) {
+                printf("#");
+            } else {
+                printf(" ");
+            }
+        }
+
+        bool printed = true;
+        while (memory[ptr] != 0 && ptr < 0xA000) {
+            printed = true;
+            switch (memory[ptr]) {
+            case 0x80: printf("%8s", "END"); break;
+            case 0x81: printf("%8s", "FOR"); break;
+            case 0x82: printf("%8s", "NEXT"); break;
+            case 0x83: printf("%8s", "DATA"); break;
+            case 0x85: printf("%8s", "INPUT"); break;
+            case 0x86: printf("%8s", "DIM"); break;
+            case 0x87: printf("%8s", "READ"); break;
+            case 0x88: printf("%8s", "LET"); break;
+            case 0x89: printf("%8s", "GOTO"); break;
+            case 0x8A: printf("%8s", "RUN"); break;
+            case 0x8B: printf("%8s", "IF"); break;
+            case 0x8D: printf("%8s", "GOSUB"); break;
+            case 0x8E: printf("%8s", "RETURN"); break;
+            case 0x8F: printf("%8s", "REM"); break;
+            case 0x91: printf("%8s", "ON"); break;
+            case 0x96: printf("%8s", "DEF"); break;
+            case 0x97: printf("%8s", "POKE"); break;
+            case 0x98: printf("%8s", "PRINT#"); break;
+            default:   printed = false;
+            }
+            ++ptr;
+            if (printed) {
+                break;
+            }
+        }
+        while (memory[ptr] != 0 && ptr < 0xA000) {
+            ++ptr;
+        }
+        printf("\n");
+    }
+}
+
+
+void CPU6502::updateBasicHeatmap() {
+    static uint16_t lastLine = 0xffff;
+    uint16_t currentLine     = memory[0x39] | (memory[0x3A] << 8);
+
+    if (currentLine != lastLine) {
+        // attribute elapsed cycles to previous line
+        if (lastLine != 0xffff) {
+            heatmap[lastLine] += (cycleCount - lastCycleSnapshot);
+        }
+
+        lastLine          = currentLine;
+        lastCycleSnapshot = cycleCount;
+    }
 }

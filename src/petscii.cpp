@@ -21,13 +21,16 @@ char32_t PETSCII::unicodeFromAltKeyPress(char keyChar, bool withShift) {
     }
     if (withShift) {
         switch (c) {
-        case '+':        return toUnicode(0x7b); break;
-        case '-':        return toUnicode(0x7d); break;
-        case '@':        return toUnicode(0xba); break;
-        case '*':        return toUnicode(0x60); break;
-        case puoundChar: return toUnicode(0xa9); break;
+        case '+': return toUnicode(0x7b); break;
+        case '-': return toUnicode(0x7d); break;
+        case '@': return toUnicode(0xba); break;
+        case '*': return toUnicode(0x60); break;
+        case puoundChar:
+            return toUnicode(0xa9);
+            break;
+        case ':':
         case 192 /*uint8_t('ö')*/:
-            return toUnicode(0xBA); // OPLÖ are the box corners
+            return toUnicode(0xBA); // OPLÖ: are the box corners
             break;
         case 186 /*uint8_t('ü')*/:
             return toUnicode(0xA4); // thin bottom line

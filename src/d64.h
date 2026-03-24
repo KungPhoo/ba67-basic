@@ -35,6 +35,7 @@ public:
     bool load(std::string path);
     bool save(std::string path) const;
     bool removeFile(std::string filename);
+    void removeDelFiles();
 
 private:
     Os* os = nullptr;

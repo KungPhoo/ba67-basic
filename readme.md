@@ -29,6 +29,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [ABOUT](#about)
     - [AUTO](#auto)
     - [BAKE](#bake)
+      - [BAKE 64](#bake-64)
     - [BLOAD](#bload)
     - [BSAVE](#bsave)
     - [CATALOG](#catalog)
@@ -549,9 +550,12 @@ Attention: The does not work with `ON..GOTO/GOSUB` in
 CBM BASIC, so BA67 does not support it either.
 **Usage:** `REM COMMENT. --LABEL-- FOR BAKE`
 
+#### BAKE 64
 If you provide the argument `64`, BA67 will compress your
 program to a PRG file and copy it to the memory location
 $0801, so the C64 mode (`GO 64`) can access it.
+Beware, the first call to `GO 64` will reset the C64 memory.
+The next call will just jump to the BASIC interpreter main loop.
 
 ### BLOAD
 **Usage:** `BLOAD filename$, address`
@@ -936,9 +940,13 @@ to a file or the printer etc. See `OPEN` command.
 **Usage:** `GO 64`
 
 Runs the original C64 BASIC interpreter in memory.
-It's the same as calling `SYS $FCE2`.
+It's the same as calling `SYS $FCE2` when called first.
+(Mnemonic device: "Fresh Computer, Everything Zeroed")
 
+The next time you call it, it executes `SYS $E5CD` - the
+C64 BASIC interpreter. See `BAKE 64`.
 
+                                                                                                   
 
 ### GRAPHIC
 **Usage:** `GRAPHIC mode5`
@@ -1446,19 +1454,31 @@ Optionally, a line number can be specified.
 
 
 ### SAVE
-**Usage:** `SAVE "test.bas"`
+**Usage:** `SAVE "test.bas" [,basicstart]`
 
 Saves the BASIC program of the current module to a file on
 the disk drive. The file extension ".BA67" is recommended.
 If no file extension is given, ".BAS" will be appended.
 
+Writing a `.PRG` file, allows you to compress the file
+by removing comments and spaces with `,C` appended
+to the filename. 
+
+The optional 2nd parameter sets the PRG address when
+saving a PRG file and should be set to $0401 when saving
+a BASIC program for the PET, $1001 for the VIC20.
+The default is $0801.
+
+
 If you're saving to the cloud, you can write-protect your
-file with the ",P" parameter in the file name. Once set,
+file with the `,P` parameter in the file name. Once set,
 the file can not be overwritten or deleted without this
 password.
 
+
+
 Example:
-`SAVE "EXAMPLE.BAS,P-your-password-here-"`
+`SAVE "EXAMPLE.BAS,C,P-your-password-here-"`
 
 This parameter has no effect on the C128 and is, thus,
 backwards compatible.
@@ -1626,6 +1646,9 @@ use variables.
 
 If a number is given, the assembler code at that memory
 address is executed. See [Annex H](#annex) for details.
+
+You might want to remember `$E5CD` (execute some code, dude),
+which is the C64 BASIC interpreter main loop.
 
 ### THEN
 **Usage:** `IF condition THEN expression|line` 
@@ -2289,18 +2312,18 @@ command.
 When you press the `ALT` key, you can produce these PETSCII
 characters in the editor (best viewed with the BA67 font):
 ```
-q w e r t z u i o p
-┣ ┫ ┻ ┳ £ ┗ 🮃 ▄ ▃ ▂
+q w e r t y u i o p
+┣ ┫ ┻ ┳ £ 🮂 🮃 ▄ ▃ ▂
 a s d f g h j k l
 ┏ ┓ ▗ ▖ ▏ ▎ ▍ ▌ 🮈
-y x c v b n m
-🮂 ┛ ▝ ▘ ▚ 🮇 ▕
-Q W E R T Z U I O P
-● ○ 🭶 🭻 🭰 ♦ ╭ ╮ 🭽 🭾
-A S D F G H J K L Ö
+z x c v b n m
+┗ ┛ ▝ ▘ ▚ 🮇 ▕
+Q W E R T Y U I O P
+● ○ 🭶 🭻 🭰 🭵 ╭ ╮ 🭽 🭾
+A S D F G H J K L :Ö
 ♠ ♥ 🭷 🭺 🭱 🭴 ╰ ╯ 🭼 🭿
-Y X C V B N M
-🭵 ♣ ━ ╳ ❘ ╱ ╲
+Z X C V B N M
+♦ ♣ ━ ╳ ❘ ╱ ╲
 ```
 
 
@@ -2385,6 +2408,14 @@ These memory addresses are directly used:
 |              |                                      |
 |              | foreground+16*background             |
 +--------------+--------------------------------------+
+| $D011        | VIC ctrl 1                           |
++--------------+--------------------------------------+
+| $D012        | VIC raster line                      |
++--------------+--------------------------------------+
+| $D019        | VIC IRQ flags                        |
++--------------+--------------------------------------+
+| $D01A        | VIC IRQ enabled                      |
++--------------+--------------------------------------+
 | $D020        | Color of border                      |
 +--------------+--------------------------------------+
 | $D021        | Color of text background             |
@@ -2403,13 +2434,22 @@ your program is running.
 
 Thus, peeking $E48D(58509) yields:
 
-+-------+-------+-----+-----+------+------+
-| PLUS4 | VIC20 | PET | C64 | C128 | BA67 |
-+-------+-------+-----+-----+------+------+
-| 0     | 255   | 249 | 83  |  173 | 54   |
-+-------+-------+-----+-----+------+------+
-| $00   | $FF   | $F9 | $53 | $AD  | $36  |
-+-------+-------+-----+-----+------+------+
++-------------------+-----+------+
+| Model (by date)   | DEC | HEX  |
++-------------------+-----+------+
+| PET2000           | 208 | $F9  |
+| CBM3000           | 76  | $4C  |
+| 4000              | 132 | $84  |
+| 8000              | 249 | $F9  |
+| VIC20             | 255 | $FF  |
+| CBM-II (600,700)  | 173 | $AD  |
+| C64               | 83  | $53  |
+| C16               | 255 | $FF  |
+| PLUS4             | 0   | $00  |
+| CBM 5x0           | 162 | $A2  |
+| C128              | 173 | $AD  |
+| BA67              | 54  | $36  |
++-------------------+-----+------+
 
 BA67 also patches the kernal revision rom number at
 $FF80 to $67. It's a KERNAL Revision 3 ROM, btw.

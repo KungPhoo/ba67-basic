@@ -879,10 +879,14 @@ void CharMap::init(char32_t from, char32_t to) {
 #if defined(_DEBUG) && defined(_WIN32)
     // export font
     #if 0
-    BDFExport bdf;
-
-    bdf.writeBDF("BA67", pData, "C:\\Temp\\ba67.bdf", 8, 16);
-    bdf.writeBDF("BA67 square", pData, "C:\\Temp\\ba67-square.bdf", 8, 8);
+    static bool mustExport=true;
+    if (mustExport){
+        mustExport=false;
+        BDFExport bdf;
+        pData = FontDataBits::getBits();
+        bdf.writeBDF("BA67", pData, "C:\\Temp\\ba67.bdf", 8, 16);
+        bdf.writeBDF("BA67 square", pData, "C:\\Temp\\ba67-square.bdf", 8, 8);
+    }
     #endif
 #endif
 }

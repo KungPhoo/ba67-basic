@@ -73,7 +73,7 @@ public:
     // io
     int printf(const char* fmt, ...);
     void flush();
-    int seek(int offset, int origin);
+    int seek(int offset, int origin /* SEEK_SET/SEEK_END*/);
     size_t tell();
     size_t read(void* buffer, size_t bytes);
     std::string getline();
@@ -85,6 +85,7 @@ public:
     static std::string tempFileName();
     static void sanitizePath(std::string& path, char separator = '/');
     static char nativeDirectorySeparator();
+    static bool isAbsolutePath(std::string& path);
 
 protected:
     friend class D64;

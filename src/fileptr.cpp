@@ -39,10 +39,9 @@ bool FilePtr::close() {
             d64.init(os);
             d64.load(d64FileName);
 
-
             D64::FILE file;
-            file.name = cloudFileName;
-
+            // lowercase is PETSCII garbage
+            file.name = Unicode::toUpperAscii(Unicode::toAscii(cloudFileName.c_str(), '\0').c_str());
 
             FilePtr loc(os);
             loc.fopenLocal(localTempPath, "rb");
@@ -50,6 +49,7 @@ bool FilePtr::close() {
             loc.close();
             file.type = D64::PRG;
 
+            d64.removeDelFiles();
             d64.removeFile(file.name);
             d64.files.emplace_back(std::move(file));
             rv = d64.save(d64FileName);
@@ -82,10 +82,6 @@ bool FilePtr::close() {
             }
         }
     }
-
-    // TODO d64FileName
-
-
 
     if (!localTempPath.empty()) {
         std::error_code ec;
@@ -140,7 +136,9 @@ bool FilePtr::open(std::string filenameUtf8, const char* mode) {
     lastStatus.clear();
 
     close();
-    if (os->currentDir == Os::IsCloud || os->currentDir == Os::IsD64) {
+
+    // must be extracted from cloud or D64?
+    if (!isAbsolutePath(filenameUtf8) && (os->currentDir == Os::IsCloud || os->currentDir == Os::IsD64)) {
         // extract data and write to a temporary file
         cloudFileName = filenameUtf8;
         localTempPath = FilePtr::tempFileName();
@@ -180,6 +178,8 @@ bool FilePtr::open(std::string filenameUtf8, const char* mode) {
                 os->currentDir = Os::Os::IsD64;
 
                 if (loadWasOK) {
+                    d64.removeDelFiles();
+
                     loadWasOK = false;
                     for (auto& f : d64.files) {
                         if (f.name == cloudFileName) {
@@ -190,6 +190,7 @@ bool FilePtr::open(std::string filenameUtf8, const char* mode) {
                 }
             }
 
+            // write file contents to temp local file
             if (loadWasOK) {
                 FilePtr ftmp(os);
                 ftmp.fopenLocal(filenameUtf8, "wb");
@@ -199,7 +200,6 @@ bool FilePtr::open(std::string filenameUtf8, const char* mode) {
                 return false;
             }
         }
-    } else if (os->currentDir == Os::IsD64) {
     }
 
     this->fopenLocal(filenameUtf8, mode);
@@ -419,6 +419,19 @@ char FilePtr::nativeDirectorySeparator() {
 #else
     return '/';
 #endif
+}
+
+bool FilePtr::isAbsolutePath(std::string& path) {
+#ifdef _WIN32
+    if (path.length() > 2 && (path[1] == ':' || path.substr(0, 2) == "\\\\")) {
+        return true;
+    }
+#else
+    if (path.lenth() > 1 && path[0] == '/') {
+        return true;
+    }
+#endif
+    return false;
 }
 
 bool FilePtr::fopenLocal(std::string filenameUtf8, const char* mode) {

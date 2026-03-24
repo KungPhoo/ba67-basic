@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include "kernal.h"
+#include "rom.h"
 
 using MEMCELL = uint32_t;
 class CPU6502 {
@@ -11,8 +13,18 @@ public:
     uint16_t PC     = 0;
     MEMCELL* memory = nullptr;
     uint8_t opcode;
-    bool cpuJam = false;
+    bool cpuJam        = false;
+    bool enableHeatmap = true; // collect BASIC line cycle count
 
+    size_t cycleCount        = 0;
+    size_t lastCycleSnapshot = 0;
+    std::unordered_map<uint16_t, size_t> heatmap; // CPU cycles per BASIC line
+
+    // VIC2 raster position
+    // STA $D012 - Interrupt me at this line
+    // LDA $D012 - Where is the beam right now?
+    // Same address. Two roles.
+    uint16_t vic_current_raster; // internal (not directly writable)
 
     void reset();
 
@@ -74,20 +86,87 @@ public:
     struct OpCodeInfo {
         const char* mnemonic;
         AddrMode admode;
-        int length;
+        uint8_t length;
+        uint8_t cycles;
     };
-    static OpCodeInfo getOpcodeInfo(uint8_t op);
+    static const OpCodeInfo& getOpcodeInfo(uint8_t op);
 
     struct BreakPoint {
+        bool stop   = true; // otherwise just trace
         bool onRead = false, onWrite = false, onExec = true;
     };
 
     std::unordered_map<uint16_t, BreakPoint> breakpoints;
     bool breakPointHit = false; // last operation triggered a breakpoint
+    bool nmiPending    = false;
+    bool irqPending    = false;
+
+    // use this to set a byte with the CPU
+    // -trigger breakpoints
+    inline void setByte(uint16_t addr, uint8_t byte) {
+        if (!breakpoints.empty()) {
+            auto it = breakpoints.find(PC);
+            if (it != breakpoints.end() && it->second.onRead) {
+                breakPointHit = true;
+            }
+        }
+
+        switch (addr) {
+        case 0x0286: // BACKGROUND_COLOR_ALSO_SEE_HERE
+            byte |= (memory[0xD021] << 4);
+            break;
+        case krnl.VIC_IRQ:
+            memory[addr] &= ~byte;
+            updateVicIrq();
+            break;
+        case krnl.VIC_IRQ_ENA:
+            memory[addr] = byte;
+            break;
+        // case krnl.VIC_RASTER; // set raster interrupt trigger
+        default:
+            memory[addr] = byte;
+        }
+    }
+
+    // use this to get a byte with the CPU
+    // -bank switching
+    // -VIC registers
+    // -trigger breakpoints
+    inline uint8_t readByte(uint16_t addr) {
+        if (!breakpoints.empty()) {
+            auto it = breakpoints.find(PC);
+            if (it != breakpoints.end() && it->second.onRead) {
+                breakPointHit = true;
+            }
+        }
+
+        uint8_t* rom = nullptr;
+        MEMCELL port = memory[1];
+        if (addr == krnl.VIC_RASTER) {
+            return uint8_t(vic_current_raster & 0xff);
+        }
+        if (addr >= 0xA000 && addr <= 0xBFFF && ((port & 1) != 0)) {
+            rom = RomImage::ROM(addr);
+        } else if (addr >= 0xE000 && ((port & 2) != 0)) {
+            rom = RomImage::ROM(addr);
+        } else if (addr >= 0xD000 && addr <= 0xDFFF && ((port & 4) != 0)) {
+            rom = RomImage::ROM(addr);
+        }
+
+        if (rom != nullptr) {
+            return *rom;
+        }
+        return uint8_t(memory[addr]);
+    }
 
 private:
+    void updateRasterBeam();
+
     uint8_t fetchOperand(AddrMode mode);
-    void push(uint8_t value) { memory[0x0100 + SP--] = value; }
+    void handle_interrupt(uint16_t vector, bool is_brk);
+    void push(uint8_t value) {
+        memory[0x0100 + SP--] = value;
+    }
     void pushWord(uint16_t value) {
         push(value >> 8);
         push(value & 0xFF);
@@ -100,30 +179,15 @@ private:
     }
 
     uint8_t fetchByte() {
-        auto it = breakpoints.find(PC);
-        if (it != breakpoints.end() && it->second.onRead) {
-            breakPointHit = true;
-        }
-        return uint8_t(memory[PC++]);
+        return readByte(PC++);
     }
     uint16_t fetchWord() {
         uint8_t lo = fetchByte();
         uint8_t hi = fetchByte();
         return (hi << 8) | lo;
     }
-    uint16_t readWord(uint16_t addr) { return (memory[addr] & 0xff) | ((memory[addr + 1] & 0xff) << 8); }
+    uint16_t readWord(uint16_t addr) { return readByte(addr) | (readByte(addr + 1) << 8); }
 
-    inline void setByte(uint16_t addr, uint8_t byte) {
-        auto it = breakpoints.find(addr);
-        if (it != breakpoints.end() && it->second.onWrite) {
-            breakPointHit = true;
-        }
-
-        if (addr == 0x0286) { // BACKGROUND_COLOR_ALSO_SEE_HERE
-            byte |= (memory[0xD021] << 4);
-        }
-        memory[addr] = byte;
-    }
 
     inline void setPC(uint16_t addr) {
         PC = addr;
@@ -132,6 +196,14 @@ private:
 #endif
     }
 
+    inline void branchTo(uint16_t addr) {
+        ++cycleCount;
+        // check if page boundary crossed
+        if ((PC & 0xFF00) != (addr & 0xFF00)) {
+            cycleCount++; // extra cycle on page cross
+        }
+        PC = addr;
+    }
 
     inline bool getFlag(uint8_t f) const { return (P & f) != 0; }
     inline void setFlag(uint8_t f, bool cond = true) {
@@ -142,12 +214,14 @@ private:
         }
     }
     void setZN(uint8_t value);
-
-    void brk();
-
     void printState();
 
 public:
+    void updateVicIrq() {
+        // interrupt_status & vic.interrupt_enable) != 0;
+        irqPending = (memory[krnl.VIC_IRQ] & memory[krnl.VIC_IRQ_ENA]) != 0;
+    }
+
     std::string disassemble(uint16_t address, bool showBytes = true);
 
     static AddrMode parseOperand(const char*& s,
@@ -159,4 +233,9 @@ public:
 
     int16_t assemble(const char* line, int16_t addr);
     std::string registers();
+
+    void printHeatMap();
+
+private:
+    void updateBasicHeatmap();
 };

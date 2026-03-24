@@ -196,13 +196,15 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
     } else if (currentDir == Os::IsD64) {
         Os::FileInfo info = {};
         for (auto& entry : D64Img.files) {
+            if (entry.type == D64::DEL) {
+                continue;
+            }
             info.isDirectory = false;
             info.filesize    = entry.data.size();
             info.name        = entry.name;
             files.push_back(info);
         }
     } else {
-        // TODO D64
         Os::FileInfo info = {};
         for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path())) {
             info.isDirectory = entry.is_directory();

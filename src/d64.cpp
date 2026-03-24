@@ -430,6 +430,16 @@ bool D64::removeFile(std::string filename) {
     return false;
 }
 
+// --- remove DEL files from the file list (before writing)
+void D64::removeDelFiles() {
+    for (size_t i = 0; i < files.size(); ++i) {
+        if (files[i].type == D64::DEL) {
+            files.erase(files.begin() + i);
+            --i;
+        }
+    }
+}
+
 // --- Parsing D64 image -> populate D64 structure
 bool D64::load_d64_from_image(const std::vector<uint8_t>& img) {
     clear();
@@ -465,6 +475,7 @@ bool D64::load_d64_from_image(const std::vector<uint8_t>& img) {
 
             // file type low 3 bits determine type bits per VICE/CBM: use stored byte
             switch (entry->file_type & 0x07) {
+            case 0x00: f.type = D64::DEL; break;
             case 0x02: f.type = D64::PRG; break; // PRG
             case 0x01: f.type = D64::SEQ; break; // SEQ
             case 0x03: f.type = D64::USR; break;
@@ -529,6 +540,7 @@ std::vector<uint8_t> D64::save_d64_to_image() const {
     auto img = make_blank_image();
     // initialize BAM
     Bam bam = make_fresh_bam();
+
 
     // write BAM header and initial map later
     write_bam_to_image(img, bam, diskName);
