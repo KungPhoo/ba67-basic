@@ -76,7 +76,7 @@ void Os::pokeKeyboardBuffer() {
     if (bufsz > 9) {
         bufsz = 9;
     }
-    basic->memory[krnl.NDX] = MEMCELL(bufsz);
+    basic->cpu.RAM[krnl.NDX] = MEMCELL(bufsz);
     for (size_t i = 0; i < bufsz; ++i) {
         auto& kp  = keyboardBuffer[bufsz - i - 1];
         auto code = kp.code;
@@ -85,7 +85,7 @@ void Os::pokeKeyboardBuffer() {
         } else if (code <= 0xff && code > 0) {
             code = cbmMap[code];
         }
-        basic->memory[krnl.KEYD + i] = MEMCELL(code);
+        basic->cpu.RAM[krnl.KEYD + i] = MEMCELL(code);
     }
 }
 

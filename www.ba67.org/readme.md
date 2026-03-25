@@ -2449,6 +2449,7 @@ Thus, peeking $E48D(58509) yields:
 | CBM 5x0           | 162 | $A2  |
 | C128              | 173 | $AD  |
 | BA67              | 54  | $36  |
+| BA67, GO 64       | 83  | $53  |
 +-------------------+-----+------+
 
 BA67 also patches the kernal revision rom number at

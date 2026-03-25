@@ -49,7 +49,9 @@ void runAssemblerCode(Basic* basic) {
     printf("---Run Machine Code---\n");
 #endif
 
-    auto& cpu = basic->cpu;
+    auto& cpu       = basic->cpu;
+    cpu.ROM[0xE48D] = 0x53; // C64 BASIC ROM identifier
+
     for (;;) {
         auto PC = cpu.PC;
 
@@ -88,19 +90,19 @@ void runAssemblerCode(Basic* basic) {
             // .A = 0 PERFORMS LOAD, <> IS VERIFY
             // HIGH LOAD RETURN IN X, Y.
 
-            uint8_t fnlen = cpu.memory[0xB7];
-            uint8_t dev1  = cpu.memory[0xBA]; // primary device number   ,!8!, 1
-            uint8_t dev2  = cpu.memory[0xB9]; // secondary device number , 8 ,!1!
+            uint8_t fnlen = cpu.RAM[0xB7];
+            uint8_t dev1  = cpu.RAM[0xBA]; // primary device number   ,!8!, 1
+            uint8_t dev2  = cpu.RAM[0xB9]; // secondary device number , 8 ,!1!
 
             // see set filename: FDF9
-            uint16_t fnaddr = (cpu.memory[0xBB] & 0xff) | ((cpu.memory[0xBC] & 0xff) << 8);
+            uint16_t fnaddr = (cpu.RAM[0xBB] & 0xff) | ((cpu.RAM[0xBC] & 0xff) << 8);
             if (fnaddr + fnlen >= 0x10000) {
                 throw Basic::ErrorId::OUT_OF_MEMORY;
             }
 
             std::string fname;
             for (size_t i = 0; i < fnlen; ++i) {
-                auto c = cpu.memory[fnaddr + i];
+                auto c = cpu.RAM[fnaddr + i];
                 if (c == 0) {
                     break;
                 }
@@ -109,7 +111,7 @@ void runAssemblerCode(Basic* basic) {
 
             fname = basic->os->findFirstFileNameWildcard(fname);
             if (!basic->os->doesFileExist(fname)) {
-                cpu.memory[krnl.STATUS] = Basic::FS_ERROR_READ;
+                cpu.RAM[krnl.STATUS] = Basic::FS_ERROR_READ;
                 cpu.rts();
                 break;
             }
@@ -135,13 +137,13 @@ void runAssemblerCode(Basic* basic) {
 #endif
 
                 for (size_t i = 0; i < bytes.size(); ++i) {
-                    cpu.memory[addr] = bytes[i];
+                    cpu.RAM[addr] = bytes[i];
                     ++addr;
                 }
-                cpu.X            = addr | 0xff;
-                cpu.Y            = addr >> 8;
-                cpu.memory[0xAE] = cpu.X;
-                cpu.memory[0xAF] = cpu.Y;
+                cpu.X         = addr | 0xff;
+                cpu.Y         = addr >> 8;
+                cpu.RAM[0xAE] = cpu.X;
+                cpu.RAM[0xAF] = cpu.Y;
                 cpu.clearFlag(CPU6502::PF_CARRY);
             }
             cpu.rts();
@@ -175,30 +177,36 @@ void runAssemblerCode(Basic* basic) {
             }
 
             // overwrite the jiffy clock
-            int64_t TI                   = (basic->os->tick() * 60LL) / 1000LL;
-            basic->memory[krnl.TIME + 2] = TI & 0xff;
-            basic->memory[krnl.TIME + 1] = (TI << 8) & 0xff;
-            basic->memory[krnl.TIME + 0] = (TI << 16) & 0xff;
+            int64_t TI             = (basic->os->tick() * 60LL) / 1000LL;
+            cpu.RAM[krnl.TIME + 2] = TI & 0xff;
+            cpu.RAM[krnl.TIME + 1] = (TI << 8) & 0xff;
+            cpu.RAM[krnl.TIME + 0] = (TI << 16) & 0xff;
         }
     }
 
+
+    cpu.ROM[0xE48D] = 0x36; // BA67 BASIC ROM identifier
+
     if (stoppedByEsc) {
         // when execution continues, indicate that the STOP key was pressed
-        cpu.setByte(0x091, 0x7f);
+        cpu.setByte(0x091, 0x7f); // will make BASIC respond with BREAK forever
 
         if (cpu.enableHeatmap) {
             cpu.printHeatMap();
         }
     }
 
-
-
     if (cpu.cpuJam || stoppedByEsc) {
         std::string err = (cpu.cpuJam ? ("CPU JAM\n" + cpu.registers()) : "EXIT TO BA67")
                         + "\n";
         basic->restoreColorsAndCursor(false);
+        basic->os->screen.cleanCurrentLine();
         basic->printUtf8String(err);
-        throw Basic::Error(Basic::ErrorId::INTERNAL);
+        if (cpu.cpuJam) {
+            throw Basic::Error(Basic::ErrorId::INTERNAL);
+        } else {
+            throw Basic::Error(Basic::ErrorId::BREAK);
+        }
     }
 }
 
@@ -272,24 +280,34 @@ void bakePRGtoC64(Basic* basic) {
     std::vector<std::pair<int, std::string>> errorDetails;
     PrgTool prgTool;
     prgTool.startAddressOfPRG = int(krnl.BASICCODE);
+    prgTool.compress          = true;
     auto prg                  = prgTool.BASICtoPRG(all.c_str());
+
+    auto& RAM = basic->cpu.RAM;
 
     size_t address = krnl.BASICCODE;
     for (size_t i = 2; i < prg.size(); ++i) {
-        basic->memory[address++] = prg[i]; // skip 2 byte loading address header
+        RAM[address++] = prg[i]; // skip 2 byte loading address header
         if (address >= krnl.BASICEND) {
             throw Basic::ErrorId::OUT_OF_MEMORY;
         }
     }
-    // basic->memory[address++] = 0;
-    // basic->memory[address++] = 0;
+    // cpu.RAM[address++] = 0;
+    // cpu.RAM[address++] = 0;
 
     // pointer to end of program loading
-    basic->memory[0x00AE] = address & 0xff;
-    basic->memory[0x00AF] = (address >> 8) & 0xff;
+    RAM[0x00AE] = address & 0xff;
+    RAM[0x00AF] = (address >> 8) & 0xff;
 
+    // pointer to start of variable space
+    RAM[0x002D] = address & 0xff;
+    RAM[0x002E] = (address >> 8) & 0xff;
 
+    RAM[0x002F] = address & 0xff;
+    RAM[0x0030] = (address >> 8) & 0xff;
 
+    RAM[0x0031] = address & 0xff;
+    RAM[0x0032] = (address >> 8) & 0xff;
 
     basic->printUtf8String("BAKE TO $" + StringHelper::int2hex(krnl.BASICCODE, true, 2)
                            + "-$" + StringHelper::int2hex(address, true, 2) + "\n");
@@ -744,6 +762,11 @@ void GO(Basic* basic, const std::vector<Basic::Value>& values) {
         // if (basic->AreYouSureQuestion()) {        }
 
         // GO 64
+        basic->os->screen.setColors(14, 6); // blue
+        // 80 column screen would overwrite the BASIC program area
+        basic->os->screen.setSize(40, 25);
+        basic->os->screen.clear();
+
         static bool mustReset = true;
         if (mustReset) {
             mustReset = false;
@@ -751,11 +774,6 @@ void GO(Basic* basic, const std::vector<Basic::Value>& values) {
             CMD::SYS(basic, { 0xFCE2 });
         } else {
 
-            basic->os->screen.setColors(14, 6);
-
-            basic->os->screen.setSize(40, 25);
-            // 80 column screen would overwrite the BASIC program area
-            basic->os->screen.clear();
             basic->printUtf8String("C64 MODE\n\nREADY.\n");
 
             // $E5CD BASIC interpreter loop
@@ -764,9 +782,9 @@ void GO(Basic* basic, const std::vector<Basic::Value>& values) {
                 || basic->cpu.PC >= 0xE000) {
                 ASM::runAssemblerCode(basic); // continue
             } else {
-                // CMD::SYS(basic, { 0xA659 }); // BASIC warm start
+                CMD::SYS(basic, { 0xA659 }); // BASIC warm start
                 // CMD::SYS(basic, { 0xE394 }); // BASIC cold start
-                CMD::SYS(basic, { 0xA832 }); // BASIC STOP command
+                // CMD::SYS(basic, { 0xA832 }); // BASIC STOP command
             }
         }
 
@@ -863,17 +881,17 @@ void BLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
     FilePtr file(basic->os);
     file.open(path, "rb");
     if (!file) {
-        basic->memory[krnl.STATUS] = Basic::FS_ERROR_READ;
+        basic->cpu.RAM[krnl.STATUS] = Basic::FS_ERROR_READ;
         throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
     }
     auto bytes = file.readAll();
     file.close();
 
     for (size_t i = 0; i < bytes.size(); ++i) {
-        if (startAddress < 0 || startAddress >= basic->memory.size()) {
+        if (startAddress < 0 || startAddress >= basic->cpu.RAM.size()) {
             throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
         }
-        basic->memory[startAddress++] = bytes[i];
+        basic->cpu.RAM[startAddress++] = bytes[i];
     }
 }
 
@@ -885,18 +903,18 @@ void BSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
     size_t startAddress = size_t(basic->valueToInt(values[2]));
     size_t endAddress   = size_t(basic->valueToInt(values[4]));
 
-    if (startAddress < 0 || startAddress >= endAddress || endAddress > basic->memory.size()) {
+    if (startAddress < 0 || startAddress >= endAddress || endAddress > basic->cpu.RAM.size()) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
 
     FilePtr file(basic->os);
     file.open(path, "wb");
     if (!file) {
-        basic->memory[krnl.STATUS] = Basic::FS_ERROR_WRITE;
+        basic->cpu.RAM[krnl.STATUS] = Basic::FS_ERROR_WRITE;
         throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
     }
     for (size_t i = startAddress; i < endAddress; ++i) {
-        uint8_t b = uint8_t(basic->memory[i] & 0xff);
+        uint8_t b = uint8_t(basic->cpu.RAM[i] & 0xff);
         file.write(&b, 1);
     }
     file.close();
@@ -967,7 +985,7 @@ void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     // file slot is already open
     if (basic->fileHandles[ifile]) {
         if (device < 4 || device > 6) {
-            basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
+            basic->cpu.RAM[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
             throw Basic::Error(Basic::ErrorId::FILE_OPEN);
         } else {
             return; // can re-OPEN 4-6 (stdin/stdout)
@@ -1049,7 +1067,7 @@ void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
                 } else if (strpara[0] == 'w' || strpara[0] == 'W') {
                     iomode = "w";
                 } else {
-                    basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
+                    basic->cpu.RAM[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
                     throw Basic::Error(Basic::ErrorId::INTERNAL);
                 }
                 break;
@@ -1070,10 +1088,10 @@ void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
 
 
     if (!basic->fileHandles[ifile]) {
-        basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
+        basic->cpu.RAM[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
         throw Basic::Error(Basic::ErrorId::FILE_NOT_OPEN);
     }
-    basic->memory[krnl.STATUS] = Basic::FS_OK;
+    basic->cpu.RAM[krnl.STATUS] = Basic::FS_OK;
 }
 
 void CLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
@@ -1086,14 +1104,14 @@ void CLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
     if (!basic->fileHandles[ifile]) {
-        basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
+        basic->cpu.RAM[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
         throw Basic::Error(Basic::ErrorId::FILE_NOT_OPEN);
     }
 
-    basic->memory[krnl.STATUS] = Basic::FS_OK;
+    basic->cpu.RAM[krnl.STATUS] = Basic::FS_OK;
 
     if (!basic->fileHandles[ifile].close()) {
-        basic->memory[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
+        basic->cpu.RAM[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
         basic->printUtf8String(basic->fileHandles[ifile].status());
         throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
     }
@@ -1260,16 +1278,16 @@ void POKE(Basic* basic, const std::vector<Basic::Value>& values) {
     }
     int64_t address = basic->valueToInt(values[0]);
     int64_t value   = basic->valueToInt(values[2]);
-    if (address < 0 || address >= int64_t(basic->memory.size())) {
+    if (address < 0 || address >= int64_t(basic->cpu.RAM.size())) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
 
     MEMCELL v = MEMCELL(uint32_t(value) & 0xffffffff);
     if (address == krnl.COLOR) { // BACKGROUND_COLOR_ALSO_SEE_HERE
-        v |= (basic->memory[krnl.VIC_BKGND] << 4);
+        v |= (basic->cpu.IO[krnl.VIC_BKGND] << 4);
     }
 
-    basic->memory[address]      = v;
+    basic->cpu.RAM[address]     = v;
     basic->os->screen.dirtyFlag = true;
 }
 
@@ -1297,6 +1315,7 @@ void SYS(Basic* basic, const std::vector<Basic::Value>& values) {
     if (!basic->valueIsString(values[0])) {
         int64_t address = basic->valueToInt(values[0]);
 
+        auto& RAM = basic->cpu.RAM;
         if (values.size() > 1) {
             // you can use BASIC arguments after SYS in your machine code.
             // TXTPTR    $7A/$7B    Pointer to current position in BASIC program text
@@ -1305,7 +1324,7 @@ void SYS(Basic* basic, const std::vector<Basic::Value>& values) {
             // BUF       $0200      89 bytes is the text input buffer.
             //                      Robin/8-bit-show-and-tell puts code at $0202.
 
-            MEMCELL* ptr = &basic->memory[krnl.BUF];
+            MEMCELL* ptr = &RAM[krnl.BUF];
             *ptr++       = U'\0';
             *ptr++       = U'\0';
             // *ptr++       = U'S';
@@ -1331,25 +1350,22 @@ void SYS(Basic* basic, const std::vector<Basic::Value>& values) {
             *ptr++ = U'\r';
             *ptr   = U'\0';
 
-            basic->memory[krnl.TXTPTR + 0] = (2 + krnl.BUF) & 0xff;
-            basic->memory[krnl.TXTPTR + 1] = ((2 + krnl.BUF) >> 8) & 0xff;
+            RAM[krnl.TXTPTR + 0] = (2 + krnl.BUF) & 0xff;
+            RAM[krnl.TXTPTR + 1] = ((2 + krnl.BUF) >> 8) & 0xff;
 
 
             // disable testing STOP key
-            // basic->memory[0x0328] = 0xed;
-            // basic->memory[0x0329] = 0xf6;
-            basic->cpu.A = basic->memory[0x030C + 0]; // #780
-            basic->cpu.X = basic->memory[0x030C + 1];
-            basic->cpu.Y = basic->memory[0x030C + 2];
-            basic->cpu.P = basic->memory[0x030C + 3];
+            // RAM[0x0328] = 0xed;
+            // RAM[0x0329] = 0xf6;
+            basic->cpu.A = RAM[0x030C + 0]; // #780
+            basic->cpu.X = RAM[0x030C + 1];
+            basic->cpu.Y = RAM[0x030C + 2];
+            basic->cpu.P = RAM[0x030C + 3];
 
             // address = krnl.NEWSTT;
         }
 
-
-
-        basic->cpu.memory = &basic->memory[0];
-        if (address < 0 || address >= int64_t(basic->memory.size())) {
+        if (address < 0 || address >= int64_t(RAM.size())) {
             throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
         }
         if (!basic->cpu.sys(uint16_t(address & 0xffff))) {
@@ -1359,10 +1375,10 @@ void SYS(Basic* basic, const std::vector<Basic::Value>& values) {
         ASM::runAssemblerCode(basic);
 
         // read registers back into memory
-        basic->memory[0x030C + 0] = basic->cpu.A;
-        basic->memory[0x030C + 1] = basic->cpu.X;
-        basic->memory[0x030C + 2] = basic->cpu.Y;
-        basic->memory[0x030C + 3] = basic->cpu.P;
+        RAM[0x030C + 0] = basic->cpu.A;
+        RAM[0x030C + 1] = basic->cpu.X;
+        RAM[0x030C + 2] = basic->cpu.Y;
+        RAM[0x030C + 3] = basic->cpu.P;
 
         return;
     }
@@ -1837,49 +1853,32 @@ Basic::Options Basic::options; // static instance
 inline const std::string Basic::buildVersion() { return __DATE__; }
 
 Basic::Basic(Os* os, SoundSystem* ss) {
-    memory.resize(0x20000);
-    cpu.memory = &memory[0];
+    // memory.resize(0x20000);
+    // cpu.memory = &cpu.RAM[0];
 
-    for (size_t i = 0; i < memory.size(); ++i) {
-        memory[i] = ((i >> 6) & 2) ? 0xff : 0x00;
-    }
-
-    memory[0x0289] = 10; // keyboard buffer size
+    auto& RAM   = cpu.RAM;
+    auto& ROM   = cpu.ROM;
+    RAM[0x0289] = 10; // keyboard buffer size
 
 
-    static auto memcellcpy8 = [](MEMCELL* dst, const uint8_t* src, size_t count) {
-        while (count != 0) {
-            --count;
-            *dst++ = *src++;
-        }
-    };
+    // memcellcpy8(&cpu.RAM[0xA000], RomImage::BASIC_V2(), 0x2000);
+    // memcellcpy8(&cpu.RAM[0xE000], RomImage::KERNAL_C64(), 0x2000);
+    // memcellcpy8(&cpu.RAM[0x0000], RomImage::LOW_RAM(), 0x1000);
 
-    auto* kernalRom = RomImage::KERNAL_C64();
-
-
-    RomImage::PatchROM();
-    // memcellcpy8(&memory[0xA000], RomImage::BASIC_V2(), 0x2000);
-    // memcellcpy8(&memory[0xE000], RomImage::KERNAL_C64(), 0x2000);
-    memcellcpy8(&memory[0x0000], RomImage::LOW_RAM(), 0x1000);
-
-    memory[1]    = 0x37; // BANK ROMs in so BASIC won't overwrite
-    memory[0xd0] = 0;
-    memory[0xd4] = 0;
-    memory[0xd8] = 0;
 
 
     // // TODO: NOP-out RAMTAS to set upper/lower BASIC memory
     // for (int i = 0xfd38; i < 0xfd90; ++i) {
-    //     memory[i] = 0xEA;
+    //     cpu.RAM[i] = 0xEA;
     // }
     // // and do this manually
-    // memory[krnl.MEMSTR_ON_RST + 0] = 0x00;
-    // memory[krnl.MEMSTR_ON_RST + 1] = 0x80;
-    // memory[krnl.MEMSIZ_ON_RST + 0] = 0x00;
-    // memory[krnl.MEMSIZ_ON_RST + 1] = 0xA0;
+    // RAM[krnl.MEMSTR_ON_RST + 0] = 0x00;
+    // RAM[krnl.MEMSTR_ON_RST + 1] = 0x80;
+    // RAM[krnl.MEMSIZ_ON_RST + 0] = 0x00;
+    // RAM[krnl.MEMSIZ_ON_RST + 1] = 0xA0;
 
     // set screen page to $0400
-    memory[krnl.HIBASE] = 0x04;
+    RAM[krnl.HIBASE] = 0x04;
 
 
     // copy the BA67 font to the CHARROM memory.
@@ -1889,32 +1888,32 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 
         auto& bmp = os->screen.getCharDefinition(char32_t(i));
         for (size_t y = 0; y < 8; ++y) {
-            uint8_t* m = RomImage::ROM(0xD000);
             // uppercase char set
-            m[i * 8 + y] = bmp.bits[y];
+            ROM[0xD000 + i * 8 + y] = bmp.bits[y];
 
             // lowercase char set (same, but reversed)
-            m[0x0800 + i * 8 + y] = ~bmp.bits[y];
+            ROM[0xD800 + i * 8 + y] = ~bmp.bits[y];
         }
     }
 
 
-
-
-    memory[krnl.DFLTI] = 0; // input = keyboard
-    memory[krnl.DFLTO] = 3; // ouput = screen
-
-
-
+    RAM[0xd0] = 0;
+    RAM[0xd4] = 0;
+    RAM[0xd8] = 0;
     // ST
-    memory[krnl.STATUS] = Basic::FS_OK;
+    RAM[krnl.STATUS] = Basic::FS_OK;
+    RAM[krnl.DFLTI]  = 0; // input = keyboard
+    RAM[krnl.DFLTO]  = 3; // ouput = screen
+
+
+
 
 
 #if 0 // defined(_DEBUG)
     auto savemem = [&](size_t from, size_t len, std::string path) {
         std::vector<uint8_t> by(len);
         for (size_t n = 0; n < len; ++n) {
-            by[n] = uint8_t(memory[from + n]);
+            by[n] = uint8_t(RAM[from + n]);
         }
         FilePtr p(os);
         p.open(path, "wb");
@@ -1927,7 +1926,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 #endif
 
 
-    os->screen.initMemory(&memory[0]);
+    os->screen.initMemory(cpu);
 
     for (int i = 0; i < 256; ++i) {
         fileHandles.emplace_back(FilePtr(os));
@@ -2049,7 +2048,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "MAX", FKT::MAX },
         { "MIN", FKT::MIN },
         { "MID$", FKT::MID$ },
-        { "PEEK", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(memory[basic->valueToInt(args[0])]); } },
+        { "PEEK", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->cpu.readBankedMem(basic->valueToInt(args[0]))); } },
         { "PEN", FKT::PEN },
         { "PETSCII$", FKT::PETSCII$ },
         { "POS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().x); } },
@@ -3626,7 +3625,7 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
     }
 
     if (currentFileNo != 0) {
-        memory[krnl.STATUS] = Basic::FS_OK;
+        cpu.RAM[krnl.STATUS] = Basic::FS_OK;
     }
 
     bool firstInput = true;
@@ -3720,7 +3719,7 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
                 if (fp.read(&buffer[0], 1) == 1) {
                     str = buffer;
                 } else {
-                    memory[krnl.STATUS] = Basic::FS_EOF;
+                    cpu.RAM[krnl.STATUS] = Basic::FS_EOF;
                 }
             }
 
@@ -3754,12 +3753,12 @@ void Basic::handleINPUTFile(const std::vector<Token>& tokens) {
 
     auto& fp = fileHandles[currentFileNo];
     if (!fp) {
-        memory[krnl.STATUS] = Basic::FS_ERROR_READ;
+        cpu.RAM[krnl.STATUS] = Basic::FS_ERROR_READ;
         throw Error(ErrorId::FILE_NOT_OPEN);
     }
 
-    if ((memory[krnl.STATUS] & Basic::FS_EOF) == 0) {
-        memory[krnl.STATUS] = Basic::FS_OK;
+    if ((cpu.RAM[krnl.STATUS] & Basic::FS_EOF) == 0) {
+        cpu.RAM[krnl.STATUS] = Basic::FS_OK;
     }
 
     for (size_t itk = istart; itk < tokens.size(); ++itk) {
@@ -3772,17 +3771,17 @@ void Basic::handleINPUTFile(const std::vector<Token>& tokens) {
 
             char firstChar = '\0';
             std::string s;
-            if (memory[krnl.STATUS] & Basic::FS_EOF) {
+            if (cpu.RAM[krnl.STATUS] & Basic::FS_EOF) {
                 // CBM BASIC sets ST to EOF after the last read.
                 // if there is no more data, it adds the ERROR_READ flag
                 // the last read string is repeatedly returned, though.
                 // I decided to return an empty string instead.
-                memory[krnl.STATUS] |= Basic::FS_ERROR_READ;
+                cpu.RAM[krnl.STATUS] |= Basic::FS_ERROR_READ;
             } else {
                 for (;;) {
                     char buffer[4] = { 0, 0, 0, 0 };
                     if (!(fp.read(&buffer[0], 1) == 1)) {
-                        memory[krnl.STATUS] |= Basic::FS_EOF;
+                        cpu.RAM[krnl.STATUS] |= Basic::FS_EOF;
                         buffer[0] = '\0';
                     }
 
@@ -4443,7 +4442,7 @@ Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tok
 
             return &TIvariable; // jiffies (1/60th seconds)
         } else if (variableName == svST || variableName == svSTATUS) {
-            STvariable = int64_t(memory[krnl.STATUS]);
+            STvariable = int64_t(cpu.RAM[krnl.STATUS]);
             return &STvariable;
         }
 
@@ -5870,8 +5869,11 @@ void Basic::runInterpreter() {
         } else {
             if (status != ParseStatus::PS_IDLE) {
                 restoreColorsAndCursor(false);
-                printUtf8String("\nREADY." + std::string(os->screen.width - 7, ' ') + "\n");
-                printUtf8String(std::string(os->screen.width, ' ') + "\n");
+                printUtf8String("\n");
+                os->screen.cleanCurrentLine();
+                printUtf8String("READY.\n");
+                os->screen.cleanCurrentLine();
+                printUtf8String("\n");
                 auto pos = os->screen.getCursorPos();
                 size_t y = os->screen.getCursorPos().y;
                 os->screen.setCursorPos({ 0, y - 1 });
@@ -6250,7 +6252,8 @@ bool Basic::saveState(std::string& filenameUtf8) {
     cfg.set("options.uppercaseInput", options.uppercaseInput);
     cfg.set("options.colorizeListing", options.colorzizeListing);
     cfg.set("options.listdelay", options.listDelay);
-    cfg.set("memory", &memory[0], memory.size(), sizeof(memory[0]));
+    cfg.set("memory", &cpu.RAM[0], cpu.RAM.size(), sizeof(cpu.RAM[0]));
+    cfg.set("rom", &cpu.ROM[0], cpu.ROM.size(), sizeof(cpu.ROM[0]));
     cfg.set("time0", time0);
 
     auto& mod = currentModule();
@@ -6279,7 +6282,8 @@ bool Basic::loadState(std::string& filenameUtf8) {
     cfg.get("options.spacingRequired", options.spacingRequired);
     cfg.get("options.dotAsZero", options.dotAsZero);
     cfg.get("options.uppercaseInput", options.uppercaseInput);
-    cfg.get("memory", &memory[0], memory.size(), sizeof(memory[0]));
+    cfg.get("memory", &cpu.RAM[0], cpu.RAM.size(), sizeof(cpu.RAM[0]));
+    cfg.get("rom", &cpu.ROM[0], cpu.ROM.size(), sizeof(cpu.ROM[0]));
     cfg.get("time0", time0);
 
     auto& mod = currentModule();
@@ -6355,9 +6359,9 @@ bool Basic::monitor() {
     static std::vector<MEMCELL> cpmem(0x1000);
     // store and recall CPU memory from temp buffer
     for (size_t i = 0; i < cpmem.size(); ++i) {
-        cpmem[i] = cpu.memory[i];
+        cpmem[i] = cpu.RAM[i];
     }
-    auto swapm = [&]() {for (size_t i = 0; i < cpmem.size(); ++i) {std::swap(cpmem[i], cpu.memory[i]);} };
+    auto swapm = [&]() {for (size_t i = 0; i < cpmem.size(); ++i) {std::swap(cpmem[i], cpu.RAM[i]);} };
 
     cpu.breakPointHit = false;
 
@@ -6410,7 +6414,7 @@ bool Basic::monitor() {
 
         printUtf8String("\n");
         scn.cleanCurrentLine();
-        auto args = StringHelper::split(cmd, " \t");
+        auto args = StringHelper::split(cmd, " \t,;");
         // remove quotes
         for (auto& arg : args) {
             if (arg.length() > 1 && arg.starts_with('\"') && arg.ends_with('\"')) {
@@ -6605,10 +6609,10 @@ bool Basic::monitor() {
                 args.insert(args.begin() + 1, args[0].substr(1));
             }
             int addr = argi(1);
-            if (addr >= 0 && addr < memory.size()) {
+            if (addr >= 0 && addr < cpu.RAM.size()) {
                 swapm();
                 for (size_t i = 2; i < args.size(); ++i) {
-                    cpu.setByte(addr + i - 2, argi(i));
+                    cpu.setByte(uint16_t(addr + i - 2), uint8_t(argi(i)));
                 }
                 swapm();
             }
@@ -6618,7 +6622,6 @@ bool Basic::monitor() {
         } else if (args[0] == "break" || args[0] == "bk" || args[0] == "trace" || args[0] == "tr") {
             // --break/trace--
             CPU6502::BreakPoint opt;
-            opt.onExec = false;
 
             for (int i = 1; i < args.size(); ++i) {
                 Unicode::toLower(args[i]);
@@ -6641,7 +6644,7 @@ bool Basic::monitor() {
                     opt.onExec = true;
                 }
 
-                if (addr2 < addr) {
+                if (addr2 < addr || addr2 == 0) {
                     addr2 = addr;
                 }
                 for (int16_t a = addr; a <= addr2; ++a) {

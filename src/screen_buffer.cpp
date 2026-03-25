@@ -126,12 +126,13 @@ ScreenBuffer::ScreenBuffer() {
     palette = {};
 }
 
-void ScreenBuffer::initMemory(MEMCELL* mem) {
-    memory             = mem;
-    lineLinkTable      = mem + krnl.LDTB1;
-    size_t charAddress = mem[krnl.HIBASE] << 8;
-    charRam            = mem + charAddress;
-    colRam             = mem + krnl.COLRAM;
+void ScreenBuffer::initMemory(RomImage& image) {
+    memory             = &image.RAM[0];
+    lineLinkTable      = memory + krnl.LDTB1;
+    size_t charAddress = memory[krnl.HIBASE] << 8;
+    charRam            = memory + charAddress;
+    VIC                = &image.IO[0];
+    colRam             = &VIC[0xD800]; // VIC II memory in IO space
 
     // clear sets the line-link-table
     // for (size_t i = 0; i < height; ++i) {

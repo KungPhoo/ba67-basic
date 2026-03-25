@@ -6,6 +6,7 @@
 #include <functional>
 #include <map>
 #include <cstring>
+#include <bitset>
 
 void CPU6502::reset() {
     cpuJam = false;
@@ -19,9 +20,9 @@ void CPU6502::reset() {
 }
 
 bool CPU6502::sys(uint16_t address) {
-    memory[0x01FF] = 0x08; // High byte of 0x080C
-    memory[0x01FE] = 0x0C; // Low byte of 0x080C
-    SP             = 0xFD; // Stack pointer (points to last used position)
+    RAM[0x01FF] = 0x08; // High byte of 0x080C
+    RAM[0x01FE] = 0x0C; // Low byte of 0x080C
+    SP          = 0xFD; // Stack pointer (points to last used position)
     setPC(address);
     return true;
 }
@@ -683,10 +684,10 @@ void CPU6502::updateRasterBeam() {
     vic_current_raster = uint16_t(rasterFromCycle);
 
     // this is what the CPU writes to krnl.VIC_RASTER
-    uint16_t rasterTarget = memory[krnl.VIC_RASTER]
-                          | ((memory[krnl.VIC_CTRL1] & 0x80) << 1);
+    uint16_t rasterTarget = RAM[krnl.VIC_RASTER]
+                          | ((RAM[krnl.VIC_CTRL1] & 0x80) << 1);
     if (rasterTarget == vic_current_raster) {
-        memory[krnl.VIC_IRQ] |= 0x01; // set raster IRQ flag
+        RAM[krnl.VIC_IRQ] |= 0x01; // set raster IRQ flag
         updateVicIrq();
     }
 }
@@ -768,7 +769,7 @@ bool CPU6502::executeNext() {
     }
 
 
-    if (PC == 0xe8a5) {
+    if (PC == 0xe769) {
         int pause = 1;
     }
 
@@ -1493,11 +1494,11 @@ std::string CPU6502::disassemble(uint16_t address, bool showBytes) {
 #if _DEBUG
     // assemble the disassembly to RAM and verify it
     if (info.admode != INVALID) {
-        uint8_t org[3] = { uint8_t(memory[address]),
-                           uint8_t(memory[address + 1]),
-                           uint8_t(memory[address + 2]) };
+        uint8_t org[3] = { uint8_t(RAM[address]),
+                           uint8_t(RAM[address + 1]),
+                           uint8_t(RAM[address + 2]) };
         for (int i = 0; i < info.length; ++i) {
-            memory[address + i] = 0xdc;
+            RAM[address + i] = 0xdc;
         }
         std::string scode = out.substr(showBytes ? 10 : 0);
         const char* code  = scode.c_str();
@@ -1505,13 +1506,13 @@ std::string CPU6502::disassemble(uint16_t address, bool showBytes) {
 
         for (int i = 0; i < info.length; ++i) {
             uint8_t b = readByte(address + i);
-            uint8_t m = memory[address + i];
+            uint8_t m = RAM[address + i];
 
             if (b != m) {
                 assemble(code, address);
                 throw "Fix assembler";
             }
-            memory[address + i] = org[i];
+            RAM[address + i] = org[i];
         }
     }
 #endif
@@ -1730,6 +1731,30 @@ std::string CPU6502::registers() {
 }
 
 void CPU6502::printHeatMap() {
+
+    uint16_t ptr = 0x0801;
+    auto getword = [&]() -> uint16_t {uint16_t m = RAM[ptr] + (RAM[ptr+1]<<8); ptr+=2; return m; };
+
+
+    std::bitset<0x10000> usedLines;
+    for (;;) {
+        uint16_t nxt = getword();
+        if (nxt == 0) {
+            break;
+        }
+        uint16_t line = getword();
+        usedLines.set(line);
+        ptr = nxt;
+    }
+
+redo:
+    for (auto it = heatmap.begin(); it != heatmap.end(); ++it) {
+        if (!usedLines.test(it->first)) {
+            heatmap.erase(it);
+            goto redo;
+        }
+    }
+
     if (heatmap.empty()) {
         return;
     }
@@ -1740,10 +1765,10 @@ void CPU6502::printHeatMap() {
         }
     }
     printf("BASIC HeatMap:\n");
-    printf("LINE  CYCLES   CODE\n");
+    printf("  LINE   CYCLES                    HEAT     CODE\n");
 
-    uint16_t ptr = 0x0801;
-    auto getword = [&]() -> uint16_t {uint16_t m = memory[ptr] + (memory[ptr+1]<<8); ptr+=2; return m; };
+
+    ptr = 0x0801;
     for (;;) {
         uint16_t nxt = getword();
         if (nxt == 0) {
@@ -1763,49 +1788,56 @@ void CPU6502::printHeatMap() {
         }
 
         bool printed = true;
-        while (memory[ptr] != 0 && ptr < 0xA000) {
+        while (RAM[ptr] != 0 && ptr < 0xA000) {
             printed = true;
-            switch (memory[ptr]) {
-            case 0x80: printf("%8s", "END"); break;
-            case 0x81: printf("%8s", "FOR"); break;
-            case 0x82: printf("%8s", "NEXT"); break;
-            case 0x83: printf("%8s", "DATA"); break;
-            case 0x85: printf("%8s", "INPUT"); break;
-            case 0x86: printf("%8s", "DIM"); break;
-            case 0x87: printf("%8s", "READ"); break;
-            case 0x88: printf("%8s", "LET"); break;
-            case 0x89: printf("%8s", "GOTO"); break;
-            case 0x8A: printf("%8s", "RUN"); break;
-            case 0x8B: printf("%8s", "IF"); break;
-            case 0x8D: printf("%8s", "GOSUB"); break;
-            case 0x8E: printf("%8s", "RETURN"); break;
-            case 0x8F: printf("%8s", "REM"); break;
-            case 0x91: printf("%8s", "ON"); break;
-            case 0x96: printf("%8s", "DEF"); break;
-            case 0x97: printf("%8s", "POKE"); break;
-            case 0x98: printf("%8s", "PRINT#"); break;
-            default:   printed = false;
+            switch (RAM[ptr]) {
+            case 0x80: printf("%-8s", "END"); break;
+            case 0x81: printf("%-8s", "FOR"); break;
+            case 0x82: printf("%-8s", "NEXT"); break;
+            case 0x83: printf("%-8s", "DATA"); break;
+            case 0x85: printf("%-8s", "INPUT"); break;
+            case 0x86: printf("%-8s", "DIM"); break;
+            case 0x87: printf("%-8s", "READ"); break;
+            case 0x88: printf("%-8s", "LET"); break;
+            case 0x89: printf("%-8s", "GOTO"); break;
+            case 0x8A: printf("%-8s", "RUN"); break;
+            case 0x8B: printf("%-8s", "IF"); break;
+            case 0x8D: printf("%-8s", "GOSUB"); break;
+            case 0x8E: printf("%-8s", "RETURN"); break;
+            case 0x8F: printf("%-8s", "REM"); break;
+            case 0x91: printf("%-8s", "ON"); break;
+            case 0x96: printf("%-8s", "DEF"); break;
+            case 0x97: printf("%-8s", "POKE"); break;
+            case 0x98: printf("%-8s", "PRINT#"); break;
+            case 0x99: printf("%-8s", "PRINT"); break;
+            case 0x9F: printf("%-8s", "OPEN"); break;
+            case 0xA0: printf("%-8s", "CLOSE"); break;
+            case 0xA1: printf("%-8s", "GET"); break;
+
+            default: printed = false;
             }
             ++ptr;
             if (printed) {
                 break;
             }
         }
-        while (memory[ptr] != 0 && ptr < 0xA000) {
-            ++ptr;
-        }
+
+        ptr = nxt;
+        // while (RAM[ptr] != 0 && ptr < 0xA000) {
+        //     ++ptr;
+        // }
         printf("\n");
     }
 }
 
 
 void CPU6502::updateBasicHeatmap() {
-    static uint16_t lastLine = 0xffff;
-    uint16_t currentLine     = memory[0x39] | (memory[0x3A] << 8);
+    static uint16_t lastLine = 0;
+    uint16_t currentLine     = RAM[0x39] | (RAM[0x3A] << 8);
 
     if (currentLine != lastLine) {
         // attribute elapsed cycles to previous line
-        if (lastLine != 0xffff) {
+        if (lastLine != 0) {
             heatmap[lastLine] += (cycleCount - lastCycleSnapshot);
         }
 

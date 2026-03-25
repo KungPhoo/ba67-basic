@@ -9,6 +9,7 @@
 #include <vector>
 #include "charmap.h"
 #include "kernal.h"
+#include "rom.h"
 
 class Sprite {
 public:
@@ -42,7 +43,7 @@ public:
     };
 
     ScreenBuffer();
-    void initMemory(MEMCELL* mem);
+    void initMemory(RomImage& image);
     const MEMCELL* getMemory() const { return &memory[0]; }
 
     // SCNCLR
@@ -111,13 +112,15 @@ public:
     // buffer to print to a console
     // void getPrintBuffer(std::u32string& chars, std::string& colors) const;
 
-    // puffer color indices per pixel
+    // buffer color indices per pixel
     void updateScreenPixelsPalette(bool highlightCursor, std::vector<uint8_t>& pixelsPal);
     // buffer to draw on a bitmap.
     void updateScreenBitmap(std::vector<uint8_t>& pixelsPal, std::vector<uint32_t>& pixelsRGB);
 
     std::u32string getSelectedText(Cursor start, Cursor end) const;
 
+
+    // colors are stored high/low nibble per byte in color Ram (VIC II memory)
     void defineColor(size_t index, uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xff);
     void resetDefaultColors();
 
@@ -130,7 +133,7 @@ public:
     // get/set the text foreground color
     void setTextColor(int index) {
         // BACKGROUND_COLOR_ALSO_SEE_HERE
-        memory[krnl.COLOR] = (index & 0x0f) | ((memory[krnl.VIC_BKGND] & 0x0f) << 4);
+        memory[krnl.COLOR] = (index & 0x0f) | ((VIC[krnl.VIC_BKGND] & 0x0f) << 4);
     }
     inline uint8_t getTextColor() const { return memory[krnl.COLOR] & 0x0f; }
     // get/set text background color
@@ -139,13 +142,13 @@ public:
     // BA67 uses it, but also stores the *one* background color
     // at krnl.VIC_BKGND.
     void setBackgroundColor(int index) {
-        memory[krnl.VIC_BKGND] = (index & 0x0f);
+        VIC[krnl.VIC_BKGND] = (index & 0x0f);
         setTextColor(getTextColor()); // set background in foreground byte, too
     }
-    inline uint8_t getBackgroundColor() const { return memory[krnl.VIC_BKGND] & 0x0f; }
+    inline uint8_t getBackgroundColor() const { return VIC[krnl.VIC_BKGND] & 0x0f; }
 
-    void setBorderColor(int index) { memory[krnl.VIC_BORDER] = (index & 0x0f); }
-    uint8_t getBorderColor() const { return memory[krnl.VIC_BORDER] & 0x0f; }
+    void setBorderColor(int index) { VIC[krnl.VIC_BORDER] = (index & 0x0f); }
+    uint8_t getBorderColor() const { return VIC[krnl.VIC_BORDER] & 0x0f; }
 
     void setReverseMode(bool enable) { memory[krnl.RVS] = enable ? 1 : 0; } // reverse text and background colors
     bool getReverseMode() const { return memory[krnl.RVS] != 0; }
@@ -214,6 +217,7 @@ private:
     // !BA67 uses high/low nibble for fore/background of each char
     // colRam & 0x0f = foreground, colRam >> 4 = background
     MEMCELL* colRam = nullptr; // screen colors
+    MEMCELL* VIC    = nullptr; // IO space for VIC chip
 
     // C64 style line link table. The C128 has a complex bit mapping at $035E-$0361
     MEMCELL* lineLinkTable = nullptr; // continuation flags: 0 = owner, 0x80 = continuation

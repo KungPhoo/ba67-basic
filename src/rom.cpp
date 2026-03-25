@@ -1,10 +1,13 @@
 #include "rom.h"
 #include "kernal.h"
+#include <vector>
+#include <cassert>
 
 // Created with https://notisrac.github.io/FileToCArray/
 // BASIC & KERNAL: https://github.com/mist64/cbmsrc
 // BASIC V1.1 is MIT: https://github.com/microsoft/BASIC-M6502
 // how about the other license?
+
 
 // array size is 8192 (8K = 0x2000)
 static uint8_t basic[0x2000] = {
@@ -1038,11 +1041,9 @@ static uint8_t kernal[0x2000] = {
     0x4c, 0x0a, 0xe5, 0x4c, 0x00, 0xe5, 0x52, 0x52, 0x42, 0x59, 0x43, 0xfe, 0xe2, 0xfc, 0x48, 0xff
 };
 
-
-
 // memory $0000-$3FFF after clean boot
 // array size is 1024 (1K = 0x0400)
-static const uint8_t c64memory_low[1024] = {
+static const uint8_t c64memory_low[0x0400] = {
     0x2f, 0x37, 0x00, 0xaa, 0xb1, 0x91, 0xb3, 0x22, 0x22, 0x00, 0x00, 0x00, 0x00, 0xff, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0x16, 0x00, 0x0a, 0x76, 0xa3, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x76, 0xa3, 0xb3, 0xbd, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x08, 0x03, 0x08, 0x03,
@@ -1109,69 +1110,58 @@ static const uint8_t c64memory_low[1024] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-void RomImage::PatchROM() {
-    // start C64 BASIC with SYS $FCE2 or GO 64
-    *ROM(0xE739 + 1) = 0xff; // don't convert PETSCII to screen code
-    *ROM(0xE73D + 1) = 0xff; // don't convert PETSCII to screen code
+void RomImage::init() {
+    for (size_t i = 0; i < RAM.size(); ++i) {
+        RAM[i] = 0xcd;
+    }
+    for (size_t i = 0; i < ROM.size(); ++i) {
+        ROM[i] = 0xcd;
+    }
 
-    *ROM(0xE640 + 0) = 0x4c; // JMP $E654 skips conversion of screen code to PETSCII
-    *ROM(0xE640 + 1) = 0x54;
-    *ROM(0xE640 + 2) = 0xe6;
+
+    for (size_t i = 0; i < 0x0400; ++i) {
+        RAM[i] = c64memory_low[i];
+    }
+    for (size_t i = 0; i < 0x2000; ++i) {
+        ROM[i + 0xA000] = basic[i];
+    }
+    for (size_t i = 0; i < 0x2000; ++i) {
+        ROM[i + 0xE000] = kernal[i];
+    }
+
+    RAM[1] = 0x37; // BANK ROMs in so BASIC won't overwrite
+
+
+    // BA67 patches
+
+    // start C64 BASIC with SYS $FCE2 or GO 64
+    ROM[0xE739 + 1] = 0xff; // don't convert PETSCII to screen code
+    ROM[0xE73D + 1] = 0xff; // don't convert PETSCII to screen code
+    //
+    ROM[0xE640 + 0] = 0x4c; // JMP $E654 skips conversion of screen code to PETSCII
+    ROM[0xE640 + 1] = 0x54;
+    ROM[0xE640 + 2] = 0xe6;
 
     // return from a BASIC error back to BA67.
     // memory[0xA46C] = 0x00; // brk instead of going to C64 editor
 
 
     // COMMODORE BASIC V2 -> COMMODORE+BA67  V2
-    *ROM(0xE48A) = '+';
+    ROM[0xE48A] = '+';
     // BA..
-    *ROM(0xE48D) = '6'; // make sure $E48D is '6' as stated in the readme.md
-    *ROM(0xE48E) = '7';
-    *ROM(0xE48F) = ' ';
+    ROM[0xE48D] = '6'; // make sure $E48D is '6' as stated in the readme.md
+    ROM[0xE48E] = '7';
+    ROM[0xE48F] = ' ';
 
 
 
     // Kernal version. $AA=1, $00=2, $03=3, $43=SX64, $64=CBM 4064
-    *ROM(krnl.REVISION) = 0x67; // Kernal OS ROM version
+    ROM[krnl.REVISION] = 0x67; // Kernal OS ROM version
 
     // after welcome message, do not call NEW
-    const uint8_t NOP = 0xEA;
-    const uint8_t RTS = 0x60;
+    // const uint8_t NOP = 0xEA;
+    // const uint8_t RTS = 0x60;
     // *ROM(0xE444 + 0)  = RTS;
     // *ROM(0xE444 + 1) = 0x5E; // jump to CLR instead of NEW
     // *ROM(0xE444 + 2) = 0xA6;
-}
-
-uint8_t* RomImage::BASIC_V2() {
-    return basic;
-}
-
-uint8_t* RomImage::KERNAL_C64() {
-    return kernal;
-}
-
-const uint8_t* RomImage::LOW_RAM() {
-    return c64memory_low;
-}
-
-uint8_t* RomImage::ROM(size_t address) {
-    size_t rel = address - krnl.BASIC_ROM;
-    if (rel >= 0 && rel <= 0x2000) {
-        return BASIC_V2() + rel;
-    }
-
-    rel = address - krnl.KERNAL_ROM;
-    if (rel >= 0 && rel <= 0x2000) {
-        return KERNAL_C64() + rel;
-    }
-
-
-    static uint8_t chargen[4096] = {};
-    rel                          = address - krnl.CHARGEN;
-    if (rel >= 0 && rel <= 0x1000) {
-        return chargen + rel;
-    }
-
-
-    return nullptr;
 }

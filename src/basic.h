@@ -232,7 +232,7 @@ public:
 
     std::unordered_map<std::string, cmdpointer, string_hash, std::equal_to<>> commands;
     std::unordered_map<std::string, fktpointer, string_hash, std::equal_to<>> functions;
-    std::vector<MEMCELL> memory; // RAM for PEEK&POKE. charram, colram, lineLinkTable,...
+    // std::vector<MEMCELL> memory; // RAM for PEEK&POKE. charram, colram, lineLinkTable,...
 
     CPU6502 cpu;
 

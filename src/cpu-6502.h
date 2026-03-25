@@ -5,13 +5,14 @@
 #include "kernal.h"
 #include "rom.h"
 
-using MEMCELL = uint32_t;
-class CPU6502 {
+class CPU6502 : public RomImage {
 public:
+    // RomImage mem;
+
     // Registers
     uint8_t A = 0, X = 0, Y = 0, SP = 0xFF, P = 0x24;
-    uint16_t PC     = 0;
-    MEMCELL* memory = nullptr;
+    uint16_t PC = 0;
+    // MEMCELL* memory = nullptr;
     uint8_t opcode;
     bool cpuJam        = false;
     bool enableHeatmap = true; // collect BASIC line cycle count
@@ -93,7 +94,7 @@ public:
 
     struct BreakPoint {
         bool stop   = true; // otherwise just trace
-        bool onRead = false, onWrite = false, onExec = true;
+        bool onRead = false, onWrite = false, onExec = false;
     };
 
     std::unordered_map<uint16_t, BreakPoint> breakpoints;
@@ -111,20 +112,32 @@ public:
             }
         }
 
+
         switch (addr) {
-        case 0x0286: // BACKGROUND_COLOR_ALSO_SEE_HERE
-            byte |= (memory[0xD021] << 4);
+        case krnl.COLOR: // BACKGROUND_COLOR_ALSO_SEE_HERE
+            byte |= (IO[krnl.VIC_BKGND] << 4); // poke new foreground and current background as text color
+            RAM[addr] = byte;
             break;
         case krnl.VIC_IRQ:
-            memory[addr] &= ~byte;
+            RAM[addr] &= ~byte;
             updateVicIrq();
             break;
         case krnl.VIC_IRQ_ENA:
-            memory[addr] = byte;
+            RAM[addr] = byte;
             break;
         // case krnl.VIC_RASTER; // set raster interrupt trigger
         default:
-            memory[addr] = byte;
+            if (addr >= 0xD000 && addr <= 0xDFFF) {
+                MEMCELL port = RAM[1];
+                bool LORAM   = (port & 1) != 0;
+                bool HIRAM   = (port & 2) != 0;
+                bool CHAREN  = (port & 4) != 0;
+                if (CHAREN && (HIRAM || LORAM)) {
+                    IO[addr] = byte;
+                    return;
+                }
+            }
+            RAM[addr] = byte;
         }
     }
 
@@ -139,24 +152,16 @@ public:
                 breakPointHit = true;
             }
         }
-
-        uint8_t* rom = nullptr;
-        MEMCELL port = memory[1];
-        if (addr == krnl.VIC_RASTER) {
-            return uint8_t(vic_current_raster & 0xff);
+        switch (addr) {
+        case krnl.VIC_RASTER: return uint8_t(vic_current_raster & 0xff);
+        case krnl.STKEY:      {
+            // when STOP key was pressed, report that, but reset the flag
+            uint8_t b = RAM[addr];
+            RAM[addr] = 0xff;
+            return b;
         }
-        if (addr >= 0xA000 && addr <= 0xBFFF && ((port & 1) != 0)) {
-            rom = RomImage::ROM(addr);
-        } else if (addr >= 0xE000 && ((port & 2) != 0)) {
-            rom = RomImage::ROM(addr);
-        } else if (addr >= 0xD000 && addr <= 0xDFFF && ((port & 4) != 0)) {
-            rom = RomImage::ROM(addr);
         }
-
-        if (rom != nullptr) {
-            return *rom;
-        }
-        return uint8_t(memory[addr]);
+        return uint8_t(readBankedMem(addr));
     }
 
 private:
@@ -165,13 +170,13 @@ private:
     uint8_t fetchOperand(AddrMode mode);
     void handle_interrupt(uint16_t vector, bool is_brk);
     void push(uint8_t value) {
-        memory[0x0100 + SP--] = value;
+        RAM[0x0100 + SP--] = value;
     }
     void pushWord(uint16_t value) {
         push(value >> 8);
         push(value & 0xFF);
     }
-    uint8_t pop() { return uint8_t(memory[0x0100 + ++SP]); }
+    uint8_t pop() { return uint8_t(RAM[0x0100 + ++SP]); }
     uint16_t popWord() {
         uint8_t lo = pop();
         uint8_t hi = pop();
@@ -219,7 +224,7 @@ private:
 public:
     void updateVicIrq() {
         // interrupt_status & vic.interrupt_enable) != 0;
-        irqPending = (memory[krnl.VIC_IRQ] & memory[krnl.VIC_IRQ_ENA]) != 0;
+        irqPending = (RAM[krnl.VIC_IRQ] & RAM[krnl.VIC_IRQ_ENA]) != 0;
     }
 
     std::string disassemble(uint16_t address, bool showBytes = true);

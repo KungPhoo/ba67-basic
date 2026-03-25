@@ -4,6 +4,7 @@
 struct KernalAddress {
     const size_t TXTPTR = 0x007A; // 7A,7B pointer to where CBM BASIC interpreter continues execution
     const size_t STATUS = 0x0090; // Kernal I/O status for file IO
+    const size_t STKEY = 0x0091; // STOP key pressed? 0xFF no key. 0x7F STOP was pressed. On C64 Jiffy clock sets this
 
     const size_t DFLTI = 0x0099; // Default input device (0=keyboard)
     const size_t DFLTO = 0x009A; // Default output device (3=screen)
