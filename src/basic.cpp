@@ -1882,17 +1882,19 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 
 
     // copy the BA67 font to the CHARROM memory.
-    // --this is never used. BA67 takes the PRINT-ing role--
+    // -- !! this is never used. BA67 takes the PRINT-ing role !! --
     for (size_t i = 0; i < 0x100; ++i) {
-        // char32_t unicode = PETSCII::toUnicode(uint8_t(i));
-
-        auto& bmp = os->screen.getCharDefinition(char32_t(i));
+        char32_t unicode = char32_t(i);
+        if (i > 0x7f) {
+            unicode = PETSCII::toUnicode(uint8_t(i));
+        }
+        auto& bmp = os->screen.getCharDefinition(unicode);
         for (size_t y = 0; y < 8; ++y) {
             // uppercase char set
-            ROM[0xD000 + i * 8 + y] = bmp.bits[y];
+            ROM[0xD000 + i * 8 + y] = 0x7f; // bmp.bits[y];
 
             // lowercase char set (same, but reversed)
-            ROM[0xD800 + i * 8 + y] = ~bmp.bits[y];
+            ROM[0xD800 + i * 8 + y] = 0x7f; // ~bmp.bits[y];
         }
     }
 
@@ -2320,6 +2322,14 @@ int64_t Basic::strToInt(const std::string_view& str) {
 
 bool Basic::parseKeyword(const char*& str, std::string_view* keyword) {
     skipWhite(str);
+    // the question mark is the only command that needs no space afterwards
+    if (*str == '?') {
+        if (keyword != nullptr) {
+            *keyword = std::string_view(str, str + 1);
+        }
+        ++str;
+        return true;
+    }
     for (auto& k : keywords) {
         if (StringHelper::strncmp(str, k.c_str(), k.length()) == 0
             && (isEndOfWord(str[k.length()]) || !options.spacingRequired)) {
@@ -2335,6 +2345,7 @@ bool Basic::parseKeyword(const char*& str, std::string_view* keyword) {
 
 bool Basic::parseCommand(const char*& str, std::string_view* command) {
     skipWhite(str);
+
     for (auto& k : commands) {
         if (StringHelper::strncmp(str, k.first.c_str(), k.first.length()) == 0
             && (isEndOfWord(str[k.first.length()]) || !options.spacingRequired) /*this differs from MS BASIC*/
@@ -5117,11 +5128,9 @@ void Basic::executeParsedTokens(const std::vector<Token>& tokens) {
             throw Error(ErrorId::UNIMPLEMENTED_COMMAND);
         }
     } else {
-
         if (tokens.size() > 1 && tokens[0].value == "READY") {
             throw Error(ErrorId::READY_COMMAND);
         }
-
         throw Error(ErrorId::SYNTAX);
     }
 }

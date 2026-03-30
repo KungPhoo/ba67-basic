@@ -427,7 +427,7 @@ bool FilePtr::isAbsolutePath(std::string& path) {
         return true;
     }
 #else
-    if (path.lenth() > 1 && path[0] == '/') {
+    if (path.length() > 1 && path[0] == '/') {
         return true;
     }
 #endif

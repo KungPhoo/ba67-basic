@@ -154,12 +154,6 @@ public:
         }
         switch (addr) {
         case krnl.VIC_RASTER: return uint8_t(vic_current_raster & 0xff);
-        case krnl.STKEY:      {
-            // when STOP key was pressed, report that, but reset the flag
-            uint8_t b = RAM[addr];
-            RAM[addr] = 0xff;
-            return b;
-        }
         }
         return uint8_t(readBankedMem(addr));
     }
@@ -196,9 +190,6 @@ private:
 
     inline void setPC(uint16_t addr) {
         PC = addr;
-#if _DEBUG
-        printState();
-#endif
     }
 
     inline void branchTo(uint16_t addr) {

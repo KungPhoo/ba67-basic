@@ -285,6 +285,7 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
             tokens[t] = 0xce00 | i;
         }
     }
+    tokens["?"] = 0x99;
 
     int addressOfStart = startAddressOfPRG;
     auto pushWord      = [&prg](int w) {
@@ -310,6 +311,7 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
         pushWord(lineno);
 
         bool quote = false, rem = false;
+        bool gotoGosub = false;
         for (;;) {
             if (*src == '\"') {
                 quote = !quote;
@@ -336,6 +338,11 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
                     if (itok == 0x8F) { // "REM"
                         rem = true;
                     }
+                    if (itok == 0x89 || itok == 0x8D) {
+                        gotoGosub = true;
+                    } else {
+                        gotoGosub = false;
+                    }
 
                     if (itok & 0xff00) {
                         prg.push_back((itok >> 8) & 0xff);
@@ -359,14 +366,29 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
             }
             if (!isToken) { // any other character
                 if (*src == '\n' || *src == '\0') {
-                    rem = false;
+                    rem       = false;
+                    gotoGosub = false;
+
+                    while (compress && prg.size() > addressIndex + 3) {
+                        if (prg[prg.size() - 1] == ':') {
+                            prg.pop_back();
+                            continue;
+                        }
+                        if (prg[prg.size() - 2] == ':' && prg[prg.size() - 1] == 0x8F /* REM */) {
+                            prg.pop_back();
+                            continue;
+                        }
+                        break;
+                    }
+
                     prg.push_back(0); // end of line marker
 
                     // fix address to next line
                     uint16_t nla          = uint16_t(addressOfStart + prg.size() - 2);
                     prg[addressIndex]     = nla & 0xff;
                     prg[addressIndex + 1] = (nla >> 8) & 0xff;
-                    // #error somehow the byte is offset by one
+
+
                     break;
                 } else {
                     if (quote) {
@@ -380,9 +402,18 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
                         --src; // because we're incrementing at the end of the loop
                     } else {
 
+                        if (*src == ':') {
+                            gotoGosub = false;
+                        }
+
                         if (compress) {
-                            if (*src != ' ' && !rem) {
-                                prg.push_back(*src);
+                            char ch = *src;
+                            if (gotoGosub) {
+                                if (ch >= '0' && ch <= '9') {
+                                    prg.push_back(ch);
+                                }
+                            } else if (ch != ' ' && !rem) {
+                                prg.push_back(ch);
                             }
                         } else {
                             prg.push_back(*src);

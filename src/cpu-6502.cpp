@@ -768,12 +768,6 @@ bool CPU6502::executeNext() {
         return false; // back to BASIC
     }
 
-
-    if (PC == 0xe769) {
-        int pause = 1;
-    }
-
-
     updateRasterBeam();
 
     const uint16_t NMI_VECTOR = 0xFFFA;
@@ -1334,6 +1328,11 @@ bool CPU6502::executeNext() {
     auto it = breakpoints.find(PC);
     if (it != breakpoints.end() && it->second.onExec) {
         breakPointHit = true;
+    }
+    // print READY. - clear BREAK key flag
+    if (PC == 0xA474) {
+        // when STOP key was pressed, reset the flag
+        RAM[krnl.STKEY] = 0xff;
     }
 
     return true;
