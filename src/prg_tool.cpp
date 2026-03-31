@@ -288,12 +288,22 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
     tokens["?"] = 0x99;
 
     int addressOfStart = startAddressOfPRG;
-    auto pushWord      = [&prg](int w) {
+    const char* src    = basicUtf8;
+
+    // ==
+    auto pushWord = [&prg](int w) {
         prg.push_back(w & 0xff);
         prg.push_back((w >> 8) & 0xff);
     };
 
-    const char* src = basicUtf8;
+    // ==
+    auto skipWhite = [&src]() {
+        while (*src == ' ' || *src == '\t') {
+            ++src;
+        } };
+
+    // ==
+    auto isNumber = [](char c) -> bool { return c >= '0' && c <= '9'; };
 
     pushWord(addressOfStart);
     for (; *src; ++src) {
@@ -310,6 +320,12 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
         pushWord(addressOfStart);
         pushWord(lineno);
 
+
+        // 610,770,817
+        if (lineno == 610 || lineno == 770 || lineno == 817) {
+            int pause = 1;
+        }
+
         bool quote = false, rem = false;
         bool gotoGosub = false;
         for (;;) {
@@ -319,6 +335,7 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
 
             bool isToken = false;
             if (!quote && !rem) {
+
                 int bestToken             = -1;
                 size_t longestTokenLength = 0;
                 std::string thetoken      = "";
@@ -334,13 +351,21 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
 
                 if (bestToken >= 0) {
                     int itok = bestToken;
+                    src += longestTokenLength;
 
-                    if (itok == 0x8F) { // "REM"
-                        rem = true;
-                    }
-                    if (itok == 0x89 || itok == 0x8D) {
-                        gotoGosub = true;
-                    } else {
+                    switch (itok) {
+                    case 0x8F: rem = true; break;
+                    case 0x89:
+                    case 0x8D: gotoGosub = true; break;
+                    case 0xA7: // check for THEN 123
+                        if (compress) {
+                            skipWhite();
+                            if (isNumber(*src)) {
+                                gotoGosub = true;
+                            }
+                        }
+                        break;
+                    default:
                         gotoGosub = false;
                     }
 
@@ -350,7 +375,6 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
                     } else {
                         prg.push_back(itok & 0xff);
                     }
-                    src += longestTokenLength;
 
                     if (rem && compress) {
                         while (*src != '\n' && *src != '\0') {
@@ -401,19 +425,37 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
                         prg.push_back(petscii);
                         --src; // because we're incrementing at the end of the loop
                     } else {
-
                         if (*src == ':') {
                             gotoGosub = false;
                         }
 
                         if (compress) {
-                            char ch = *src;
+
                             if (gotoGosub) {
-                                if (ch >= '0' && ch <= '9') {
-                                    prg.push_back(ch);
+                                for (;;) {
+                                    uint8_t ch = uint8_t(*src);
+                                    if (isNumber(ch)) {
+                                        prg.push_back(ch);
+                                    } else if (ch == ' ' || ch == '\t') {
+                                    } else {
+                                        break;
+                                    }
+                                    ++src;
                                 }
-                            } else if (ch != ' ' && !rem) {
-                                prg.push_back(ch);
+                                for (;;) {
+                                    uint8_t ch = uint8_t(*src);
+                                    if (ch == '\0' || ch == '\r' || ch == '\n'
+                                        || ch == ':' || ch == 0x89 || ch == 0x8D) {
+                                        // THEN GOTO/THEN GOSUB
+                                        break;
+                                    }
+                                    ++src;
+                                }
+                                continue; // skip incrementing src below
+
+
+                            } else if (*src != ' ' && !rem) {
+                                prg.push_back(*src);
                             }
                         } else {
                             prg.push_back(*src);

@@ -3316,9 +3316,7 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
         int64_t mins   = ((ti$[3] - '0') + (ti$[2] - '0') * 10) % 60;
         int64_t hours  = ((ti$[1] - '0') + (ti$[0] - '0') * 10) % 24;
         int64_t tiTick = secs * 1000 + mins * 60000 + hours * 60 * 60000;
-        // #errormmins and hours not working
-        // TI = ((tick()-time0)*60) / 1000
-        time0 = os->tick() - tiTick;
+        time0          = os->tick() - tiTick;
     }
 }
 
@@ -4531,10 +4529,17 @@ void Basic::handleONGOTO(const std::vector<Token>& tokens) {
     int64_t on = valueToInt(evaluateExpression(tokens, i, &i)[0]);
 
     auto lines = evaluateExpression(tokens, i + 1);
+
+    // fall through when index was not given
+    int64_t index = (on - 1) * 2;
+    if (index < 1 || index >= int64_t(lines.size())) {
+        return;
+    }
+
     if (tokens[i].value == "GOTO") {
-        doGOTO(int(valueToInt(lines[(on - 1) * 2])), false); // 1=[0], 2=[2], 3=[4]
+        doGOTO(int(valueToInt(lines[index])), false); // 1=[0], 2=[2], 3=[4]
     } else if (tokens[i].value == "GOSUB") {
-        doGOTO(int(valueToInt(lines[(on - 1) * 2])), true); // 1=[0], 2=[2], 3=[4]
+        doGOTO(int(valueToInt(lines[index])), true); // 1=[0], 2=[2], 3=[4]
     } else {
         throw Error(ErrorId::SYNTAX);
     }
@@ -4751,10 +4756,16 @@ BACK FROM GOSUB
 OUTER FOR I
 INNER FOR I
 BACK FROM GOSUB
+
+
+// nested FOR loops with single NEXT:
+FOR A=1 TO 2:FOR B=1 TO 2:PRINT A,B:NEXT B,A
 ...
 */
 void Basic::handleNEXT(const std::vector<Token>& tokens) {
     auto& modl = currentModule();
+
+
 
     std::string varName;
     if (tokens.size() > 1) {
@@ -4802,6 +4813,13 @@ void Basic::handleNEXT(const std::vector<Token>& tokens) {
         modl.programCounter = loop.jump;
     } else {
         modl.loopStack.pop_back();
+        if (tokens.size() > 3) {
+            // NEXT A , B
+            auto copy = tokens;
+            copy.erase(copy.begin() + 1);
+            copy.erase(copy.begin() + 1);
+            handleNEXT(copy);
+        }
     }
 }
 
