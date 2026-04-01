@@ -96,7 +96,7 @@ const char* PrgTool::gettoken(const uint8_t*& prg) {
         {   0xcc,      "RGR" },
         {   0xcd,      "RCL" },
 
-        // 0xce     PREFIX
+        // 0xce     PREFIX - RLUM in BASIC 3.5, but that's too exotic
         {   0xcf,      "JOY" },
         {   0xd0,     "RDOT" },
         {   0xd1,      "DEC" },
@@ -163,7 +163,6 @@ const char* PrgTool::gettoken(const uint8_t*& prg) {
         { 0xfe26,     "SLOW" }
     };
 
-
     if (*prg == 0xfe || *prg == 0xce) {
         int find = (*prg) << 8;
         ++prg;
@@ -182,8 +181,6 @@ const char* PrgTool::gettoken(const uint8_t*& prg) {
 }
 
 std::string PrgTool::PRGtoBASIC(const uint8_t* prgBytes) {
-
-
     uint16_t startAddress = getword(prgBytes);
     if (startAddress != 0x0801) {
         return "?BAD START ADDRESS ERROR";
@@ -260,29 +257,49 @@ std::vector<uint8_t> PrgTool::BASICtoPRG(const char* basicUtf8) {
     std::vector<uint8_t> prg;
     prg.reserve(StringHelper::strlen(basicUtf8));
 
-    // build token map
+    // build reverse token map
     std::map<std::string, int> tokens;
+    const int tkREM = 0x8F;
     for (int i = 0; i < 256; ++i) {
         uint8_t tk[4]      = { uint8_t(i & 0xff), 0, 0, 0 };
         const uint8_t* ptr = &tk[0];
 
+        // XX
         const char* t = gettoken(ptr);
         if (t != nullptr) {
-            tokens[t] = i;
+            if (i <= 0xCA || basicVersion >= 3) {
+                tokens[t] = i;
+            } else {
+                if (i == 0xFB /* USING */) {
+                    tokens[t] = 0x20; // space character
+                } else {
+                    tokens[t] = tkREM;
+                }
+            }
         }
+        // FEXX
         tk[0] = 0xfe;
         tk[1] = i;
         ptr   = &tk[0];
         t     = gettoken(ptr);
         if (t != nullptr) {
-            tokens[t] = 0xfe00 | i;
+            if (basicVersion >= 7) {
+                tokens[t] = 0xfe00 | i;
+            } else {
+                tokens[t] = tkREM;
+            }
         }
+        // CEXX
         tk[0] = 0xce;
         tk[1] = i;
         ptr   = &tk[0];
         t     = gettoken(ptr);
         if (t != nullptr) {
-            tokens[t] = 0xce00 | i;
+            if (basicVersion >= 7) {
+                tokens[t] = 0xce00 | i;
+            } else {
+                tokens[t] = tkREM;
+            }
         }
     }
     tokens["?"] = 0x99;

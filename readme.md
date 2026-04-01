@@ -1462,10 +1462,13 @@ If no file extension is given, ".BAS" will be appended.
 
 Writing a `.PRG` file, allows you to compress the file
 by removing comments and spaces with `,C` appended
-to the filename. 
+to the filename. With `,B2` appended you can specify to
+only export commands for the BASIC V2 instead of BASIC 7.0.
+This will replace newer commands with the `REM` token and
+`USING` with a space character.
 
 The optional 2nd parameter sets the PRG address when
-saving a PRG file and should be set to $0401 when saving
+saving a `.PRG` file and should be set to $0401 when saving
 a BASIC program for the PET, $1001 for the VIC20.
 The default is $0801.
 
@@ -1473,12 +1476,11 @@ The default is $0801.
 If you're saving to the cloud, you can write-protect your
 file with the `,P` parameter in the file name. Once set,
 the file can not be overwritten or deleted without this
-password.
-
+password. This must be the last file name parameter.
 
 
 Example:
-`SAVE "EXAMPLE.BAS,C,P-your-password-here-"`
+`SAVE "EXAMPLE.BAS,P-your-password-here-"`
 
 This parameter has no effect on the C128 and is, thus,
 backwards compatible.

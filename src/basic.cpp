@@ -281,6 +281,7 @@ void bakePRGtoC64(Basic* basic) {
     PrgTool prgTool;
     prgTool.startAddressOfPRG = int(krnl.BASICCODE);
     prgTool.compress          = true;
+    prgTool.basicVersion      = 2;
     auto prg                  = prgTool.BASICtoPRG(all.c_str());
 
     auto& RAM = basic->cpu.RAM;
@@ -2223,6 +2224,9 @@ inline bool Basic::isEndOfWord(char c) {
         // || c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == ':' || c == ';' || c == '\"' || c == '\0'
     );
 }
+inline bool Basic::isNumeric(char c) {
+    return c >= '0' && c <= '9';
+}
 
 inline const char* Basic::skipWhite(const char*& str) {
     while (isWhiteSpace(*str)) {
@@ -2290,6 +2294,25 @@ inline bool Basic::parseInt(const char*& str, int64_t* number) {
     return true;
 }
 
+bool Basic::parseGotoInt(const char*& str, int64_t* number) {
+    skipWhite(str);
+    char* endInt;
+
+    int64_t i = strtoll(str, &endInt, 10);
+    if (number) {
+        *number = i;
+    }
+    if (endInt == str) {
+        return false;
+    }
+    while (!isEndOfWord(*str)) {
+        ++str;
+    }
+
+    str = endInt;
+    return true;
+}
+
 bool Basic::parseFileHandle(const char*& str, std::string_view* number) {
     skipWhite(str);
     char* endInt;
@@ -2332,7 +2355,10 @@ bool Basic::parseKeyword(const char*& str, std::string_view* keyword) {
     }
     for (auto& k : keywords) {
         if (StringHelper::strncmp(str, k.c_str(), k.length()) == 0
-            && (isEndOfWord(str[k.length()]) || !options.spacingRequired)) {
+            && (isEndOfWord(str[k.length()]) // GOTO 100
+                || isNumeric(str[k.length()]) // GOTO100
+                || !options.spacingRequired) // PRINTABC this differs from MS BASIC
+        ) {
             if (keyword != nullptr) {
                 *keyword = std::string_view(str, str + k.length());
             }
@@ -2348,8 +2374,10 @@ bool Basic::parseCommand(const char*& str, std::string_view* command) {
 
     for (auto& k : commands) {
         if (StringHelper::strncmp(str, k.first.c_str(), k.first.length()) == 0
-            && (isEndOfWord(str[k.first.length()]) || !options.spacingRequired) /*this differs from MS BASIC*/
-        ) {
+            && (isEndOfWord(str[k.first.length()]) // POKE I
+                || isNumeric(str[k.first.length()]) // POKE1024
+                || !options.spacingRequired // POKEI
+                )) {
             if (command != nullptr) {
                 *command = std::string_view(str, str + k.first.length());
             }
@@ -2521,11 +2549,12 @@ const char* Basic::tokenizeNextCommand(const char* pc, std::vector<Basic::Token>
     std::string_view str;
 
     bool rememberNoSpace = options.spacingRequired;
-
     while (*pc != '\0') {
         skipWhite(pc);
         const char* pcBeforeParse = pc;
+
         if (parseKeyword(pc, &str)) {
+            // THEN is a keyword in the middle of a command sequence
             tokens.push_back({ TokenType::KEYWORD, str });
             if (str.length() == 3 && str == "REM") { // REM is special. SYS is not! (we need variables in SYS)
                 tokens.push_back({ TokenType::STRING, pc });
@@ -2569,8 +2598,13 @@ const char* Basic::tokenizeNextCommand(const char* pc, std::vector<Basic::Token>
             ++pc;
             break; // end of command
         } else if (*pc != '\0') {
-            options.spacingRequired = rememberNoSpace;
-            throw Error(ErrorId::SYNTAX);
+            // GOTO 123LABEL or THEN 123LABEL
+            if (parseGotoInt(pc, &i)) {
+                tokens.push_back({ TokenType::INTEGER, std::string_view(pcBeforeParse, pc) });
+            } else {
+                options.spacingRequired = rememberNoSpace;
+                throw Error(ErrorId::SYNTAX);
+            }
         }
     }
     options.spacingRequired = rememberNoSpace;
@@ -5287,9 +5321,18 @@ std::string Basic::inputLine(bool allowVertical) {
     auto typeString = [&](const std::string& s) {
         ProgramLine prgline;
         prgline.code = s;
-        tokenizeLine(prgline);
+
+        try {
+            tokenizeLine(prgline);
+        } catch (...) {
+            prgline.tokens.clear();
+        }
+
         // auto toks = tokenizeNextCommand(s);
         if (prgline.tokens.empty()) {
+            for (auto c : s) {
+                os->putToKeyboardBuffer(c);
+            }
             return;
         }
         for (auto& tok : prgline.tokens) {
@@ -6038,8 +6081,10 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
         if (!fprg.open(foundname, "rb")) {
             return false;
         }
-        auto bytes        = fprg.readAll();
-        std::string basic = PrgTool::PRGtoBASIC(&bytes[0]);
+        auto bytes = fprg.readAll();
+        PrgTool prg;
+        prg.basicVersion  = 7;
+        std::string basic = prg.PRGtoBASIC(&bytes[0]);
         fprg.close();
         buff.resize(basic.length() + 1);
         StringHelper::memcpy(&buff[0], basic.c_str(), basic.length());
@@ -6198,6 +6243,13 @@ bool Basic::saveProgram(std::string filenameUtf8, int startAddressOfPRG) {
         filenameUtf8 = filenameUtf8.substr(0, posCompression) + filenameUtf8.substr(posCompression + 2);
         compressPRG  = true;
     }
+    int basicVersion       = 7;
+    size_t posBasicVersion = filenameUtf8.find(",B2");
+    if (posBasicVersion != std::string::npos) {
+        filenameUtf8 = filenameUtf8.substr(0, posBasicVersion) + filenameUtf8.substr(posBasicVersion + 3);
+        basicVersion = 2;
+    }
+
 
 
 
@@ -6224,7 +6276,9 @@ bool Basic::saveProgram(std::string filenameUtf8, int startAddressOfPRG) {
         PrgTool prgTool;
         prgTool.startAddressOfPRG = startAddressOfPRG;
         prgTool.compress          = compressPRG;
+        prgTool.basicVersion      = basicVersion;
         auto prg                  = prgTool.BASICtoPRG(all.c_str());
+
         file.write(&prg[0], prg.size());
 
         if (!prgTool.errorDetails.empty()) {

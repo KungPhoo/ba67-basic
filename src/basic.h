@@ -458,10 +458,12 @@ public:
     static bool valueIsDouble(const Value& v);
 
     static bool isEndOfWord(char c);
+    static bool isNumeric(char c);
     inline static bool isWhiteSpace(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
     static const char* skipWhite(const char*& str);
     static bool parseDouble(const char*& str, double* number = nullptr);
     static bool parseInt(const char*& str, int64_t* number = nullptr); // int - not a double! "1.23" returns false
+    static bool parseGotoInt(const char*& str, int64_t* number = nullptr);
     static bool parseFileHandle(const char*& str, std::string_view* number = nullptr);
     static int64_t strToInt(const std::string& str); // parses "255" and "$ff"
     static int64_t strToInt(const std::string_view& str); // parses "255" and "$ff"
