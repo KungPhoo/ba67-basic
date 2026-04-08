@@ -280,7 +280,7 @@ void ScreenBuffer::resetDefaultColors() {
     defineColor(14, 0x68, 0x64, 0xff); // 15 Light Blue
     defineColor(15, 0xae, 0xae, 0xae); // 16 Light Gray
 #elif 0
-    // http:// unusedino.de/ec64/technical/misc/vic656x/colors/
+    // http://unusedino.de/ec64/technical/misc/vic656x/colors/
     // this seems more realistic - but include Hannover line effect
     defineColor(0, 0x00, 0x00, 0x00); //  1 Black
     defineColor(1, 0xFF, 0xFF, 0xFF); //  2 White

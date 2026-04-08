@@ -2328,6 +2328,24 @@ Z X C V B N M
 ♦ ♣ ━ ╳ ❘ ╱ ╲
 ```
 
+With the `ALT` and the number keys you can insert color-change
+characters:
+- 1: black
+- 2: white
+- 3: red
+- 4: cyan
+- 5: purple
+- 6: green
+- 7: blue
+- 8: yellow
+- Shift+1: orange
+- Shift+2: brown
+- Shift+3: light red
+- Shift+4: dark gray
+- Shift+5: medium gray
+- Shift+6: light green
+- Shift+7: light blue
+- Shift+8: light gray
 
 ## H - Hardcore Assembler Language
 
