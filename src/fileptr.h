@@ -7,6 +7,7 @@
 #include "ipc.h"
 
 class Os;
+class Serial;
 
 class FilePtr {
     friend class Os;
@@ -53,12 +54,7 @@ public:
 
     ~FilePtr() { close(); }
     // operator FILE*() { return file; }
-    operator bool() const {
-        if (ipc != nullptr) {
-            return ipc->isRunning();
-        }
-        return file != nullptr;
-    }
+    operator bool() const;
     bool close();
 
     void setPassword(std::string pw);
@@ -98,8 +94,10 @@ protected:
     std::string d64FileName; // filename for D64 file
     std::string localTempPath; // in case this is a cloud file
     bool fileIsStdIo = false;
-    FILE* file       = nullptr;
-    IPC* ipc         = nullptr;
+    Serial* serial   = nullptr; // if not null - serial connection
+
+    FILE* file = nullptr;
+    IPC* ipc   = nullptr;
     std::string lastStatus;
 
     bool fopenLocal(std::string filenameUtf8, const char* mode);

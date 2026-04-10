@@ -8,6 +8,7 @@
 #include "minifetch.h"
 #include "basic.h"
 #include "control_characters.h"
+#include "serial-io.h"
 
 // static instance
 BA68settings Os::settings = {};
@@ -101,6 +102,8 @@ std::string Os::getCurrentDirectory() {
         return "CLOUD";
     } else if (currentDir == Os::IsD64) {
         return D64Path;
+    } else if (currentDir == Os::IsSerial) {
+        return "SERIALPORTS";
     }
     return (const char*)(std::filesystem::current_path().u8string().c_str());
 }
@@ -115,6 +118,9 @@ bool Os::setCurrentDirectory(const std::string& dir) {
             currentDir = Os::IsD64;
             D64Path    = dir;
         }
+        return true;
+    } else if (dir == "SERIALPORTS") {
+        currentDir = Os::IsSerial;
         return true;
     }
 
@@ -204,6 +210,14 @@ std::vector<Os::FileInfo> Os::listCurrentDirectory() {
             info.name        = entry.name;
             files.push_back(info);
         }
+    } else if (currentDir == Os::IsSerial) {
+        Os::FileInfo info = {};
+        for (auto& path : Serial::listPorts()) {
+            info.isDirectory = false;
+            info.filesize    = 1;
+            info.name        = path;
+            files.push_back(info);
+        }
     } else {
         Os::FileInfo info = {};
         for (const auto& entry : std::filesystem::directory_iterator(std::filesystem::current_path())) {
@@ -227,6 +241,11 @@ bool Os::doesFileExist(const std::string& path) {
             }
         }
         return false;
+    } else if (currentDir == Os::IsSerial) {
+        Serial s;
+        bool rv = s.open(path);
+        s.close();
+        return rv;
     } else {
         return std::filesystem::exists(path);
     }
@@ -286,6 +305,9 @@ bool Os::scratchFile(const std::string& fileName) {
         if (didDelete) {
             return D64Img.save(D64Path);
         }
+    } else if (currentDir == Os::IsSerial) {
+        return false;
+
     } else {
         if (doesFileExist(fileName)) {
             return std::filesystem::remove(fileName.c_str());
@@ -668,7 +690,6 @@ std::string Os::findFirstFileNameWildcard(std::string filenameUtf8, bool isDirec
     //     return filenameUtf8;
     // }
     std::string cd = getCurrentDirectory();
-
 
     StringHelper::trimRight(filenameUtf8, this->lockSymbol().c_str()); // here, call the overloaded function
 

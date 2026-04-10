@@ -6,18 +6,33 @@
 #include "unicode.h"
 #include "string_helper.h"
 
+#include "serial-io.h"
+
 #if defined(__EMSCRIPTEN__)
     #include <emscripten.h>
-
-
-
-
 #endif
 
 // TODO persistentStorage https://stackoverflow.com/questions/54617194/how-to-save-files-from-c-to-browser-storage-with-emscripten
 
+FilePtr::operator bool() const {
+    if (ipc != nullptr) {
+        return ipc->isRunning();
+    }
+    if (serial != nullptr) {
+        return serial->isOpen();
+    }
+    return file != nullptr;
+}
+
+
 bool FilePtr::close() {
     lastStatus.clear();
+
+    if (serial != nullptr) {
+        serial->close();
+        delete serial;
+        serial = nullptr;
+    }
 
     if (file != nullptr) {
         if (!fileIsStdIo) {
@@ -136,6 +151,12 @@ bool FilePtr::open(std::string filenameUtf8, const char* mode) {
     lastStatus.clear();
 
     close();
+
+    if (Serial::isSerialPath(filenameUtf8)) {
+        serial = new Serial();
+        return serial->open(filenameUtf8);
+    }
+
 
     // must be extracted from cloud or D64?
     if (!isAbsolutePath(filenameUtf8) && (os->currentDir == Os::IsCloud || os->currentDir == Os::IsD64)) {
@@ -305,6 +326,15 @@ size_t FilePtr::tell() {
 }
 
 size_t FilePtr::read(void* buffer, size_t bytes) {
+    if (serial) {
+        if (serial->available()) {
+            auto rec = serial->read(int(bytes), 10);
+            memcpy(buffer, &rec[0], rec.size());
+            return rec.size();
+        }
+        return 0;
+    }
+
     if (!file && !ipc) {
         lastStatus = "BAD FILE";
         return 0;
@@ -338,6 +368,18 @@ std::string FilePtr::getline() {
 }
 
 size_t FilePtr::write(const void* buffer, size_t bytes) {
+    if (serial) {
+        std::vector<uint8_t> send(bytes);
+        const auto* p8 = (const uint8_t*)buffer;
+        for (size_t i = 0; i < bytes; ++i) {
+            send[i] = p8[i];
+        }
+        if (serial->write(send)) {
+            return bytes;
+        }
+        return 0;
+    }
+
     if (!file && !ipc) {
         lastStatus = "BAD FILE";
         return 0;

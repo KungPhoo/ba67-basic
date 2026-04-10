@@ -228,14 +228,16 @@ public:
     std::string cloudUser = "examples@ba67.org";
     bool dirIsInCloud() const { return currentDir == IsCloud; }
     bool dirIsInD64() const { return currentDir == IsD64; }
+    bool dirIsInSerial() const { return currentDir == IsSerial; }
     std::string D64Path;
     D64 D64Img;
 
 private:
     enum CurrentDirIs {
-        IsLocal = 0,
-        IsCloud = 1,
-        IsD64   = 2
+        IsLocal  = 0,
+        IsCloud  = 1,
+        IsD64    = 2,
+        IsSerial = 3
     };
 
     friend class FilePtr;

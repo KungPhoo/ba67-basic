@@ -120,10 +120,10 @@ file(GLOB_RECURSE SOLOUD_CPP
     ./soloud/src/core/*.cpp
     ./soloud/src/filter/*.cpp
     )
-file(GLOB SOLOUD_H 
-    ./soloud/include/*.h
-    )
 
+file(GLOB_RECURSE SERIAL_CPP 
+    ./serial-io/*.cpp
+    )
 
 # FPL takes care of wWinMain and calls main
 add_executable(${APP_NAME} "${APP_SOURCES}" "${APP_HEADERS}" "${JS_SOURCES}")
@@ -159,6 +159,11 @@ if(${BA67_GRAPHICS_ENABLE_OPENGL} STREQUAL "ON" )
 include_directories(AFTER ./glad/include)
 target_sources(${APP_NAME} PUBLIC glad/src/glad.cpp)
 endif()
+
+# serial-io
+add_library(lib_serial OBJECT "${SERIAL_CPP}")
+include_directories(AFTER ./serial-io)
+target_link_libraries(${APP_NAME} PUBLIC lib_serial)
 
 
 # Bluetooth on Linux

@@ -760,6 +760,9 @@ as directory separator.
 The spacial command `CHDIR "CLOUD"` is described in the
 `CLOUD` command.
 
+The special `CHDIR "SERIALPORTS"` can be used to `CATALOG`
+the serial ports on your computer.
+
 
 ### CLOUD
 **Usage:** `CLOUD email$ [, server$]`
@@ -1212,6 +1215,16 @@ Use `PRINT#1, "TEXT"` to print to the opened fileno #1.
 
 Don't forget to `CLOSE` the file afterwards.
 The standard-IO files 4, 5 and 6 can be re-opened without an error.
+
+You can open the serial port as a file as if it was on a drive.
+In order to list the serial ports, type `CATALOG "SERIALPORTS"`.
+Example on Windows:
+```
+OPEN 1,8,, "COM6"
+PRINT#1, "TEST"+CHR$(10)
+CLOSE 1
+```
+
 
 #### Inter Process Communication
 The device numbers 4-6 allow you to access the main process'

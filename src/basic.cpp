@@ -1438,8 +1438,11 @@ void CATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
         dirname    = dirname.substr(dirname.length() - len);
     }
     if (basic->os->dirIsInCloud()) {
-        dirname = std::string((const char*)(u8"\u2601 "));
+        dirname = std::string((const char*)(u8" \u2601 "));
         dirname += basic->os->cloudUrl;
+    }
+    if (basic->os->dirIsInSerial()) {
+        dirname += std::string((const char*)(u8" \U0001F50C "));
     }
     basic->os->screen.cleanCurrentLine();
     basic->printUtf8String((const char*)(u8"╔══"));
