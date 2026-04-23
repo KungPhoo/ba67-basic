@@ -86,6 +86,7 @@ public:
     };
 
 #else
+    // string is stored in UTF-8 encoding
     using Value = std::variant<int64_t, double, std::string, Operator>;
 #endif
 
@@ -183,17 +184,51 @@ protected:
 
     // Token structure
     struct Token {
-        TokenType type;
-        std::string_view value;
+        TokenType type = TokenType::END;
+        std::string_view valueForDebugging;
+        Value tv;
+
+
+        private:
+        const std::string* strOrNull()const {
+            if (auto* s = std::get_if<std::string>(&tv)) {
+                return s;
+            }
+            if (auto* op = std::get_if<Operator>(&tv)) {
+                return &op->value;
+            }
+            return nullptr;
+        }
+
+    public:
+        const std::string& str() const {
+            auto* s = strOrNull();
+            if (s != nullptr) {
+                return *s;
+            }
+            throw Basic::ErrorId::INTERNAL;
+        }
+
+
+        bool is(char c) const { 
+            auto* s = strOrNull();
+            if (s == nullptr) {
+                return false;
+            }
+            return s->length()==1 && (*s)[0] == c;
+        }
+        bool is(const std::string_view& str) const { 
+            auto* s = strOrNull();
+            if (s == nullptr) {
+                return false;
+            }
+            return (*s) == str;
+        }
+
+
 
         // returns '#', '%', '$'
         char valuePostfix() const {
-            if (value.ends_with('$')) {
-                return '$';
-            }
-            if (value.ends_with('%')) {
-                return '%';
-            }
             if (type == TokenType::INTEGER) {
                 return '%';
             }
@@ -202,6 +237,14 @@ protected:
             }
             if (type == TokenType::STRING) {
                 return '$';
+            }
+            if (auto* s = std::get_if<std::string>(&tv)) {
+                if (s->ends_with('$')) {
+                    return '$';
+                }
+                if (s->ends_with('%')) {
+                    return '%';
+                }
             }
             return '#';
         }
@@ -336,14 +379,14 @@ public:
     // Def Fn
     struct FunctionDefinition {
         std::string fnName; // FNA e.g.
-        std::string lineCopy; // because Token has string_views
+        // std::string lineCopy; // because Token has string_views
         std::vector<Token> parameters;
 
         std::vector<Token> body; // if this has values, the function was defined with =
         int32_t gotoLine = 0; // if body is empty, goto the end of this line, return when hitting FNEND
         void clear() {
             fnName.clear();
-            lineCopy.clear();
+            //lineCopy.clear();
             parameters.clear();
             body.clear();
             gotoLine = 0;
@@ -377,7 +420,7 @@ public:
         VariableMap variables;
         ArrayVariableMap arrays;
 
-        VariableMap::iterator findOrCreateVariable(const std::string_view& variableName);
+        VariableMap::iterator findOrCreateVariable(const std::string& variableName);
 
         std::vector<LoopItem> loopStack;
         // std::vector<ProgramCounter> gosubStack;
@@ -482,8 +525,9 @@ protected:
 
     // Operator precedence
     int precedence(const std::string_view& op);
-
-    Basic::Value evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::vector<Basic::Value>& arguments);
+    int precedence(const Token* op);
+ 
+    Basic::Value evaluateDefFnCall(Basic::FunctionDefinition & fn, const std::vector<Basic::Value>& arguments);
 
     // Evaluate expression using Shunting-Yard algorithm
     std::vector<Value> evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd = nullptr, bool breakEarly = false);

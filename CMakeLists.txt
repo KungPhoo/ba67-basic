@@ -261,8 +261,17 @@ if (EMSCRIPTEN)
 endif()
 
 
+
 # Test
-add_test(NAME TestVersion  COMMAND $<TARGET_FILE:${APP_NAME}> --version) # dummy test for QtCreator
+if (EMSCRIPTEN)
+
+else()
+    enable_testing()
+    add_test(NAME MATH
+    COMMAND "${APP_NAME}" "${CMAKE_CURRENT_LIST_DIR}/test/general.bas"
+    )
+endif()
+
 
 
 

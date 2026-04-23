@@ -1,12 +1,14 @@
 ﻿#if defined(__linux__) || defined(__APPLE__)
 #include "serial-posix.h"
-
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
 #include <dirent.h>
 #include <cstring>
 #include <sys/ioctl.h>
+
+#include <filesystem>
+#include <fstream>
 
 static speed_t getBaud(int baud) {
     switch (baud) {
@@ -85,25 +87,25 @@ std::vector<uint8_t> Serial::Impl::read(int maxBytes, int timeoutMs) {
 }
 
 // Port listing
-// std::vector<std::string> Serial::listPorts() {
-//     std::vector<std::string> out;
-// 
-//     const char* path = "/dev";
-//     DIR* dir = opendir(path);
-//     if (!dir) return out;
-// 
-//     struct dirent* ent;
-//     while ((ent = readdir(dir)) != nullptr) {
-//         std::string name = ent->d_name;
-// 
-//         if (name.find("tty") == 0 || name.find("rfcomm") == 0) {
-//             out.push_back("/dev/" + name);
-//         }
-//     }
-// 
-//     closedir(dir);
-//     return out;
-// }
+std::vector<std::string> Serial::listPorts() {
+    std::vector<std::string> out;
+
+    const char* path = "/dev";
+    DIR* dir = opendir(path);
+    if (!dir) return out;
+
+    struct dirent* ent;
+    while ((ent = readdir(dir)) != nullptr) {
+        std::string name = ent->d_name;
+
+        if (name.find("tty") == 0 || name.find("rfcomm") == 0) {
+            out.push_back("/dev/" + name);
+        }
+    }
+
+    closedir(dir);
+    return out;
+}
 
 
 
@@ -139,7 +141,7 @@ std::vector<std::string> listPortsLinux() {
 }
 
 bool Serial::isSerialPath(const std::string& path) {
-    return path.startsWith("/dev/tty") || path.startsWith("/dev/rfcomm");
+    return path.starts_with("/dev/tty") || path.starts_with("/dev/rfcomm");
 }
 
 

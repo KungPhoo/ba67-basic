@@ -114,16 +114,6 @@ int main(int argc, char** argv) {
     }
 #endif
 
-#ifdef _DEBUG
-    args = {
-        "--video", "opengl",
-        // "--fullscreen"
-        "--crtemulation", "false",
-        // "--demo", "true",
-        ""
-    };
-#endif
-
 
     auto& sets = Os::settings;
 
@@ -133,6 +123,9 @@ int main(int argc, char** argv) {
 
     args.push_back(""); // ensure [i] and [i+1]
     for (size_t i = 0; i + 1 < args.size(); ++i) {
+
+        printf("%s\n", args[i].c_str());
+
         if (args[i] == "--help") {
             printfHelp();
             exit(0);

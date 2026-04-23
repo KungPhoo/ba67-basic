@@ -36,16 +36,14 @@ void MarkdownParser::extractHeadingsAndUsage() {
     bool insideBlockCode = false;
 
     while (std::getline(stream, line)) {
-        if (line.find("<!-- TOC_START -->") != std::string::npos) {
-            insideTOC = true;
+        // VS Markdown Editor V2 syntax uses 2x "<!-- TOC-->"
+        if (line.find("<!-- TOC-->") != std::string::npos) {
+            insideTOC = !insideTOC;
             continue;
         }
-        if (line.find("<!-- TOC_END -->") != std::string::npos) {
-            insideTOC = false;
-            continue;
-        }
-        if (insideTOC)
+        if (insideTOC) {
             continue; // Skip TOC lines
+        }
 
         std::smatch match;
         if (std::regex_match(line, match, headingRegex)) {
@@ -79,9 +77,9 @@ void MarkdownParser::extractHeadingsAndUsage() {
     }
 }
 void MarkdownParser::updateTOC() {
-    std::regex tocRegex(R"(<!-- TOC_START -->[\s\S]*?<!-- TOC_END -->)");
+    std::regex tocRegex(R"(<!-- TOC-->[\s\S]*?<!-- TOC-->)");
     std::ostringstream tocStream;
-    tocStream << "<!-- TOC_START -->\n";
+    tocStream << "<!-- TOC-->\n";
     for (const auto& heading : headings) {
         std::string anchor = heading.first;
         std::transform(anchor.begin(), anchor.end(), anchor.begin(), [](unsigned char c) {
@@ -89,7 +87,7 @@ void MarkdownParser::updateTOC() {
         });
         tocStream << std::string(2 * (heading.second - 1), ' ') << "- [" << heading.first << "](#" << anchor << ")\n";
     }
-    tocStream << "<!-- TOC_END -->";
+    tocStream << "<!-- TOC-->";
 
     fileContent = std::regex_replace(fileContent, tocRegex, tocStream.str());
 

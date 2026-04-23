@@ -329,7 +329,9 @@ size_t FilePtr::read(void* buffer, size_t bytes) {
     if (serial) {
         if (serial->available()) {
             auto rec = serial->read(int(bytes), 10);
-            memcpy(buffer, &rec[0], rec.size());
+            uint8_t* pb = reinterpret_cast<uint8_t*>(buffer);
+            for (uint8_t b : rec) { *pb++=b; }
+            // memcpy(buffer, &rec[0], rec.size());
             return rec.size();
         }
         return 0;

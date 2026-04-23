@@ -48,7 +48,7 @@
 ,{"POKE", R"RAW(POKE address, value)RAW"}
 ,{"PRINT", R"RAW(PRINT [file-number#, ] expr [[,|;| ] expr ...])RAW"}
 ,{"PRINT USING", R"RAW(PRINT USING format; expr [, expr ...])RAW"}
-,{"QUIT", R"RAW(QUIT)RAW"}
+,{"QUIT", R"RAW(QUIT [return value])RAW"}
 ,{"QSAVE", R"RAW(QSAVE)RAW"}
 ,{"RCHARDEF", R"RAW(RCHARDEF char$, mono, bits1, bits2, ..., bits8)RAW"}
 ,{"READ", R"RAW(READ var[, var [, var2] ])RAW"}
@@ -73,7 +73,7 @@
 ,{"ABS", R"RAW(ABS(expr))RAW"}
 ,{"ASC", R"RAW(ASC("char"))RAW"}
 ,{"ATN", R"RAW(ATN(expr))RAW"}
-,{"CHR$", R"RAW(CHR$(code))RAW"}
+,{"CHR$", R"RAW(CHR$(code [,8]))RAW"}
 ,{"COS", R"RAW(COS(expr))RAW"}
 ,{"DEC", R"RAW(PRINT DEC("FF"))RAW"}
 ,{"EXP", R"RAW(EXP(expr))RAW"}

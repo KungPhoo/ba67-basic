@@ -2,9 +2,9 @@
 Visit the project Homepage: [www.ba67.org](https://www.ba67.org).              
 
 # Contents
-<!-- do not edit TOC_START and TOC_END lines. -->
+<!-- do not edit TOC comment lines. -->
 <!-- See markdown_parser.h -->
-<!-- TOC_START -->
+<!-- TOC-->
 - [Contents](#contents)
 - [About](#about)
   - [Goal](#goal)
@@ -164,7 +164,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
   - [M - Machine Language Monitor](#m---machine-language-monitor)
   - [Z Known bugs](#z-known-bugs)
 - [Disclaimer](#disclaimer)
-<!-- TOC_END -->
+<!-- TOC-->
 
 # About
 BA67 (pronounced BASIC SEVEN) is a standalone BASIC interpreter,
@@ -217,7 +217,7 @@ Here are the key features:
 ## Goal
 Back in the 80s, everyone could start a computer and program
 a simple
-```
+```basic
 10 PRINT "HELLO WORLD"
 20 GOTO 10
 ```
@@ -287,7 +287,7 @@ longer than 80 characters - which is not supported by the
 You can use double and single quotes. This way it's easier
 You can use double and single quotes. This way it's easier
 to use quotes in a string. The following is perfectly legal:
-```
+```basic
 PRINT "Print 'single quotes' is easy"
 PRINT 'but: "double quotes" is, too.'
 ```
@@ -539,7 +539,7 @@ replaces them with the correct line numbers.
 In order to provide a label, just use a line with a `REM`
 comment, that only includes the label surrounded by two
 minus characters like this:
-```
+```basic
 REM --LABEL--
 ```
 The label must not start with a number and only contain
@@ -808,7 +808,7 @@ and multiple arguments for functions. Variable names that
 that match argument names are restored after the function call.
 
 Here's an example:
-```
+```basic
 10 REM == MAIN PROGRAM ==
 20 A=33: X=44: Y=55
 30 REM == FUNCTION DEFINITION ==
@@ -847,7 +847,7 @@ dictionary. You can then use any kind of values
 as the key and store data.
 
 **Example:**
-```
+```basic
 10 DIM A$() : REM CREATE DICTIONARY
 20 A$("KEY1") = "VALUE 1"
 ...
@@ -895,7 +895,8 @@ See the `DEF FN` description, please.
 ### FOR
 **Usage:** `FOR var = start TO end [STEP increment]`
 
-Begins a loop with an optional increment.
+Begins a loop with an optional increment. BA67 allows the use
+of integer variables. CBM BASIC will yield a `SYTNAX ERROR`
 
 Example:
 ```basic
@@ -935,8 +936,12 @@ You have to test the `STATUS` variable for the
 end-of-file indicator `STATUS AND 64` or any file
 error `STATUS <> 0`.
 
-Using a file indicator `#N,`, you can write
-to a file or the printer etc. See `OPEN` command.
+Using a file indicator `#N,`, you can get
+from a file or the printer etc. See `OPEN` command.
+Reading from a file will always read a single byte.
+If your file is UTF-8 encoded, you must parse the
+received bytes back to a string.
+TODO: UTF-8 commands.
 
 
 ### GO
@@ -1219,7 +1224,7 @@ The standard-IO files 4, 5 and 6 can be re-opened without an error.
 You can open the serial port as a file as if it was on a drive.
 In order to list the serial ports, type `CATALOG "SERIALPORTS"`.
 Example on Windows:
-```
+```basic
 OPEN 1,8,, "COM6"
 PRINT#1, "TEST"+CHR$(10)
 CLOSE 1
@@ -1303,6 +1308,8 @@ See the Annex D for more details.
 
 Using a file indicator `#N,`, you can write
 to a file or the printer etc. See the `OPEN` command.
+The `PRINT#` command will send an UTF-8 string for characters
+greater than `CHR$($6F)`.
 
 **Usage:** `PRINT [file-number#, ] expr [[,|;| ] expr ...]`
 
@@ -1339,9 +1346,10 @@ Example:
 ```
 
 ### QUIT
-**Usage:** `QUIT`
+**Usage:** `QUIT [return value]`
 
-Quits the interpreter.
+Quits the interpreter. The optional return value is returned to the
+error flag of the program. The default value is 0 - no error.
 
 ### QSAVE
 **Usage:** `QSAVE`
@@ -1703,9 +1711,13 @@ Returns the ASCII code of a character.
 Returns the arc-tangent of a number.
 
 ### CHR$
-**Usage:** `CHR$(code)`
+**Usage:** `CHR$(code [,8])`
 
-Returns the character corresponding to an ASCII code.
+Returns the character corresponding to an Unicode code point.
+The optional argument ,8 is BA67 specific and will append
+the code as a byte to the string. BA67 internally stores strings
+in UTF-8 encoding. This way you can append bytes for the PRINT#
+command.
 
 ### COS
 **Usage:** `COS(expr)`
@@ -1774,7 +1786,7 @@ are present, only XInput device 1 will be queried.
 On Linux, maybe more gamepads are supported.
 
 Example program to get the joypad directions:
-```
+```basic
 500 J=JOY(N) : REM INPUT IS N, OUTPUT IS JX,JY AND JB
 510 PRINT "JOY(";N;")=";J;"       "
 520 D=J AND $0F
@@ -1895,7 +1907,10 @@ Repeatedly calling RND with the same negative number results
 in the same result. Typical use is to call RND(negative number)
 once and then repeatedly call RND(positive number).
 
-The get an integer number, call `INT(RND(N) * MAXVAL%)`
+The get an integer number, call `INT(RND(N) * MAXVAL%)`.
+
+BA68 implements the CBM BASIC algorithm to generate the same
+results as on a C64 for negative and positive numbers.
 
 ### SGN
 **Usage:** `SGN(expr)`
@@ -2084,7 +2099,7 @@ See `ScreenInfo` structure in the code.
 Here's a Windows build script you can use to build the HTML
 port using Emscripten.
 
-```
+```batch
 rem @echo off
 rem Path to root folder of BA67 the git project
 set BA67=%~dp0..\..
@@ -2281,7 +2296,7 @@ When importing a .prg file or using the PETCAT hack,
 all PETSCII characters are mapped to Unicode pendants.
 
 Here's a test listing for you to see them:
-```
+```basic
 1REMBA67 PETCAT
 10 REM PRINT "{$01}{$02}{$03}{$04}{$05}{$06}{$07}8tn{$0b}{$0c}r{$0e}{$0f}"
 20 REM PRINT "{$10}v{$12}hd{$15}{$16}{$17}{$18}{$19}{$1a}{$1b}{$1c}>{$1e}{$1f}"

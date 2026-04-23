@@ -174,8 +174,8 @@ public:
         std::vector<MEMCELL> chars;
         std::vector<MEMCELL> colr;
         Cursor crsr;
-        uint8_t c1, c2;
-        bool rvs;
+        uint8_t c1=0, c2=0;
+        bool rvs=false;
     };
     SaveState saveState(bool getCharRam = true) const {
         SaveState s;

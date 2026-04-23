@@ -7,13 +7,11 @@
 
 class CPU6502 : public RomImage {
 public:
-    // RomImage mem;
-
     // Registers
     uint8_t A = 0, X = 0, Y = 0, SP = 0xFF, P = 0x24;
     uint16_t PC = 0;
-    // MEMCELL* memory = nullptr;
-    uint8_t opcode;
+
+    uint8_t opcode=0;
     bool cpuJam        = false;
     bool enableHeatmap = true; // collect BASIC line cycle count
 
@@ -21,18 +19,18 @@ public:
     size_t lastCycleSnapshot = 0;
     std::unordered_map<uint16_t, size_t> heatmap; // CPU cycles per BASIC line
 
+private:
     // VIC2 raster position
     // STA $D012 - Interrupt me at this line
     // LDA $D012 - Where is the beam right now?
     // Same address. Two roles.
-    uint16_t vic_current_raster; // internal (not directly writable)
-
+    uint16_t vic_current_raster=0; // internal (not directly writable)
+public:
     void reset();
 
     // use this to set the start address foe the
     // program
     bool sys(uint16_t address);
-
 
 
     // The program counter PC is the 0 based pointer in

@@ -16,6 +16,8 @@
 
 #include "rawconfig.h"
 #include "rom.h"
+#include "cbm_rnd.h"
+
 
 
 // TODO try 10 DIM JU(13): FOR I = 0 TO 13 : READ JU(I) : NEXT : PRINT JU(I): DATA 5, 4, 3, 2, 1, 1, 0, 0, -1, -1, -2, -3, -4, -5
@@ -1507,7 +1509,7 @@ void CONT(Basic* basic, const std::vector<Basic::Value>& values) {
 namespace FKT {
 
 Basic::Value CHR$(Basic* basic, const std::vector<Basic::Value>& args) {
-    if (args.size() != 1) {
+    if (args.size() < 1 || args.size() > 3) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
 
@@ -1516,10 +1518,23 @@ Basic::Value CHR$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (i == 0) {
         s.push_back(0);
     } else {
-        Unicode::appendAsUtf8(s, i);
+        if (args.size() >= 3) {
+            if (!basic->valueIsOperator(args[1])) {
+                throw Basic::Error(Basic::ErrorId::SYNTAX);
+            }
+            int enc = int(basic->valueToInt(args[2]));
+            if (enc == 8) {
+                s += (char)(i & 0xff);
+            } else {
+                throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+            }
+        } else {
+            Unicode::appendAsUtf8(s, i);
+        }
     }
     return s;
 }
+
 
 Basic::Value DEC(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
@@ -1708,24 +1723,20 @@ Basic::Value RIGHT$(Basic* basic, const std::vector<Basic::Value>& args) {
     return Unicode::substr(str, length - right);
 }
 
+
 Basic::Value RND(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
 
-    static int seed = 123;
-
-    int64_t n = basic->valueToInt(args[0]);
-    if (n < 0) { // <0: use hard coded seed value
-        seed = -int(n);
-    } else if (n == 0) { // 0: from timer
-        seed = int(basic->os->tick()) + seed;
+    double f = basic->valueToDouble(args[0]);
+    if (f == 0) {
+        f = int(basic->os->tick()) + cbm_rnd(1.0);
+        if (f >= 0) {
+            f = -f - 1.11123e-9;
+        }
     }
-    // >0: next random from previous seed
-    srand(seed);
-    seed = rand();
-
-    return double(seed) / double(RAND_MAX);
+    return cbm_rnd(f);
 }
 
 
@@ -2177,13 +2188,13 @@ inline double Basic::valueToDoubleOrZero(const Value& v) {
 }
 
 inline int64_t Basic::valueToInt(const Value& v) {
-    if (auto i = std::get_if<int64_t>(&v)) {
+    if (auto* i = std::get_if<int64_t>(&v)) {
         return (*i);
     }
-    if (auto d = std::get_if<double>(&v)) {
+    if (auto* d = std::get_if<double>(&v)) {
         return (int)(*d);
     }
-    if (auto s = std::get_if<std::string>(&v)) {
+    if (auto* s = std::get_if<std::string>(&v)) {
         const char* str = s->c_str();
         int64_t i       = 0;
         if (parseInt(str, &i) && *str == '\0') {
@@ -2201,19 +2212,19 @@ bool Basic::valueIsOperator(const Value& v) {
 }
 
 bool Basic::valueIsString(const Value& v) {
-    if (auto s = std::get_if<std::string>(&v)) {
+    if (auto* s = std::get_if<std::string>(&v)) {
         return true;
     }
     return false;
 }
 bool Basic::valueIsInt(const Value& v) {
-    if (auto s = std::get_if<int64_t>(&v)) {
+    if (auto* s = std::get_if<int64_t>(&v)) {
         return true;
     }
     return false;
 }
 bool Basic::valueIsDouble(const Value& v) {
-    if (auto s = std::get_if<double>(&v)) {
+    if (auto* s = std::get_if<double>(&v)) {
         return true;
     }
     return false;
@@ -2558,9 +2569,9 @@ const char* Basic::tokenizeNextCommand(const char* pc, std::vector<Basic::Token>
 
         if (parseKeyword(pc, &str)) {
             // THEN is a keyword in the middle of a command sequence
-            tokens.push_back({ TokenType::KEYWORD, str });
+            tokens.push_back({ TokenType::KEYWORD, str, std::string(str) });
             if (str.length() == 3 && str == "REM") { // REM is special. SYS is not! (we need variables in SYS)
-                tokens.push_back({ TokenType::STRING, pc });
+                tokens.push_back({ TokenType::STRING, pc, std::string("REM") });
                 while (*pc != '\0') {
                     ++pc;
                 }
@@ -2569,33 +2580,33 @@ const char* Basic::tokenizeNextCommand(const char* pc, std::vector<Basic::Token>
                 options.spacingRequired = true;
             }
         } else if (parseCommand(pc, &str)) {
-            tokens.push_back({ TokenType::COMMAND, str });
+            tokens.push_back({ TokenType::COMMAND, str, std::string(str) });
         } else if (parseString(pc, &str)) {
-            tokens.push_back({ TokenType::STRING, str });
+            tokens.push_back({ TokenType::STRING, str, std::string(str) });
         } else if (parseOperator(pc, &str)) {
-            tokens.push_back({ TokenType::OPERATOR, str });
+            tokens.push_back({ TokenType::OPERATOR, str, Operator(std::string(str)) });
         } else if (parseInt(pc, &i)) {
-            tokens.push_back({ TokenType::INTEGER, std::string_view(pcBeforeParse, pc) });
+            tokens.push_back({ TokenType::INTEGER, std::string_view(pcBeforeParse, pc), i });
         } else if (parseDouble(pc, &d)) {
-            tokens.push_back({ TokenType::NUMBER, std::string_view(pcBeforeParse, pc) });
+            tokens.push_back({ TokenType::NUMBER, std::string_view(pcBeforeParse, pc), d });
         } else if (*pc == '(' || *pc == ')') {
-            tokens.push_back({ TokenType::PARENTHESIS, std::string_view(pc, pc + 1) });
+            tokens.push_back({ TokenType::PARENTHESIS, std::string_view(pc, pc + 1), Operator(std::string(pc, pc + 1)) });
             ++pc;
         } else if (*pc == ',') {
-            tokens.push_back({ TokenType::COMMA, std::string_view(pc, pc + 1) });
+            tokens.push_back({ TokenType::COMMA, std::string_view(pc, pc + 1), Operator(",") });
             ++pc;
         } else if (parseFileHandle(pc, &str)) {
-            tokens.push_back({ TokenType::FILEHANDLE, str });
+            tokens.push_back({ TokenType::FILEHANDLE, str, std::string(str) });
         } else if (parseIdentifier(pc, &str)) { // TODO parse function before identifier
             skipWhite(pc);
             std::string_view str2;
             const char* pcdot = pc;
             if (*pcdot++ == '.' && parseIdentifier(pcdot, &str2)) {
-                tokens.push_back({ TokenType::MODULE, str });
-                tokens.push_back({ TokenType::IDENTIFIER, str2 });
+                tokens.push_back({ TokenType::MODULE, str, std::string(str) });
+                tokens.push_back({ TokenType::IDENTIFIER, str2, std::string(str2) });
                 pc = pcdot;
             } else {
-                tokens.push_back({ TokenType::IDENTIFIER, str });
+                tokens.push_back({ TokenType::IDENTIFIER, str, std::string(str) });
             }
         } else if (*pc == ':') {
             ++pc;
@@ -2603,7 +2614,7 @@ const char* Basic::tokenizeNextCommand(const char* pc, std::vector<Basic::Token>
         } else if (*pc != '\0') {
             // GOTO 123LABEL or THEN 123LABEL
             if (parseGotoInt(pc, &i)) {
-                tokens.push_back({ TokenType::INTEGER, std::string_view(pcBeforeParse, pc) });
+                tokens.push_back({ TokenType::INTEGER, std::string_view(pcBeforeParse, pc), i });
             } else {
                 options.spacingRequired = rememberNoSpace;
                 throw Error(ErrorId::SYNTAX);
@@ -2618,11 +2629,11 @@ const char* Basic::tokenizeNextCommand(const char* pc, std::vector<Basic::Token>
         auto& toki  = tokens[i];
         auto& tok_1 = tokens[i - 1];
 
-        if (toki.type == TokenType::OPERATOR && toki.value == "NOT") {
+        if (toki.type == TokenType::OPERATOR && toki.str() == "NOT") {
             toki.type = TokenType::UNARY_OPERATOR;
         }
 
-        if (toki.type == TokenType::OPERATOR && (tok_1.type == TokenType::OPERATOR || tok_1.type == TokenType::KEYWORD || tok_1.type == TokenType::UNARY_OPERATOR || (tok_1.type == TokenType::PARENTHESIS && tok_1.value == "("))) {
+        if (toki.type == TokenType::OPERATOR && (tok_1.type == TokenType::OPERATOR || tok_1.type == TokenType::KEYWORD || tok_1.type == TokenType::UNARY_OPERATOR || (tok_1.type == TokenType::PARENTHESIS && tok_1.str()[0] == '('))) {
             toki.type = TokenType::UNARY_OPERATOR;
         }
     }
@@ -2689,6 +2700,9 @@ inline int Basic::precedence(const std::string_view& op) {
     } // unary operator
     return 0;
 }
+inline int Basic::precedence(const Token* op) { 
+    return precedence(op->str());
+}
 
 Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::vector<Basic::Value>& arguments) {
     auto& mod = currentModule();
@@ -2704,7 +2718,7 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
 
         for (size_t i = 0; i < fn.parameters.size(); ++i) {
             auto& para = fn.parameters[i];
-            auto varIt = mod.findOrCreateVariable(para.value);
+            auto varIt = mod.findOrCreateVariable(para.str());
             functionCallVariableStack.push_back(varIt->second);
 
             varIt->second = arguments[i * 2 /* skip comma*/];
@@ -2727,7 +2741,7 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
 
         // restore argument parameters
         for (auto& para : fn.parameters) {
-            varIt         = mod.findOrCreateVariable(para.value);
+            varIt         = mod.findOrCreateVariable(para.str());
             varIt->second = functionCallVariableStack.back();
             functionCallVariableStack.pop_back();
         }
@@ -2738,8 +2752,8 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
 
     // Create a local token list with argument substitution
     std::vector<Token> substitutedBody = fn.body;
-    std::vector<std::string> argumentStrings; // tokens use string_view!
-    argumentStrings.reserve(fn.parameters.size());
+    // std::vector<std::string> argumentStrings; // tokens use string_view!
+    // argumentStrings.reserve(fn.parameters.size());
 
     for (size_t i = 0; i < fn.parameters.size(); ++i) {
         TokenType valType = TokenType::NUMBER;
@@ -2752,10 +2766,11 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
 
         // replace the variable tokens with the passed arguments
         for (auto& token : substitutedBody) {
-            if (token.type == TokenType::IDENTIFIER && token.value == fn.parameters[i].value) {
-                argumentStrings.emplace_back(valueToString(arguments[i * 2 /* every other arg is the comma operator*/]));
-                token.type  = valType;
-                token.value = argumentStrings.back();
+            if (token.type == TokenType::IDENTIFIER && token.str() == fn.parameters[i].str()) {
+                token.type = valType;
+                // argumentStrings.emplace_back(valueToString(arguments[i * 2 /* every other arg is the comma operator*/]));
+                // token.str() = argumentStrings.back();
+                token.tv = arguments[i * 2 /* every other arg is the comma operator*/];
             }
         }
     }
@@ -2774,225 +2789,244 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
     output.reserve(tokens.size());
     std::vector<Value> values;
     values.reserve(tokens.size());
-    std::vector<std::string_view> ops;
+    std::vector<const Token*> ops;
     ops.reserve(tokens.size());
 
     // static string pointers for string_view of unary operators
-    static std::vector<std::string> unaryOperators;
+    static std::vector<Token> unaryOperators;
     if (unaryOperators.empty()) {
         unaryOperators.reserve(0x100);
         for (size_t i = 0; i < 256; ++i) {
-            unaryOperators.push_back("u");
+            unaryOperators.push_back({ TokenType::OPERATOR, "u", Operator("u") });
         }
-        unaryOperators[size_t('-')] = "u-";
-        unaryOperators[size_t('+')] = "u+";
+        unaryOperators[size_t('-')] = {TokenType::OPERATOR, "u-", Operator("u-")};
+        unaryOperators[size_t('+')] = { TokenType::OPERATOR, "u+", Operator("u+") };
     }
 
+    static const std::string_view opGEQ(">=");
+    static const std::string_view opLEQ("<=");
+    static const std::string_view opNEQ("<>");
+    static const std::string_view opAND("AND");
+    static const std::string_view opOR("OR");
+    static const std::string_view opNOT("NOT");
 
-    auto applyOpSS = [](const std::string_view& a, const std::string_view& b, const std::string_view& op) -> Value {
-        if (op == "+") {
+    auto applyOpSS = [](const std::string& a, const std::string& b, const Token* op) -> Value {
+        if (op->is('+')) {
             return std::string(a) + std::string(b);
         }
-        if (op == "=") {
+        if (op->is('=')) {
             return a == b ? int64_t(-1) : int64_t(0);
         }
-        if (op == ">") {
+        if (op->is('>')) {
             return a > b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<") {
+        if (op->is('<')) {
             return a < b ? int64_t(-1) : int64_t(0);
         }
-        if (op == ">=") {
+        if (op->is(opGEQ)) {
             return a >= b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<=") {
+        if (op->is(opLEQ)) {
             return a <= b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<>") {
+        if (op->is(opNEQ)) {
             return a != b ? int64_t(-1) : int64_t(0);
         }
         throw Error(ErrorId::SYNTAX);
     };
-    auto applyOpDD = [](double a, double b, const std::string_view& op) -> Value {
-        if (op == "+") {
+    auto applyOpDD = [](double a, double b, const Token* op) -> Value {
+        if (op->is('+')) {
             return a + b;
         }
-        if (op == "-") {
+        if (op->is('-')) {
             return a - b;
         }
-        if (op == "*") {
+        if (op->is('*')) {
             return a * b;
         }
-        if (op == "/") {
+        if (op->is('/')) {
             return a / b;
         }
-        if (op == "=") {
+        if (op->is('=')) {
             return fabs(a - b) < Basic::eps ? int64_t(-1) : int64_t(0);
         }
-        if (op == ">") {
+        if (op->is('>')) {
             return a > b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<") {
+        if (op->is('<')) {
             return a < b ? int64_t(-1) : int64_t(0);
         }
-        if (op == ">=") {
+        if (op->is(opGEQ)) {
             return a >= b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<=") {
+        if (op->is(opLEQ)) {
             return a <= b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<>") {
+        if (op->is(opNEQ)) {
             return a != b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "^") {
+        if (op->is('^')) {
             return pow(a, b);
         }
-        if (op == "AND") {
+        if (op->is(opAND)) {
             return int64_t(a) & int64_t(b);
         }
-        if (op == "OR") {
+        if (op->is(opOR)) {
             return int64_t(a) | int64_t(b);
         }
-        if (op == "NOT") {
+        if (op->is(opNOT)) {
             return ~int64_t(b);
         }
         throw Error(ErrorId::SYNTAX);
     };
-    auto applyOpII = [](int64_t a, int64_t b, const std::string_view& op) -> Value {
-        if (op == "+") {
+    auto applyOpII = [](int64_t a, int64_t b, const Token* op) -> Value {
+        if (op->is('+')) {
             return a + b;
         }
-        if (op == "-") {
+        if (op->is('-')) {
             return a - b;
         }
-        if (op == "*") {
+        if (op->is('*')) {
             return a * b;
         }
-        if (op == "/") {
+        if (op->is('/')) {
             return double(a) / double(b);
         }
-        if (op == "=") {
+        if (op->is('=')) {
             return a == b ? int64_t(-1) : int64_t(0);
         }
-        if (op == ">") {
+        if (op->is('>')) {
             return a > b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<") {
+        if (op->is('<')) {
             return a < b ? int64_t(-1) : int64_t(0);
         }
-        if (op == ">=") {
+        if (op->is(opGEQ)) {
             return a >= b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<=") {
+        if (op->is(opLEQ)) {
             return a <= b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<>") {
+        if (op->is(opNEQ)) {
             return a != b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "^") {
+        if (op->is('^')) {
             return int64_t(pow(a, b));
         }
-        if (op == "AND") {
+        if (op->is(opAND)) {
             return int64_t(a) & int(b);
         }
-        if (op == "OR") {
+        if (op->is(opOR)) {
             return int64_t(a) | int(b);
         }
-        if (op == "NOT") {
+        if (op->is(opNOT)) {
             return ~int64_t(b);
         }
         throw Error(ErrorId::SYNTAX);
     };
-    auto applyOpDI = [](double a, int64_t b, const std::string_view& op) -> Value {
-        if (op == "+") {
+    auto applyOpDI = [](double a, int64_t b, const Token* op) -> Value {
+        if (op->is('+')) {
             return a + double(b);
         }
-        if (op == "-") {
+        if (op->is('-')) {
             return a - double(b);
         }
-        if (op == "*") {
+        if (op->is('*')) {
             return a * double(b);
         }
-        if (op == "/") {
+        if (op->is('/')) {
             return a / double(b);
         }
-        if (op == "=") {
+        if (op->is('=')) {
             return fabs(a - double(b)) < Basic::eps ? int64_t(-1) : int64_t(0);
         }
-        if (op == ">") {
+        if (op->is('>')) {
             return a > b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<") {
+        if (op->is('<')) {
             return a < double(b) ? int64_t(-1) : int64_t(0);
         }
-        if (op == ">=") {
+        if (op->is(opGEQ)) {
             return a >= double(b) ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<=") {
+        if (op->is(opLEQ)) {
             return a <= double(b) ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<>") {
+        if (op->is(opNEQ)) {
             return a != double(b) ? int64_t(-1) : int64_t(0);
         }
-        if (op == "^") {
+        if (op->is('^')) {
             return pow(double(a), double(b));
         }
-        if (op == "AND") {
+        if (op->is(opAND)) {
             return int64_t(a) & int64_t(b);
         }
-        if (op == "OR") {
+        if (op->is(opOR)) {
             return int64_t(a) | int64_t(b);
         }
-        if (op == "NOT") {
+        if (op->is(opNOT)) {
             return ~int64_t(b);
         }
         throw Error(ErrorId::SYNTAX);
     };
-    auto applyOpID = [](int64_t a, double b, const std::string_view& op) -> Value {
-        if (op == "+") {
+    auto applyOpID = [](int64_t a, double b, const Token* op) -> Value {
+        if (op->is('+')) {
             return double(a) + b;
         }
-        if (op == "-") {
+        if (op->is('-')) {
             return double(a) - b;
         }
-        if (op == "*") {
+        if (op->is('*')) {
             return double(a) * b;
         }
-        if (op == "/") {
+        if (op->is('/')) {
             return double(a) / b;
         }
-        if (op == "=") {
+        if (op->is('=')) {
             return fabs(double(a) - b) < Basic::eps ? int64_t(-1) : int64_t(0);
         }
-        if (op == ">") {
+        if (op->is('>')) {
             return double(a) > b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<") {
+        if (op->is('<')) {
             return double(a) < b ? int64_t(-1) : int64_t(0);
         }
-        if (op == ">=") {
+        if (op->is(opGEQ)) {
             return double(a) >= b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<=") {
+        if (op->is(opLEQ)) {
             return double(a) <= b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "<>") {
+        if (op->is(opNEQ)) {
             return double(a) != b ? int64_t(-1) : int64_t(0);
         }
-        if (op == "^") {
+        if (op->is('^')) {
             return pow(double(a), double(b));
         }
-        if (op == "AND") {
+        if (op->is(opAND)) {
             return int64_t(a) & int64_t(b);
         }
-        if (op == "OR") {
+        if (op->is(opOR)) {
             return int64_t(a) | int64_t(b);
         }
-        if (op == "NOT") {
+        if (op->is(opNOT)) {
             return ~int64_t(b);
         }
         throw Error(ErrorId::SYNTAX);
     };
+    auto applyOpNeg = [](Value& a)->void {
+        if (double* da = get_if<double>(&a)) { 
+            *da = -(*da);
+            return;
+        }else if (int64_t* da = get_if<int64_t>(&a)) { 
+            *da = -(*da);
+            return;
+        }
+        throw Error(ErrorId::TYPE_MISMATCH);
+    };
+
+
+
 
     // take operation from stack, execute it and put the result on the value stack
     auto applyOp = [&]() -> void {
@@ -3004,29 +3038,29 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         // printf(ops.back().c_str());
         // printf("\n");
 
-        std::string_view op = ops.back();
+        const Token* op = ops.back();
         ops.pop_back();
 
         // just pop unary + operator: a * +b
-        if (op == "u+") {
+        if (op->str() == "u+") {
+            return;
+        }
+
+        if (op->str() == "u-") // unary negative sign operator
+        {
+            applyOpNeg(values.back());
             return;
         }
 
         Value a;
         Value b = values.back();
         values.pop_back();
-
-        if (op == "u-") // unary negative sign operator
-        {
-            op = "-";
-            a  = Value(0.0);
-        } else {
             if (values.empty()) {
                 throw Error(ErrorId::SYNTAX);
             }
             a = values.back();
             values.pop_back();
-        }
+
         // debug(valueToString(a).c_str()); debug(op.c_str()); debug(valueToString(b).c_str()); debug("\n");
         const double* da = get_if<double>(&a);
         const double* db = get_if<double>(&b);
@@ -3056,12 +3090,16 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
             return;
         }
         if (sa) {
-            values.push_back(applyOpSS(*sa, valueToString(b), op));
-            return;
+            throw Error(ErrorId::TYPE_MISMATCH);
+
+            // values.push_back(applyOpSS(*sa, valueToString(b), op));
+            // return;
         }
         if (sb) {
-            values.push_back(applyOpSS(valueToString(a), *sb, op));
-            return;
+            throw Error(ErrorId::TYPE_MISMATCH);
+
+            // values.push_back(applyOpSS(valueToString(a), *sb, op));
+            // return;
         }
 
         throw Error(ErrorId::SYNTAX);
@@ -3071,7 +3109,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
     for (size_t i = start; i < tokens.size(); i++) {
         // DEF FN A(X)=1 is stored as FNA()
         // you can call both: b=FN A(1) and FNA(1)!
-        auto& toki = tokens[i];
+        const Token& toki = tokens[i];
 
 
         // PRINT "X" TAB(8) "Y" must return after each single piece
@@ -3084,7 +3122,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
 
 
 
-        if (toki.type == TokenType::KEYWORD && toki.value == "FN") {
+        if (toki.type == TokenType::KEYWORD && toki.str() == "FN") {
             continue;
         }
 
@@ -3093,11 +3131,11 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         }
 
         if (toki.type == TokenType::NUMBER) {
-            values.push_back(atof(toki.value.data()));
+            values.push_back(toki.tv);
         } else if (toki.type == TokenType::INTEGER) {
-            values.push_back(strToInt(toki.value));
+            values.push_back(toki.tv);
         } else if (toki.type == TokenType::STRING) {
-            values.push_back(std::string(toki.value));
+            values.push_back(toki.tv);
         } else if (toki.type == TokenType::IDENTIFIER) {
             // TODO A(5)=10 will automatically DIM A(10) in CBM BASIC.
             // function or array
@@ -3117,7 +3155,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
                 // parse the comma separated list of arguments
                 size_t end = i;
                 auto args  = evaluateExpression(tokens, i + 2, &end);
-                if (end < tokens.size() && tokens[end].value != ")") {
+                if (end < tokens.size() && tokens[end].str()[0] != ')') {
                     throw Error(ErrorId::SYNTAX);
                 }
                 if (end > i) {
@@ -3128,7 +3166,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
                 }
 
                 // built-in function
-                auto fktit = functions.find(toki.value);
+                auto fktit = functions.find(toki.str());
                 if (fktit != functions.end()) {
                     // function(args)
                     auto retval = fktit->second(this, args); // call function
@@ -3139,10 +3177,10 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
                 // See if it's a DEF FN
                 static std::string strFN("FN");
                 std::string fname;
-                if (prevToki.type == TokenType::KEYWORD && prevToki.value == "FN") {
-                    fname = strFN + std::string(toki.value);
+                if (prevToki.type == TokenType::KEYWORD && prevToki.str() == "FN") {
+                    fname = strFN + toki.str();
                 } else {
-                    fname = toki.value;
+                    fname = toki.str();
                 }
                 auto defit = currentModule().functionTable.find(fname);
                 if (defit != currentModule().functionTable.end()) {
@@ -3153,7 +3191,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
                 throw Error(ErrorId::VARIABLE_UNDEFINED); // BASIC V7 would create this variable with a value of 0.0!
             }
         } else if (toki.type == TokenType::MODULE) {
-            auto modit = modules.find(toki.value);
+            auto modit = modules.find(toki.str());
             if (modit == modules.end()) {
                 throw Error(ErrorId::UNDEFD_MODULE);
             }
@@ -3166,9 +3204,9 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
                     i = end - 1;
                 }
             }
-        } else if (toki.type == TokenType::COMMA || (toki.type == TokenType::OPERATOR && toki.value == ";")) {
-            while (!ops.empty() && precedence(ops.back()) >= precedence(toki.value)) {
-                if (ops.back() == "(") {
+        } else if (toki.type == TokenType::COMMA || (toki.type == TokenType::OPERATOR && toki.str()[0] == ';')) {
+            while (!ops.empty() && precedence(ops.back()) >= precedence(toki.str())) {
+                if (ops.back()->is('(')) {
                     ops.pop_back();
                     continue;
                 }
@@ -3178,29 +3216,31 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
                 output.push_back(values.back());
                 values.pop_back();
             }
-            output.push_back(Operator(std::string(toki.value)));
+            // output.push_back(Operator(std::string(toki.value)));
+            ASSERT(valueIsOperator(toki.tv));
+            output.push_back(toki.tv);
 
             values.clear();
             ops.clear();
             continue;
         } else if (toki.type == TokenType::UNARY_OPERATOR) {
             // ops.push_back(std::string("u") + std::string(toki.value));
-            ops.push_back(unaryOperators[(unsigned char)toki.value[0]]);
+            ops.push_back(&unaryOperators[(unsigned char)toki.str()[0]]);
 
         } else if (toki.type == TokenType::OPERATOR) {
-            while (!ops.empty() && precedence(ops.back()) >= precedence(toki.value)) {
+            while (!ops.empty() && precedence(ops.back()) >= precedence(toki.str())) {
                 applyOp();
             }
-            ops.push_back(toki.value);
-        } else if (toki.value == "(") {
+            ops.push_back(&toki);
+        } else if (toki.is('(')) {
             ++openBraceCount;
-            ops.push_back(toki.value);
-        } else if (toki.value == ")") {
+            ops.push_back(&toki);
+        } else if (toki.is(')')) {
             if (ptrEnd != nullptr) {
                 *ptrEnd = 1 + i;
             }
 
-            while (!ops.empty() && ops.back() != "(") {
+            while (!ops.empty() && !ops.back()->is('(')) {
                 applyOp();
             }
 
@@ -3232,7 +3272,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
     }
 
     while (ops.size()) {
-        values.push_back(Operator(std::string(ops.back())));
+        values.push_back(ops.back()->tv);
         ops.pop_back();
     }
     if (!values.empty()) {
@@ -3300,7 +3340,8 @@ void Basic::handleCLR() {
 // LET statement (assignment)
 inline void Basic::handleLET(const std::vector<Token>& tokens) {
     size_t i = 0;
-    if (tokens[0].value == "LET") {
+    static const std::string_view cmdLET("LET");
+    if (tokens[0].is(cmdLET)) {
         ++i;
     }
     size_t ivarname = i;
@@ -3308,7 +3349,7 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
 
     Value* pval = nullptr;
     if (tokens[i].type == TokenType::MODULE) {
-        auto modit = modules.find(tokens[i].value);
+        auto modit = modules.find(tokens[i].str());
         if (modit == modules.end()) {
             throw Error(ErrorId::UNDEFD_MODULE);
         }
@@ -3320,7 +3361,7 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
 
     if (pval != nullptr && end < tokens.size()) {
         i = end;
-        if (tokens[i].value != "=") {
+        if (!tokens[i].is('=')) {
             throw Error(ErrorId::SYNTAX);
         }
         auto values = evaluateExpression(tokens, i + 1);
@@ -3344,7 +3385,8 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
         throw Error(ErrorId::SYNTAX);
     }
 
-    if (tokens[ivarname].value == "TI$") {
+    static const std::string_view varTI("TI$");
+    if (tokens[ivarname].is(varTI)) {
         std::string ti$ = valueToString(*pval);
         if (ti$.length() != 6) {
             throw Error(ErrorId::ILLEGAL_QUANTITY);
@@ -3359,7 +3401,6 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
 
 void Basic::handleRUN(const std::vector<Token>& tokens) {
     currentModule().autoNumbering = 0;
-
 
     int runFrom = 0;
 
@@ -3409,7 +3450,7 @@ void Basic::handleMODULE(const std::vector<Token>& tokens) {
     bool direct = currentModule().isInDirectMode();
 
     if (tokens.size() > 1) {
-        name = std::string(tokens[1].value);
+        name = tokens[1].str();
         Unicode::toUpper(name);
         it = modules.find(name);
     }
@@ -3455,7 +3496,7 @@ void Basic::handlePRINT(const std::vector<Token>& tokens) {
 
     currentFileNo = 0;
     if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
-        currentFileNo = strToInt(tokens[1].value);
+        currentFileNo = valueToInt(tokens[1].tv);
 
         if (tokens.size() > 2 && tokens[2].type != TokenType::COMMA) {
             throw Basic::Error(Basic::ErrorId::SYNTAX);
@@ -3470,7 +3511,8 @@ void Basic::handlePRINT(const std::vector<Token>& tokens) {
         return;
     }
 
-    if (tokens[1].type == TokenType::KEYWORD && tokens[1].value == "USING") {
+    static const std::string_view cmdUSING("USING");
+    if (tokens[1].type == TokenType::KEYWORD && tokens[1].is(cmdUSING)) {
         handlePRINT_USING(tokens);
         return;
     }
@@ -3625,7 +3667,10 @@ void Basic::handlePRINT_USING(const std::vector<Token>& tokens) {
                 continue;
             }
 
-            auto isFormatChar = [](char c) { return c == '#' || c == '.' || c == ',' || c == '^' || c == '=' || c == '>' || c == '+' || c == '-' || c == '$'; };
+            auto isFormatChar = [](char c) {
+                return c == '#' || c == '.' || c == ',' || c == '^'
+                    || c == '=' || c == '>' || c == '+' || c == '-' || c == '$';
+            };
             while (format.length() > 0 && !isFormatChar(format[0])) {
                 output += format[0];
                 format.erase(0, 1);
@@ -3661,7 +3706,7 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
     size_t istart = 1;
     currentFileNo = 0;
     if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
-        currentFileNo = strToInt(tokens[1].value);
+        currentFileNo = valueToInt(tokens[1].tv);
 
         if (tokens.size() > 2 && tokens[2].type != TokenType::COMMA) {
             throw Basic::Error(Basic::ErrorId::SYNTAX);
@@ -3789,7 +3834,7 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
 // INPUT from file
 void Basic::handleINPUTFile(const std::vector<Token>& tokens) {
     currentFileNo = 0;
-    currentFileNo = strToInt(tokens[1].value);
+    currentFileNo = valueToInt(tokens[1].tv);
 
     if (tokens.size() > 2 && tokens[2].type != TokenType::COMMA) {
         throw Basic::Error(Basic::ErrorId::SYNTAX);
@@ -3880,8 +3925,8 @@ void Basic::handleINPUT(const std::vector<Token>& tokens) {
     for (size_t itk = 1; itk < tokens.size(); ++itk) {
         auto& tk = tokens[itk];
         if (itk == 1 && tk.type == TokenType::STRING) {
-            printUtf8String(tk.value);
-            if (itk + 1 < tokens.size() && tokens[itk + 1].value != ";") {
+            printUtf8String(tk.str());
+            if (itk + 1 < tokens.size() && !tokens[itk + 1].is(';')) {
                 printUtf8String("\n");
             }
         } else if (tk.type != TokenType::COMMA && tk.type != TokenType::OPERATOR) {
@@ -3988,10 +4033,10 @@ inline void Basic::handleDIM(const std::vector<Token>& tokens) {
         if (tokens[i].type != TokenType::IDENTIFIER) {
             throw Error(ErrorId::SYNTAX);
         }
-        std::string varName(tokens[i].value);
+        const std::string& varName(tokens[i].str());
         varnamePostfix = tokens[i].valuePostfix();
         ++i;
-        if (i >= tokens.size() || tokens[i].type != TokenType::PARENTHESIS || tokens[i].value != "(") {
+        if (i >= tokens.size() || tokens[i].type != TokenType::PARENTHESIS || !tokens[i].is('(')) {
             Value* value = findLeftValue(currentModule(), tokens, i - 1, &i);
             if (value == nullptr) {
                 throw Error(ErrorId::SYNTAX);
@@ -4046,7 +4091,8 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
     int to   = 0x7ffffff;
 
     if (tokens.size() == 2) {
-        if (tokens[1].type == TokenType::KEYWORD && tokens[1].value == "MODULE") {
+        static const std::string_view cmdMODULE("MODULE");
+        if (tokens[1].type == TokenType::KEYWORD && tokens[1].is(cmdMODULE) ) {
             // LIST MODULE
             for (auto& lmd : modules) {
                 os->screen.cleanCurrentLine();
@@ -4059,7 +4105,8 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
             }
             return;
         }
-        if (tokens[1].type == TokenType::COMMAND && tokens[1].value == "BAKE") {
+        static const std::string_view cmdBAKE("BAKE");
+        if (tokens[1].type == TokenType::COMMAND && tokens[1].is(cmdBAKE)) {
             // LIST BAKE
             executeCommands("FIND \"REM*--*--*\"");
             return;
@@ -4071,20 +4118,20 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
         // list all
     } else if (tokens.size() == 2 && tokens[1].type != TokenType::OPERATOR) {
         // LIST 10
-        from = to = int(strToInt(tokens[1].value));
+        from = to = int(valueToInt(tokens[1].tv));
     } else if (tokens.size() == 4 && tokens[2].type == TokenType::OPERATOR) {
         // LIST 10-20
-        from = int(strToInt(tokens[1].value));
-        to   = int(strToInt(tokens[3].value));
+        from = int(valueToInt(tokens[1].tv));
+        to   = int(valueToInt(tokens[3].tv));
         if (to < from) {
             throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
         }
     } else if (tokens.size() == 3 && tokens[1].type == TokenType::UNARY_OPERATOR) {
         // LIST -20
-        to = int(strToInt(tokens[2].value));
+        to = int(valueToInt(tokens[2].tv));
     } else if (tokens.size() == 3 && tokens[2].type == TokenType::OPERATOR) {
         // LIST 20-
-        from = int(strToInt(tokens[1].value));
+        from = int(valueToInt(tokens[1].tv));
     } else if (tokens.size() == 2 && tokens[1].type == TokenType::OPERATOR) {
         // LIST -
         from = lastFrom;
@@ -4201,13 +4248,13 @@ void Basic::handleDELETE(const std::vector<Token>& tokens) {
     int from = 0;
     int to   = 0x7ffffff;
     if (tokens.size() > 1) {
-        from = int(strToInt(tokens[1].value));
+        from = int(valueToInt(tokens[1].tv));
         if (from < 0) {
             from = 0;
         }
     }
     if (tokens.size() > 3 && tokens[2].type == TokenType::OPERATOR) {
-        to = int(strToInt(tokens[3].value));
+        to = int(valueToInt(tokens[3].tv));
         if (to < from) {
             throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
         }
@@ -4231,7 +4278,7 @@ void Basic::handleDUMP(const std::vector<Token>& tokens) {
         if (tok.type != TokenType::IDENTIFIER) {
             continue;
         }
-        varnames.insert(std::string(tok.value));
+        varnames.insert(tok.str());
     }
 
 
@@ -4309,7 +4356,7 @@ void Basic::handleKEY(const std::vector<Token>& tokens) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
     }
 
-    size_t k = strToInt(tokens[1].value) - 1;
+    size_t k = valueToInt(tokens[1].tv) - 1;
     if (k >= keyShortcuts.size()) {
         throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
     }
@@ -4317,9 +4364,9 @@ void Basic::handleKEY(const std::vector<Token>& tokens) {
     str       = "";
     for (size_t i = 3; i < tokens.size(); ++i) {
         if (tokens[i].type == TokenType::STRING) {
-            str += "\"" + std::string(tokens[i].value) + "\"";
+            str += "\"" + tokens[i].str() + "\"";
         } else {
-            str += tokens[i].value;
+            str += tokens[i].str();
         }
     }
 }
@@ -4336,7 +4383,7 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
         if (itk == 1) {
             std::string str;
             if (tk.type == TokenType::STRING) {
-                str = tk.value;
+                str = tk.str();
             } else if (tk.type == TokenType::IDENTIFIER) {
                 Value* pval = findLeftValue(currentModule(), tokens, itk, &itk);
                 if (pval != nullptr) {
@@ -4408,12 +4455,12 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
 // returns nullptr on error
 Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr, bool allowDimArray) {
     size_t i = start;
-    if (tokens.size() > i + 2 && tokens[i + 1].type == TokenType::PARENTHESIS && tokens[i + 1].value == "(") {
+    if (tokens.size() > i + 2 && tokens[i + 1].type == TokenType::PARENTHESIS && tokens[i + 1].is('(')) {
         auto& arrays = module.arrays;
-        auto arrit   = arrays.find(tokens[i].value);
+        auto arrit   = arrays.find(tokens[i].str());
         if (arrit == arrays.end()) {
             if (allowDimArray) {
-                executeCommands(("DIM " + std::string(tokens[0].value) + "(10)").c_str());
+                executeCommands(("DIM " + tokens[0].str() + "(10)").c_str());
                 // auto dimtok = tokenizeNextCommand(cmd);
                 // handleDIM(dimtok[0]);
 
@@ -4425,7 +4472,7 @@ Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tok
         // parse the comma separated list of arguments
         size_t end = i;
         auto args  = evaluateExpression(tokens, i + 2, &end);
-        if (end >= tokens.size() || tokens[end].value != ")") {
+        if (end >= tokens.size() || !tokens[end].is(')')) {
             throw Error(ErrorId::SYNTAX);
         }
         i = end + 1; // after brace
@@ -4457,7 +4504,7 @@ Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tok
             *endPtr = 1 + start;
         }
 
-        const std::string_view variableName = tokens[i].value;
+        const std::string& variableName = tokens[i].str();
         static const std::string_view svTI("TI");
         static const std::string_view svTI$("TI$");
         static const std::string_view svST("ST");
@@ -4572,10 +4619,11 @@ void Basic::handleONGOTO(const std::vector<Token>& tokens) {
     if (index < 1 || index >= int64_t(lines.size())) {
         return;
     }
-
-    if (tokens[i].value == "GOTO") {
+    static const std::string_view cmdGOTO("GOTO");
+    static const std::string_view cmdGOSUB("GOSUB");
+    if (tokens[i].is(cmdGOTO)) {
         doGOTO(int(valueToInt(lines[index])), false); // 1=[0], 2=[2], 3=[4]
-    } else if (tokens[i].value == "GOSUB") {
+    } else if (tokens[i].is(cmdGOSUB)) {
         doGOTO(int(valueToInt(lines[index])), true); // 1=[0], 2=[2], 3=[4]
     } else {
         throw Error(ErrorId::SYNTAX);
@@ -4588,7 +4636,7 @@ void Basic::handleHELP(const std::vector<Token>& tokens) {
         if (i > 1) {
             cmd += " ";
         }
-        cmd += tokens[i].value;
+        cmd += tokens[i].str();
     }
     cmd             = Unicode::toUpperAscii(cmd.c_str());
     std::string usg = Help::getUsage(cmd) + " \n";
@@ -4606,14 +4654,22 @@ void Basic::handleDEFFN(const std::vector<Token>& intokens) {
     // tokens:
     // 0   12     23 3 4 45 56 67   <- tokens
     // DEF FNname (  X   )  =  Y
-    //     0      1  2   3  4  5   <- bodyTokens
+    //     0      1  2   3  4  5   <- bodyTokens-o-l-d-
+    //            0  1   2  3  4   <- bodyTokens
 
     size_t startParsing = 2;
-    if (intokens[1].value == "FN") {
+    static const std::string_view cmdFN("FN");
+    if (intokens[1].is(cmdFN)) {
         ++startParsing;
-        fname = "FN" + std::string(intokens[2].value);
+        if (intokens[2].type != TokenType::IDENTIFIER) {
+            throw Error(ErrorId::SYNTAX);
+        }
+        fname = "FN" + intokens[2].str();
     } else {
-        fname = intokens[1].value;
+        if (intokens[1].type != TokenType::IDENTIFIER) {
+            throw Error(ErrorId::SYNTAX);
+        }
+        fname = intokens[1].str();
     }
 
     auto& module = currentModule();
@@ -4622,25 +4678,30 @@ void Basic::handleDEFFN(const std::vector<Token>& intokens) {
     def.clear();
     def.fnName = fname;
 
-    def.lineCopy = fname;
+    // std::string lineCopy = fname;
+    // for (size_t i = startParsing; i < intokens.size(); ++i) {
+    //     lineCopy += " ";
+    //     lineCopy += intokens[i].valueForDebugging;
+    // }
+    // 
+    // std::vector<Token>& bodyTokens = def.body;
+    // tokenizeNextCommand(lineCopy.c_str(), def.body); // TODO better directly use intokens
+
     for (size_t i = startParsing; i < intokens.size(); ++i) {
-        def.lineCopy += " ";
-        def.lineCopy += std::string(intokens[i].value);
+        def.body.push_back( intokens[i]);
     }
 
-    std::vector<Token>& bodyTokens = def.body;
-    tokenizeNextCommand(def.lineCopy.c_str(), def.body);
-
-    // tokens =   0    1  2  ... 3  4  5+
+    // tokens =   0    1  2  ... 3  4  5+   -o-l-d-
+    // tokens =        0  1  ... 2  3  4+
     //         { name, (, X, ... ), =, code...}
-    if (def.body.size() < 3 || def.body[1].type != TokenType::PARENTHESIS
-        || def.body[2].type != TokenType::IDENTIFIER) {
+    if (def.body.size() < 5 || def.body[0].type != TokenType::PARENTHESIS
+        || def.body[1].type != TokenType::IDENTIFIER) {
         throw Error(ErrorId::SYNTAX);
     }
 
     size_t i;
     size_t iStartBody = 0;
-    for (i = 2; i + 1 < def.body.size(); i += 2) {
+    for (i = 1; i + 1 < def.body.size(); i += 2) {
         if (def.body[i].type != TokenType::IDENTIFIER) {
             throw Error(ErrorId::SYNTAX);
         }
@@ -4651,7 +4712,7 @@ void Basic::handleDEFFN(const std::vector<Token>& intokens) {
         }
 
         if (def.body[i + 1].type == TokenType::PARENTHESIS) {
-            if (i + 2 < def.body.size() && def.body[i + 2].value == "=") {
+            if (i + 2 < def.body.size() && def.body[i + 2].is('=')) {
                 // definition continues with equals (=) sign:
 
                 // store the function definition:
@@ -4695,10 +4756,10 @@ void Basic::handleDEFFN(const std::vector<Token>& intokens) {
 
 // Handle FOR statement
 void Basic::handleFOR(const std::vector<Token>& tokens) {
-    if (tokens.size() < 6 || tokens[2].value != "=") {
+    if (tokens.size() < 6 || !tokens[2].is('=')) {
         return;
     }
-    std::string varName(tokens[1].value); // TODO why the copy for std::unordered_map::operator[]
+    const std::string& varName(tokens[1].str());
     auto values = evaluateExpression(tokens, 3);
     if (values.size() != 1) {
         throw Error(ErrorId::SYNTAX);
@@ -4709,17 +4770,19 @@ void Basic::handleFOR(const std::vector<Token>& tokens) {
 
     modl.variables[varName] = values.back();
 
+    static const std::string_view cmdTO("TO");
+    static const std::string_view cmdSTEP("STEP");
     double toEnd = start;
     double step  = 1;
     for (size_t i = 4; i < tokens.size(); ++i) {
-        if (tokens[i].value == "TO") {
+        if ( tokens[i].is(cmdTO)) {
             auto values = evaluateExpression(tokens, i + 1);
             if (values.size() != 1) {
                 throw Error(ErrorId::SYNTAX);
             }
             toEnd = valueToDouble(values.back());
         }
-        if (tokens[i].value == "STEP") {
+        if ( tokens[i].is(cmdSTEP)) {
             auto values = evaluateExpression(tokens, i + 1);
             if (values.size() != 1) {
                 throw Error(ErrorId::SYNTAX);
@@ -4801,13 +4864,10 @@ FOR A=1 TO 2:FOR B=1 TO 2:PRINT A,B:NEXT B,A
 */
 void Basic::handleNEXT(const std::vector<Token>& tokens) {
     auto& modl = currentModule();
+    static const std::string EMPTY("");
 
-
-
-    std::string varName;
+    const std::string& varName = (tokens.size() > 1) ? tokens[1].str() : EMPTY;
     if (tokens.size() > 1) {
-        varName = tokens[1].value;
-
         for (int i = int(modl.loopStack.size()) - 1; i >= 0; --i) {
             auto& it = modl.loopStack[i];
             if (it.type != Basic::LoopItem::FORNEXT) {
@@ -4875,12 +4935,14 @@ void Basic::handleIFTHEN(const std::vector<Token>& tokens) {
         }
 
         // THEN 110
+        static const std::string_view cmdGOTO("GOTO");
         if (copyTok.size() > 1 && copyTok[1].type == TokenType::INTEGER) {
             copyTok[0].type  = TokenType::KEYWORD;
-            copyTok[0].value = "GOTO";
+            copyTok[0].valueForDebugging = "GOTO";
+            copyTok[0].tv  = "GOTO"; // TODO slow copy
         }
-
-        if (copyTok.begin()->value == "THEN") {
+        static const std::string_view cmdTHEN("THEN");
+        if (copyTok.begin()->is(cmdTHEN)) {
             // THEN PRINT ...
             copyTok.erase(copyTok.begin(), copyTok.begin() + 1);
         }
@@ -4934,8 +4996,8 @@ void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
         //     }
         //     continue;
         // } else
-
-        if (tokens[0].value == "DATA") {
+        static const std::string_view cmdDATA("DATA");
+        if (tokens[0].is(cmdDATA)) {
             auto pcAfterThisData = cm.readDataPosition; // where to read next DATA
             pcAfterThisData.cmdpos++;
 
@@ -4948,10 +5010,12 @@ void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
                 Token t {};
                 if (valuePostfix == '$') {
                     t.type  = TokenType::STRING;
-                    t.value = "";
+                    t.valueForDebugging = "";
+                    t.tv = std::string("");
                 } else {
                     t.type  = TokenType::INTEGER;
-                    t.value = "0";
+                    t.valueForDebugging = "0";
+                    t.tv=0LL;
                 }
                 tokens.push_back(t);
             }
@@ -4962,7 +5026,7 @@ void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
             bool unaryMinus       = false;
             for (size_t itok = 1 /* skip "DATA"*/; itok < tokens.size(); ++itok) {
                 if (nthData == cm.readDataIndex && tokens[itok].type == TokenType::OPERATOR) {
-                    if (tokens[itok].value == "-") {
+                    if (tokens[itok].is('-')) {
                         unaryMinus = true;
                         ++itok;
                     }
@@ -4978,19 +5042,19 @@ void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
                         if (valuePostfix != '$') {
                             throw Error(ErrorId::TYPE_MISMATCH);
                         }
-                        *pval = std::string(t.value);
+                        *pval = t.tv; // TODO slow: this is a full copy
                         break;
                     case TokenType::INTEGER:
                         if (valuePostfix == '$') {
                             throw Error(ErrorId::TYPE_MISMATCH);
                         }
-                        *pval = unaryMinus ? -strToInt(t.value) : strToInt(t.value);
+                        *pval = unaryMinus ? -valueToInt(t.tv) : valueToInt(t.tv);
                         break;
                     case TokenType::NUMBER:
                         if (valuePostfix == '$') {
                             throw Error(ErrorId::TYPE_MISMATCH);
                         }
-                        *pval = unaryMinus ? -atof(t.value.data()) : atof(t.value.data());
+                        *pval = unaryMinus ? -valueToDouble(t.tv) : valueToDouble(t.tv);
                         break;
                     case TokenType::COMMA:
                         skipComma = false;
@@ -5093,25 +5157,29 @@ void Basic::executeParsedTokens(const std::vector<Token>& tokens) {
         }
     }
 
+
+
+
+
     auto& modl = currentModule();
     if (tokens[0].type == TokenType::COMMAND) {
-        auto cmd    = commands.find(tokens[0].value);
+        auto cmd    = commands.find(tokens[0].str());
         auto values = evaluateExpression(tokens, 1);
         cmd->second(this, values);
-    } else if (tokens[0].value == "LET") {
+    } else if (tokens[0].is("LET")) {
         /*tokens.erase(tokens.begin());*/ handleLET(tokens);
     } else if (tokens.size() > 2 && tokens[0].type == TokenType::IDENTIFIER) {
         handleLET(tokens);
     } else if (tokens.size() > 3 && tokens[0].type == TokenType::MODULE) {
         handleLET(tokens);
-    } else if (tokens[0].value == "DIM") {
+    } else if (tokens[0].is("DIM")) {
         handleDIM(tokens);
     } else if (tokens[0].type == TokenType::KEYWORD) {
-        if (tokens[0].value == "GOTO") {
+        if (tokens[0].is("GOTO")) {
             handleGOTO(tokens);
-        } else if (tokens[0].value == "GOSUB") {
+        } else if (tokens[0].is("GOSUB")) {
             handleGOSUB(tokens);
-        } else if (tokens[0].value == "RETURN") {
+        } else if (tokens[0].is("RETURN")) {
             ASSERT(moduleListingStack.size() == moduleVariableStack.size());
 
             // pop inner loops
@@ -5123,67 +5191,67 @@ void Basic::executeParsedTokens(const std::vector<Token>& tokens) {
             }
             programCounter() = modl.loopStack.back().jump;
             modl.loopStack.pop_back();
-        } else if (tokens[0].value == "FNEND") {
+        } else if (tokens[0].is("FNEND")) {
             ASSERT(moduleListingStack.size() == moduleVariableStack.size());
             modl.setProgramCounterToEnd(); // return to function call
-        } else if (tokens[0].value == "FOR") {
+        } else if (tokens[0].is("FOR")) {
             handleFOR(tokens);
-        } else if (tokens[0].value == "NEXT") {
+        } else if (tokens[0].is("NEXT")) {
             handleNEXT(tokens);
-        } else if (tokens[0].value == "IF") {
+        } else if (tokens[0].is("IF")) {
             handleIFTHEN(tokens);
-        } else if (tokens[0].value == "DIM") {
+        } else if (tokens[0].is("DIM")) {
             handleDIM(tokens);
-        } else if (tokens[0].value == "RUN") {
+        } else if (tokens[0].is("RUN")) {
             handleRUN(tokens);
-        } else if (tokens[0].value == "MODULE") {
+        } else if (tokens[0].is("MODULE") ){
             handleMODULE(tokens);
-        } else if (tokens[0].value == "PRINT" || tokens[0].value == "?") {
+        } else if (tokens[0].is("PRINT" )|| tokens[0].is("?")) {
             handlePRINT(tokens);
-        } else if (tokens[0].value == "INPUT") {
+        } else if (tokens[0].is("INPUT")) {
             handleINPUT(tokens);
-        } else if (tokens[0].value == "GET") {
+        } else if (tokens[0].is("GET")) {
             handleGET(tokens, false);
-        } else if (tokens[0].value == "NETGET") {
+        } else if (tokens[0].is("NETGET")) {
             handleNETGET(tokens);
-        } else if (tokens[0].value == "GETKEY") {
+        } else if (tokens[0].is("GETKEY")) {
             handleGET(tokens, true);
-        } else if (tokens[0].value == "ON") {
+        } else if (tokens[0].is("ON")) {
             handleONGOTO(tokens);
-        } else if (tokens[0].value == "REM") {
-        } else if (tokens[0].value == "CLR") {
+        } else if (tokens[0].is("REM")) {
+        } else if (tokens[0].is("CLR")) {
             handleCLR();
-        } else if (tokens[0].value == "SCNCLR") {
+        } else if (tokens[0].is("SCNCLR")) {
             os->screen.clear();
             os->presentScreen();
-        } else if (tokens[0].value == "NEW") {
+        } else if (tokens[0].is("NEW") ){
             doNEW();
-        } else if (tokens[0].value == "LIST") {
+        } else if (tokens[0].is("LIST")) {
             handleLIST(tokens);
-        } else if (tokens[0].value == "READ") {
+        } else if (tokens[0].is("READ")) {
             handleREAD(tokens);
-        } else if (tokens[0].value == "RESTORE") {
+        } else if (tokens[0].is("RESTORE")) {
             handleRESTORE(tokens);
-        } else if (tokens[0].value == "DATA") {
-        } else if (tokens[0].value == "KEY") {
+        } else if (tokens[0].is("DATA")) {
+        } else if (tokens[0].is("KEY")) {
             handleKEY(tokens);
-        } else if (tokens[0].value == "RCHARDEF") {
+        } else if (tokens[0].is("RCHARDEF")) {
             handleRCHARDEF(tokens);
-        } else if (tokens[0].value == "DEF") {
+        } else if (tokens[0].is("DEF")) {
             handleDEFFN(tokens);
-        } else if (tokens[0].value == "END") {
+        } else if (tokens[0].is("END")) {
             doEND();
-        } else if (tokens[0].value == "HELP") {
+        } else if (tokens[0].is("HELP")) {
             handleHELP(tokens);
-        } else if (tokens[0].value == "DELETE") {
+        } else if (tokens[0].is("DELETE")) {
             handleDELETE(tokens);
-        } else if (tokens[0].value == "DUMP") {
+        } else if (tokens[0].is("DUMP")) {
             handleDUMP(tokens);
         } else {
             throw Error(ErrorId::UNIMPLEMENTED_COMMAND);
         }
     } else {
-        if (tokens.size() > 1 && tokens[0].value == "READY") {
+        if (tokens.size() > 1 && tokens[0].is("READY")) {
             throw Error(ErrorId::READY_COMMAND);
         }
         throw Error(ErrorId::SYNTAX);
@@ -5973,6 +6041,7 @@ void Basic::runInterpreter() {
             status        = ParseStatus::PS_ERROR;
             continue;
         }
+
         uppercaseProgram(line);
 
         status = parseInput(line.c_str());
@@ -6396,24 +6465,24 @@ bool Basic::loadState(std::string& filenameUtf8) {
     return true;
 }
 
-Basic::Module::VariableMap::iterator Basic::Module::findOrCreateVariable(const std::string_view& variableName) {
+Basic::Module::VariableMap::iterator Basic::Module::findOrCreateVariable(const std::string& variableName) {
     auto varit = variables.find(variableName);
     if (varit == variables.end()) {
         Token tok;
         tok.type  = TokenType::IDENTIFIER;
-        tok.value = variableName;
+        tok.valueForDebugging = variableName;
 
         // create new variable
         switch (tok.valuePostfix()) {
         case '%':
-            variables[std::string(tok.value)] = 0LL;
+            variables[variableName] = 0LL;
             break;
         case '$':
-            variables[std::string(tok.value)] = "";
+            variables[variableName] = "";
             break;
         default:
         case '#':
-            variables[std::string(tok.value)] = 0.0;
+            variables[variableName] = 0.0;
             break;
         }
         varit = variables.find(variableName);
