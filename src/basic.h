@@ -352,7 +352,7 @@ public:
 
     struct ProgramCounter {
         std::map<int, ProgramLine>::iterator line;
-        size_t cmdpos; // current command is at nth vector in ProgramLine.tokens[]
+        size_t cmdpos=0; // current command is at nth vector in ProgramLine.tokens[]
         // size_t position; // character index in program code
     };
 
@@ -394,7 +394,7 @@ public:
     };
 
     // Files
-    std::vector<FilePtr> fileHandles;
+    std::vector<FilePtr> fileHandles; // [0..0xff]
     size_t currentFileNo = 0;
     // memory[krnl.STATUS]
     enum FileStatus {
@@ -539,6 +539,7 @@ protected:
     void doNEW();
     void doEND();
     void handleCLR();
+    void handleCMD(const std::vector<Token>& tokens);
     void handleLET(const std::vector<Token>& tokens);
     void handleRUN(const std::vector<Token>& tokens);
     void handleMODULE(const std::vector<Token>& tokens);

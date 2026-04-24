@@ -2,6 +2,7 @@
 Visit the project Homepage: [www.ba67.org](https://www.ba67.org).              
 
 # Contents
+
 <!-- do not edit TOC comment lines. -->
 <!-- See markdown_parser.h -->
 <!-- TOC-->
@@ -40,6 +41,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [CHARDEF](#chardef)
     - [CHDIR](#chdir)
     - [CLOUD](#cloud)
+    - [CMD](#cmd)
     - [CONT](#cont)
     - [DATA](#data)
     - [DEF FN](#def-fn)
@@ -164,7 +166,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
   - [M - Machine Language Monitor](#m---machine-language-monitor)
   - [Z Known bugs](#z-known-bugs)
 - [Disclaimer](#disclaimer)
-<!-- TOC-->
+<!-- TOC -->
 
 # About
 BA67 (pronounced BASIC SEVEN) is a standalone BASIC interpreter,
@@ -747,7 +749,7 @@ characters 0..127 (ASCII set) reset to the defaults.
 
 
 ### CHDIR
-**Usage:** `CHDIR directory`
+**Usage:** `CHDIR directory$`
 
 Change into the given directory.
 
@@ -781,12 +783,31 @@ to that directory, you can do so with  `CHDIR "./CLOUD"`.
 
 See [Annex C](#annex) for more details.
 
+### CMD
+***Usage:** `CMD device_no [, args_like_print#]`
+
+It's short for "Change Main Device".
+
+This command is the same as `PRINT#` with the difference, that now all output
+will be forwarded to the device number you specified until you stop it with
+`PRINT#device_no`, where `device_no` is any open device number.
+
+Example:
+```
+100 OPEN 1,4,7 : REM OPEN PRINTER
+110 CMD 1, "Printer Test"
+120 PRINT "LISTING:"
+130 LIST
+140 PRINT #1,; : REM RESET OUTPUT DEVICE
+150 CLOSE 1
+160 PRINT "END";
+```
+
 ### CONT
 **Usage:** `CONT`
 
 This command tries ton continue from where the program was
 stopped last time using the `ESC` key or the `STOP` command.
-
 
 ### DATA
 **Usage:** `DATA value, value, string, "string with spaces", ...`

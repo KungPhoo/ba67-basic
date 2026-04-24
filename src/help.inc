@@ -13,8 +13,9 @@
 ,{"COLOR", R"RAW(COLOR source405, color1)RAW"}
 ,{"CHAR", R"RAW(CHAR color, column0, line0, text$[, inverse])RAW"}
 ,{"CHARDEF", R"RAW(CHARDEF char$, bytes [, more bytes])RAW"}
-,{"CHDIR", R"RAW(CHDIR directory)RAW"}
+,{"CHDIR", R"RAW(CHDIR directory$)RAW"}
 ,{"CLOUD", R"RAW(CLOUD email$ [, server$])RAW"}
+,{"CMD", R"RAW(CMD device_no [, args_like_print#])RAW"}
 ,{"CONT", R"RAW(CONT)RAW"}
 ,{"DATA", R"RAW(DATA value, value, string, "string with spaces", ...)RAW"}
 ,{"DELETE", R"RAW(DELETE from [- to])RAW"}

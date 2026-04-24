@@ -491,6 +491,138 @@ void CHDIR(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
+void CATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() > 1) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+
+    std::string filter = "";
+    if (values.size() > 0) {
+        filter = basic->valueToString(values[0]);
+    }
+
+    // file size, 4 characters wide
+    auto niceSize = [&basic](uint64_t s) -> std::string {
+        static const char* pfx = "BKMGTPEZ????";
+        const char* p          = pfx;
+        while (s > 1024) {
+            s /= 1024;
+            ++p;
+        }
+        std::string str(basic->valueToString(int64_t(s)));
+        str += *p;
+        while (str.length() < 4) {
+            str.insert(str.begin(), ' ');
+        }
+        return str;
+    };
+
+    uint64_t totalBytes = 0;
+    auto files          = basic->os->listCurrentDirectory();
+    std::vector<std::string> sizestrings(files.size());
+    for (size_t i = 0; i < files.size(); ++i) {
+        if (files[i].isDirectory) {
+            sizestrings[i] = std::string("DIR ");
+        } else {
+            sizestrings[i] = niceSize(files[i].filesize);
+            totalBytes += files[i].filesize;
+        }
+    }
+
+    std::string dirname = basic->os->getCurrentDirectory();
+    if (dirname.length() + 7 > basic->os->screen.width) {
+        size_t len = basic->os->screen.width - 7;
+        dirname    = dirname.substr(dirname.length() - len);
+    }
+    if (basic->os->dirIsInCloud()) {
+        dirname = std::string((const char*)(u8" \u2601 "));
+        dirname += basic->os->cloudUrl;
+    }
+    if (basic->os->dirIsInSerial()) {
+        dirname += std::string((const char*)(u8" \U0001F50C "));
+    }
+
+
+    std::string moduleName = basic->moduleListingStack.back()->first;
+    uint8_t colForMod      = basic->colorForModule(moduleName);
+    std::string colLN;
+    Unicode::appendAsUtf8(colLN, ControlCharacters::textColor1_White);
+    std::string colKW;
+    Unicode::appendAsUtf8(colKW, ControlCharacters::charForColor(colForMod));
+    std::string colQU;
+    Unicode::appendAsUtf8(colQU, ControlCharacters::textColor15_Light_Gray);
+    std::string colREM;
+    Unicode::appendAsUtf8(colREM, ControlCharacters::charForColor(ScreenBuffer::buddyColor(colForMod)));
+
+    // now, that's a hack
+    if (!basic->options.colorzizeListing || basic->currentFileNo != 0) {
+        colLN.clear();
+        colKW.clear();
+        colQU.clear();
+        colREM.clear();
+    }
+
+
+
+    basic->os->screen.cleanCurrentLine();
+    basic->printUtf8String(colKW +(const char*)(u8"╔══")  , true, false);
+    basic->printUtf8String(colLN +dirname                 , true, false);
+    basic->printUtf8String(colKW +(const char*)(u8"═══\n"), true, false);
+    std::string str;
+
+    std::u32string filter32;
+    Unicode::toU32String(filter.c_str(), filter32);
+
+    std::string lockSymbol = basic->os->lockSymbol();
+    for (size_t i = 0; i < files.size(); ++i) {
+        auto f = files[i].name;
+
+        if (!filter.empty()) {
+            std::u32string f32;
+            Unicode::toU32String(f.c_str(), f32);
+            if (!Unicode::wildcardMatchNoCase(f32.c_str(), filter32.c_str())) {
+                continue;
+            }
+        }
+
+        if (files[i].isLocked) {
+            f += lockSymbol;
+        }
+
+        // 5 chars+space for file size - space for CHDIR command
+        str = colKW + (const char*)(u8"║") + colLN + sizestrings[i] + colQU +" \"" + f + "\"\n";
+        basic->os->screen.cleanCurrentLine();
+        basic->printUtf8String(str, true, false);
+        basic->handleEscapeKey(true);
+        if (basic->options.listDelay) {
+            basic->os->delay(50);
+        }
+    }
+    basic->os->screen.cleanCurrentLine();
+    basic->printUtf8String(colKW +(const char*)(u8"╚══Σ") + colLN + niceSize(totalBytes) +colKW + (const char*)(u8"═══"), true, false);
+}
+
+void CLOUD(Basic* basic, const std::vector<Basic::Value>& values) {
+    if (values.size() == 0) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    basic->os->cloudUser = basic->valueToString(values[0]);
+    if (values.size() > 2) {
+        basic->os->cloudUrl = basic->valueToString(values[2]);
+    }
+}
+
+
+void CONT(Basic* basic, const std::vector<Basic::Value>& values) {
+    auto& modl = basic->currentModule();
+    auto ln    = modl.listing.find(modl.lineNumberForCONT);
+    if (ln != modl.listing.end()) {
+        modl.programCounter.line   = ln;
+        modl.programCounter.cmdpos = modl.tokenIndexForCONT;
+    }
+}
+
+
 void COLOR(Basic* basic, const std::vector<Basic::Value>& values) {
     int colorsource = 1, color = 1;
 
@@ -1396,113 +1528,6 @@ void SYS(Basic* basic, const std::vector<Basic::Value>& values) {
     // system(cmd.c_str());
 }
 
-void CATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
-    if (values.size() > 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
-    }
-
-    std::string filter = "";
-    if (values.size() > 0) {
-        filter = basic->valueToString(values[0]);
-    }
-
-    // file size, 4 characters wide
-    auto niceSize = [&basic](uint64_t s) -> std::string {
-        static const char* pfx = "BKMGTPEZ????";
-        const char* p          = pfx;
-        while (s > 1024) {
-            s /= 1024;
-            ++p;
-        }
-        std::string str(basic->valueToString(int64_t(s)));
-        str += *p;
-        while (str.length() < 4) {
-            str.insert(str.begin(), ' ');
-        }
-        return str;
-    };
-
-    uint64_t totalBytes = 0;
-    auto files          = basic->os->listCurrentDirectory();
-    std::vector<std::string> sizestrings(files.size());
-    for (size_t i = 0; i < files.size(); ++i) {
-        if (files[i].isDirectory) {
-            sizestrings[i] = std::string("DIR ");
-        } else {
-            sizestrings[i] = niceSize(files[i].filesize);
-            totalBytes += files[i].filesize;
-        }
-    }
-
-    std::string dirname = basic->os->getCurrentDirectory();
-    if (dirname.length() + 7 > basic->os->screen.width) {
-        size_t len = basic->os->screen.width - 7;
-        dirname    = dirname.substr(dirname.length() - len);
-    }
-    if (basic->os->dirIsInCloud()) {
-        dirname = std::string((const char*)(u8" \u2601 "));
-        dirname += basic->os->cloudUrl;
-    }
-    if (basic->os->dirIsInSerial()) {
-        dirname += std::string((const char*)(u8" \U0001F50C "));
-    }
-    basic->os->screen.cleanCurrentLine();
-    basic->printUtf8String((const char*)(u8"╔══"));
-    basic->printUtf8String(dirname);
-    basic->printUtf8String((const char*)(u8"═══\n"));
-    std::string str;
-
-    std::u32string filter32;
-    Unicode::toU32String(filter.c_str(), filter32);
-
-    std::string lockSymbol = basic->os->lockSymbol();
-    for (size_t i = 0; i < files.size(); ++i) {
-        auto f = files[i].name;
-
-        if (!filter.empty()) {
-            std::u32string f32;
-            Unicode::toU32String(f.c_str(), f32);
-            if (!Unicode::wildcardMatchNoCase(f32.c_str(), filter32.c_str())) {
-                continue;
-            }
-        }
-
-        if (files[i].isLocked) {
-            f += lockSymbol;
-        }
-
-        // 5 chars+space for file size - space for CHDIR command
-        str = (const char*)(u8"║") + sizestrings[i] + " \"" + f + "\"\n";
-        basic->os->screen.cleanCurrentLine();
-        basic->printUtf8String(str);
-        basic->handleEscapeKey(true);
-        if (basic->options.listDelay) {
-            basic->os->delay(50);
-        }
-    }
-    basic->os->screen.cleanCurrentLine();
-    basic->printUtf8String(std::string((const char*)(u8"╚══Σ")) + niceSize(totalBytes) + (const char*)(u8"═══"));
-}
-
-void CLOUD(Basic* basic, const std::vector<Basic::Value>& values) {
-    if (values.size() == 0) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
-    }
-    basic->os->cloudUser = basic->valueToString(values[0]);
-    if (values.size() > 2) {
-        basic->os->cloudUrl = basic->valueToString(values[2]);
-    }
-}
-
-
-void CONT(Basic* basic, const std::vector<Basic::Value>& values) {
-    auto& modl = basic->currentModule();
-    auto ln    = modl.listing.find(modl.lineNumberForCONT);
-    if (ln != modl.listing.end()) {
-        modl.programCounter.line   = ln;
-        modl.programCounter.cmdpos = modl.tokenIndexForCONT;
-    }
-}
 }; // CMD
 
 
@@ -1990,7 +2015,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
                  "REM", "RCHARDEF", "READ", "DATA", "RESTORE",
                  "END", "RUN", "DIM", "NETGET", "HELP", "INPUT", "CLR", "ON", "SCNCLR",
                  "NEW", "LIST", "MODULE", "KEY", "GETKEY", "DEF", "DELETE", "USING",
-                 "DUMP" };
+                 "DUMP" , "CMD"};
 
     // commands
     commands.insert({
@@ -2700,7 +2725,7 @@ inline int Basic::precedence(const std::string_view& op) {
     } // unary operator
     return 0;
 }
-inline int Basic::precedence(const Token* op) { 
+inline int Basic::precedence(const Token* op) {
     return precedence(op->str());
 }
 
@@ -2799,7 +2824,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         for (size_t i = 0; i < 256; ++i) {
             unaryOperators.push_back({ TokenType::OPERATOR, "u", Operator("u") });
         }
-        unaryOperators[size_t('-')] = {TokenType::OPERATOR, "u-", Operator("u-")};
+        unaryOperators[size_t('-')] = { TokenType::OPERATOR, "u-", Operator("u-") };
         unaryOperators[size_t('+')] = { TokenType::OPERATOR, "u+", Operator("u+") };
     }
 
@@ -3014,11 +3039,11 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         }
         throw Error(ErrorId::SYNTAX);
     };
-    auto applyOpNeg = [](Value& a)->void {
-        if (double* da = get_if<double>(&a)) { 
+    auto applyOpNeg = [](Value& a) -> void {
+        if (double* da = get_if<double>(&a)) {
             *da = -(*da);
             return;
-        }else if (int64_t* da = get_if<int64_t>(&a)) { 
+        } else if (int64_t* da = get_if<int64_t>(&a)) {
             *da = -(*da);
             return;
         }
@@ -3030,6 +3055,10 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
 
     // take operation from stack, execute it and put the result on the value stack
     auto applyOp = [&]() -> void {
+        if (values.empty() || ops.empty()) { 
+            throw Error(ErrorId::SYNTAX);
+        }
+
         // printf("______________\n");
         // for (auto& v : values) {
         //     printf(valueToString(v).c_str());
@@ -3055,11 +3084,11 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         Value a;
         Value b = values.back();
         values.pop_back();
-            if (values.empty()) {
-                throw Error(ErrorId::SYNTAX);
-            }
-            a = values.back();
-            values.pop_back();
+        if (values.empty()) {
+            throw Error(ErrorId::SYNTAX);
+        }
+        a = values.back();
+        values.pop_back();
 
         // debug(valueToString(a).c_str()); debug(op.c_str()); debug(valueToString(b).c_str()); debug("\n");
         const double* da = get_if<double>(&a);
@@ -3491,11 +3520,12 @@ void Basic::doPrintValue(Value& v) {
     }
 }
 
+// Does PRINT and PRINT# commands. Will restore the CMD (change main device)
 void Basic::handlePRINT(const std::vector<Token>& tokens) {
     size_t istart = 1;
-
-    currentFileNo = 0;
+    bool changedFileNo = false;
     if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
+        changedFileNo=true;
         currentFileNo = valueToInt(tokens[1].tv);
 
         if (tokens.size() > 2 && tokens[2].type != TokenType::COMMA) {
@@ -3514,25 +3544,27 @@ void Basic::handlePRINT(const std::vector<Token>& tokens) {
     static const std::string_view cmdUSING("USING");
     if (tokens[1].type == TokenType::KEYWORD && tokens[1].is(cmdUSING)) {
         handlePRINT_USING(tokens);
-        return;
+    } else {
+        std::string prt;
+        bool forceNewline = true;
+        for (;;) {
+            auto vals = evaluateExpression(tokens, istart, &istart, true);
+            if (vals.empty()) {
+                break;
+            }
+            for (auto& v : vals) {
+                doPrintValue(v);
+                forceNewline = !valueIsOperator(v);
+            }
+        }
+        if (forceNewline) {
+            printUtf8String("\n");
+        }
     }
 
-    std::string prt;
-    bool forceNewline = true;
-    for (;;) {
-        auto vals = evaluateExpression(tokens, istart, &istart, true);
-        if (vals.empty()) {
-            break;
-        }
-        for (auto& v : vals) {
-            doPrintValue(v);
-            forceNewline = !valueIsOperator(v);
-        }
+    if (changedFileNo) {
+        currentFileNo = 0;
     }
-    if (forceNewline) {
-        printUtf8String("\n");
-    }
-    currentFileNo = 0;
 }
 
 static std::string printUsing(const std::string& format, std::string value) {
@@ -4092,7 +4124,7 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
 
     if (tokens.size() == 2) {
         static const std::string_view cmdMODULE("MODULE");
-        if (tokens[1].type == TokenType::KEYWORD && tokens[1].is(cmdMODULE) ) {
+        if (tokens[1].type == TokenType::KEYWORD && tokens[1].is(cmdMODULE)) {
             // LIST MODULE
             for (auto& lmd : modules) {
                 os->screen.cleanCurrentLine();
@@ -4158,10 +4190,11 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
     Unicode::appendAsUtf8(colREM, ControlCharacters::charForColor(ScreenBuffer::buddyColor(colForMod)));
 
     // now, that's a hack
-    if (!options.colorzizeListing) {
-        colKW.clear();
+    if (!options.colorzizeListing || currentFileNo!=0) {
         colLN.clear();
+        colKW.clear();
         colQU.clear();
+        colREM.clear();
     }
 
     auto& module = currentModule();
@@ -4644,6 +4677,27 @@ void Basic::handleHELP(const std::vector<Token>& tokens) {
     printUtf8String(usg);
 }
 
+
+void Basic::handleCMD(const std::vector<Token>& intokens) {
+    std::vector<Token> copyToken { intokens };
+    if (copyToken.empty()) { 
+        throw Error(ErrorId::SYNTAX);
+    }
+    
+    size_t fileNo = 0;
+    try {
+        fileNo = valueToInt(copyToken[1].tv);
+    } catch (...) { 
+        throw Error(ErrorId::TYPE_MISMATCH);
+    }
+
+    copyToken[0].type = TokenType::FILEHANDLE;
+    handlePRINT(copyToken);
+
+    currentFileNo = fileNo;
+}
+
+
 void Basic::handleDEFFN(const std::vector<Token>& intokens) {
     std::string fname;
 
@@ -4683,12 +4737,12 @@ void Basic::handleDEFFN(const std::vector<Token>& intokens) {
     //     lineCopy += " ";
     //     lineCopy += intokens[i].valueForDebugging;
     // }
-    // 
+    //
     // std::vector<Token>& bodyTokens = def.body;
     // tokenizeNextCommand(lineCopy.c_str(), def.body); // TODO better directly use intokens
 
     for (size_t i = startParsing; i < intokens.size(); ++i) {
-        def.body.push_back( intokens[i]);
+        def.body.push_back(intokens[i]);
     }
 
     // tokens =   0    1  2  ... 3  4  5+   -o-l-d-
@@ -4775,14 +4829,14 @@ void Basic::handleFOR(const std::vector<Token>& tokens) {
     double toEnd = start;
     double step  = 1;
     for (size_t i = 4; i < tokens.size(); ++i) {
-        if ( tokens[i].is(cmdTO)) {
+        if (tokens[i].is(cmdTO)) {
             auto values = evaluateExpression(tokens, i + 1);
             if (values.size() != 1) {
                 throw Error(ErrorId::SYNTAX);
             }
             toEnd = valueToDouble(values.back());
         }
-        if ( tokens[i].is(cmdSTEP)) {
+        if (tokens[i].is(cmdSTEP)) {
             auto values = evaluateExpression(tokens, i + 1);
             if (values.size() != 1) {
                 throw Error(ErrorId::SYNTAX);
@@ -4937,9 +4991,9 @@ void Basic::handleIFTHEN(const std::vector<Token>& tokens) {
         // THEN 110
         static const std::string_view cmdGOTO("GOTO");
         if (copyTok.size() > 1 && copyTok[1].type == TokenType::INTEGER) {
-            copyTok[0].type  = TokenType::KEYWORD;
+            copyTok[0].type              = TokenType::KEYWORD;
             copyTok[0].valueForDebugging = "GOTO";
-            copyTok[0].tv  = "GOTO"; // TODO slow copy
+            copyTok[0].tv                = "GOTO"; // TODO slow copy
         }
         static const std::string_view cmdTHEN("THEN");
         if (copyTok.begin()->is(cmdTHEN)) {
@@ -5009,13 +5063,13 @@ void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
             if (tokens.back().type == TokenType::COMMA) {
                 Token t {};
                 if (valuePostfix == '$') {
-                    t.type  = TokenType::STRING;
+                    t.type              = TokenType::STRING;
                     t.valueForDebugging = "";
-                    t.tv = std::string("");
+                    t.tv                = std::string("");
                 } else {
-                    t.type  = TokenType::INTEGER;
+                    t.type              = TokenType::INTEGER;
                     t.valueForDebugging = "0";
-                    t.tv=0LL;
+                    t.tv                = 0LL;
                 }
                 tokens.push_back(t);
             }
@@ -5157,10 +5211,6 @@ void Basic::executeParsedTokens(const std::vector<Token>& tokens) {
         }
     }
 
-
-
-
-
     auto& modl = currentModule();
     if (tokens[0].type == TokenType::COMMAND) {
         auto cmd    = commands.find(tokens[0].str());
@@ -5204,9 +5254,9 @@ void Basic::executeParsedTokens(const std::vector<Token>& tokens) {
             handleDIM(tokens);
         } else if (tokens[0].is("RUN")) {
             handleRUN(tokens);
-        } else if (tokens[0].is("MODULE") ){
+        } else if (tokens[0].is("MODULE")) {
             handleMODULE(tokens);
-        } else if (tokens[0].is("PRINT" )|| tokens[0].is("?")) {
+        } else if (tokens[0].is("PRINT") || tokens[0].is("?")) {
             handlePRINT(tokens);
         } else if (tokens[0].is("INPUT")) {
             handleINPUT(tokens);
@@ -5224,7 +5274,7 @@ void Basic::executeParsedTokens(const std::vector<Token>& tokens) {
         } else if (tokens[0].is("SCNCLR")) {
             os->screen.clear();
             os->presentScreen();
-        } else if (tokens[0].is("NEW") ){
+        } else if (tokens[0].is("NEW")) {
             doNEW();
         } else if (tokens[0].is("LIST")) {
             handleLIST(tokens);
@@ -5247,6 +5297,8 @@ void Basic::executeParsedTokens(const std::vector<Token>& tokens) {
             handleDELETE(tokens);
         } else if (tokens[0].is("DUMP")) {
             handleDUMP(tokens);
+        } else if (tokens[0].is("CMD")) {
+            handleCMD(tokens);
         } else {
             throw Error(ErrorId::UNIMPLEMENTED_COMMAND);
         }
@@ -6469,7 +6521,7 @@ Basic::Module::VariableMap::iterator Basic::Module::findOrCreateVariable(const s
     auto varit = variables.find(variableName);
     if (varit == variables.end()) {
         Token tok;
-        tok.type  = TokenType::IDENTIFIER;
+        tok.type              = TokenType::IDENTIFIER;
         tok.valueForDebugging = variableName;
 
         // create new variable

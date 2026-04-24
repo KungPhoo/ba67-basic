@@ -25,6 +25,7 @@ void MarkdownParser::extractHeadingsAndUsage() {
     std::regex headingRegex(R"(^(#+)\s(.+))");
     std::regex usageRegex(R"(\*\*Usage:\*\*)");
     std::regex inlineCodeRegex(R"(`([^`]+)`)"), blockCodeRegex(R"(^```[a-zA-Z]*$([\s\S]*?)^```$)");
+    std::regex tocRegex(R"(<!--\s*TOC\s*-->[\s\S]*?<!--\s*TOC\s*-->)");
 
     std::istringstream stream(fileContent);
     std::string line;
@@ -36,11 +37,16 @@ void MarkdownParser::extractHeadingsAndUsage() {
     bool insideBlockCode = false;
 
     while (std::getline(stream, line)) {
-        // VS Markdown Editor V2 syntax uses 2x "<!-- TOC-->"
-        if (line.find("<!-- TOC-->") != std::string::npos) {
+        std::smatch tocMatch;
+
+        if (std::regex_search(line, tocMatch, tocRegex)) { 
             insideTOC = !insideTOC;
             continue;
+        
         }
+        // VS Markdown Editor V2 syntax uses 2x "<!-- TOC-->"
+        // if (line.find("<!-- TOC-->") != std::string::npos) {
+        // }
         if (insideTOC) {
             continue; // Skip TOC lines
         }
@@ -76,8 +82,9 @@ void MarkdownParser::extractHeadingsAndUsage() {
         }
     }
 }
+
 void MarkdownParser::updateTOC() {
-    std::regex tocRegex(R"(<!-- TOC-->[\s\S]*?<!-- TOC-->)");
+    std::regex tocRegex(R"(<!--\s*TOC\s*-->[\s\S]*?<!--\s*TOC\s*-->)");
     std::ostringstream tocStream;
     tocStream << "<!-- TOC-->\n";
     for (const auto& heading : headings) {
@@ -87,9 +94,9 @@ void MarkdownParser::updateTOC() {
         });
         tocStream << std::string(2 * (heading.second - 1), ' ') << "- [" << heading.first << "](#" << anchor << ")\n";
     }
-    tocStream << "<!-- TOC-->";
-
-    fileContent = std::regex_replace(fileContent, tocRegex, tocStream.str());
+    tocStream << "<!-- TOC -->"; // Markdown Editor v2 uses this syntax "-- TOC--", "-- TOC --". Might be typo.
+    std::string newToc(tocStream.str());
+    fileContent = std::regex_replace(fileContent, tocRegex, newToc);
 
     std::ofstream outFile(filename);
     if (!outFile) {
