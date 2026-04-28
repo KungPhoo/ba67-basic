@@ -1568,6 +1568,17 @@ Basic::Value DEC(Basic* basic, const std::vector<Basic::Value>& args) {
     return basic->strToInt("$" + basic->valueToString(args[0]));
 }
 
+Basic::Value ENV$(Basic* basic, const std::vector<Basic::Value>& args) {
+    if (args.size() != 1) {
+        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+    }
+    if (!basic->valueIsString(args[0])) { 
+        throw Basic::Error(Basic::ErrorId::TYPE_MISMATCH);
+    }
+
+    return basic->os->getEnv(basic->valueToString(args[0]));
+}
+
 Basic::Value HEX$(Basic* basic, const std::vector<Basic::Value>& args) {
     if (args.size() != 1) {
         throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
@@ -2077,6 +2088,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "DEC", FKT::DEC },
         { "EXP", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return exp(basic->valueToDouble(args[0])); } },
         { "FRE", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return (int64_t)basic->os->getFreeMemoryInBytes(); } },
+        { "ENV$", FKT::ENV$ },
         { "HEX$", FKT::HEX$ },
         { "INT", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return basic->valueToInt(args[0]); } },
         { "INSTR", FKT::INSTR },

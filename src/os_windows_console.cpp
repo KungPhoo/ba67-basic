@@ -463,6 +463,23 @@ std::string OsWindowsConsole::getHomeDirectory() {
     return homeDir;
 }
 
+std::string OsWindowsConsole::getEnv(const std::string& name) {
+    std::u16string n16;
+    Unicode::toU16String(name.c_str(), n16);
+    std::wstring rv = _wgetenv((const wchar_t*)n16.c_str());
+    return Unicode::toUtf8String((const char16_t*)rv.c_str());
+    return std::string();
+}
+
+void OsWindowsConsole::setEnv(const std::string& name, const std::string& value) {
+    std::string all = name + "=" + value;
+    std::u16string n16;
+    Unicode::toU16String(all.c_str(), n16);
+    std::u16string v16;
+    Unicode::toU16String(value.c_str(), v16);
+    ::SetEnvironmentVariableW((const wchar_t*)n16.c_str(), (const wchar_t*)v16.c_str());
+}
+
 void OsWindowsConsole::updateEvents() {
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
     if (hStdin == INVALID_HANDLE_VALUE) {

@@ -34,6 +34,9 @@ public:
 
     std::string getHomeDirectory() override;
 
+    std::string getEnv(const std::string& name) override;
+    void setEnv(const std::string& name, const std::string& value) override;
+
 
 
     // thread buffered window update

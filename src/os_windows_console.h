@@ -24,6 +24,8 @@ public:
 
     // --- FILE SYSTEM ---
     std::string getHomeDirectory() override;
+    std::string getEnv(const std::string& name) override;
+    void setEnv(const std::string& name, const std::string& value) override;
 
 private:
     void setTextColor(int index);

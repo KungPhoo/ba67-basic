@@ -232,6 +232,11 @@ public:
     std::string D64Path;
     D64 D64Img;
 
+    // --- ENV ---
+    virtual std::string getEnv(const std::string& name) { return {}; }
+    virtual void setEnv(const std::string& name, const std::string& value) {(void)name; (void)value; }
+
+
 private:
     enum CurrentDirIs {
         IsLocal  = 0,

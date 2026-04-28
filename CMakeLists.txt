@@ -144,7 +144,7 @@ include_directories(AFTER ./soloud/include)
 target_link_libraries(${APP_NAME} PUBLIC lib_soloud)
 
 # Minifetch
-add_subdirectory(minifetch)
+add_subdirectory(./minifetch)
 target_link_libraries(${APP_NAME} PRIVATE minifetch)
 
 

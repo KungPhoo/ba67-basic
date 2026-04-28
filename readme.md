@@ -6,7 +6,6 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
 <!-- do not edit TOC comment lines. -->
 <!-- See markdown_parser.h -->
 <!-- TOC-->
-- [Contents](#contents)
 - [About](#about)
   - [Goal](#goal)
 - [Syntax](#syntax)
@@ -21,13 +20,13 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
   - [Supported file formats](#supported-file-formats)
   - [D64 file storage](#d64-file-storage)
   - [Cloud file storage](#cloud-file-storage)
-  - [boot.bas](#boot-bas)
+  - [boot.bas](#bootbas)
   - [PETCAT](#petcat)
 - [Editor](#editor)
 - [Monitor](#monitor)
-- [Keywords, Commands, Functions](#keywords--commands--functions)
+- [Keywords, Commands, Functions](#keywords-commands-functions)
   - [Commands and Keywords](#commands-and-keywords)
-    - [ABOUT](#about)
+    - [ABOUT](#about-1)
     - [AUTO](#auto)
     - [BAKE](#bake)
       - [BAKE 64](#bake-64)
@@ -69,7 +68,7 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [MOVSPR](#movspr)
     - [NEW](#new)
     - [MODULE](#module)
-    - [MONITOR](#monitor)
+    - [MONITOR](#monitor-1)
     - [NETGET](#netget)
     - [NEXT](#next)
     - [ON](#on)
@@ -106,38 +105,39 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
     - [ABS](#abs)
     - [ASC](#asc)
     - [ATN](#atn)
-    - [CHR$](#chr-)
+    - [CHR$](#chr)
     - [COS](#cos)
     - [DEC](#dec)
+    - [ENV$](#env)
     - [EXP](#exp)
     - [FRE](#fre)
-    - [HEX$](#hex-)
+    - [HEX$](#hex)
     - [INSTR](#instr)
     - [INT](#int)
     - [JOY](#joy)
-    - [LCASE$](#lcase-)
-    - [LEFT$](#left-)
+    - [LCASE$](#lcase)
+    - [LEFT$](#left)
     - [LEN](#len)
     - [LOG](#log)
     - [MAX](#max)
-    - [MID$](#mid-)
+    - [MID$](#mid)
     - [MIN](#min)
     - [MOD](#mod)
     - [PEEK](#peek)
     - [PEN](#pen)
-    - [PETSCII$](#petscii-)
+    - [PETSCII$](#petscii)
     - [POS](#pos)
     - [POSY](#posy)
-    - [RIGHT$](#right-)
+    - [RIGHT$](#right)
     - [RND](#rnd)
     - [SGN](#sgn)
     - [SIN](#sin)
     - [SPC](#spc)
     - [SQR](#sqr)
-    - [STR$](#str-)
+    - [STR$](#str)
     - [TAB](#tab)
     - [TAN](#tan)
-    - [UCASE$](#ucase-)
+    - [UCASE$](#ucase)
     - [VAL](#val)
     - [XOR](#xor)
   - [Reserved Commands](#reserved-commands)
@@ -145,24 +145,24 @@ Visit the project Homepage: [www.ba67.org](https://www.ba67.org).
   - [A - ABC Music Notation](#a---abc-music-notation)
     - [ABC Music Notation - Basics](#abc-music-notation---basics)
     - [Basic Structure](#basic-structure)
-    - [Example:](#example-)
-    - [Key Components:](#key-components-)
-    - [Notes & Notation](#notes---notation)
-    - [Chords & Decorations](#chords---decorations)
+    - [Example:](#example)
+    - [Key Components:](#key-components)
+    - [Notes & Notation](#notes--notation)
+    - [Chords & Decorations](#chords--decorations)
     - [Instruments](#instruments)
     - [Multi-Voice](#multi-voice)
     - [Editors](#editors)
     - [More Features](#more-features)
-  - [B - Build, Using the Source Code](#b---build--using-the-source-code)
-    - [CHARDEF](#chardef)
+  - [B - Build, Using the Source Code](#b---build-using-the-source-code)
+    - [CHARDEF](#chardef-1)
     - [HTML5](#html5)
   - [C - Cloud](#c---cloud)
   - [D - Developers](#d---developers)
-  - [E - Escape (Control) Characters](#e---escape--control--characters)
+  - [E - Escape (Control) Characters](#e---escape-control-characters)
   - [F - The Newline Dilemma](#f---the-newline-dilemma)
   - [G - Going from PETSCII to Unicode](#g---going-from-petscii-to-unicode)
   - [H - Hardcore Assembler Language](#h---hardcore-assembler-language)
-  - [I - Internal Memory Model (PEEK and POKE)](#i---internal-memory-model--peek-and-poke-)
+  - [I - Internal Memory Model (PEEK and POKE)](#i---internal-memory-model-peek-and-poke)
   - [M - Machine Language Monitor](#m---machine-language-monitor)
   - [Z Known bugs](#z-known-bugs)
 - [Disclaimer](#disclaimer)
@@ -1496,7 +1496,7 @@ Optionally, a line number can be specified.
 
 
 ### SAVE
-**Usage:** `SAVE "test.bas" [,basicstart]`
+**Usage:** `SAVE "test.bas[,C,B2]" [,basicstart]`
 
 Saves the BASIC program of the current module to a file on
 the disk drive. The file extension ".BA67" is recommended.
@@ -1750,6 +1750,11 @@ Returns the cosine of an angle in radians.
 
 Converts a hex string to an integer number.
 See also [HEX$](#hex$).
+
+### ENV$
+**Usage:** `ENV$(name$)`
+
+Returns the underlying operating system's environment variable.
 
 ### EXP
 **Usage:** `EXP(expr)`

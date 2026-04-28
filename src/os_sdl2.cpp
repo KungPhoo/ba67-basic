@@ -118,6 +118,14 @@ std::string OsSDL2::getHomeDirectory() {
     return home;
 }
 
+std::string OsSDL2::getEnv(const std::string& name) {
+    return std::string(SDL_GetEnvironmentVariable(SDL_GetEnvironment(), name.c_str()));
+}
+
+void OsSDL2::setEnv(const std::string& name, const std::string& value) {
+    SDL_SetEnvironmentVariable(SDL_GetEnvironment(), name.c_str(), value.c_str(), true);
+}
+
 
 // --- TIME ---
 uint64_t OsSDL2::tick() const {

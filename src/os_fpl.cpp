@@ -142,6 +142,30 @@ std::string OsFPL::getHomeDirectory() {
     return homeDir;
 }
 
+std::string OsFPL::getEnv(const std::string& name) { 
+    #ifdef _WIN32
+        std::u16string n16;
+        Unicode::toU16String(name.c_str(), n16);
+        std::wstring rv = _wgetenv((const wchar_t*)n16.c_str());
+        return Unicode::toUtf8String((const char16_t*)rv.c_str());
+    #else
+        return std::getenv(name.c_str());
+    #endif
+}
+
+void OsFPL::setEnv(const std::string& name, const std::string& value) {
+    std::string all = name + "=" + value;
+    #ifdef _WIN32
+        std::u16string n16;
+        Unicode::toU16String(all.c_str(), n16);
+        std::u16string v16;
+        Unicode::toU16String(value.c_str(), v16);
+    ::SetEnvironmentVariableW((const wchar_t*)n16.c_str(), (const wchar_t*)v16.c_str());
+    #else
+        ::putenv(all.c_str());
+    #endif
+}
+
 uint64_t OsFPL::tick() const {
     static auto start = fplMillisecondsQuery();
     return fplMillisecondsQuery() - start;
