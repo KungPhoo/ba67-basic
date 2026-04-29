@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <string>
 #include <vector>
 // Simple, single-file C++17 implementation to parse and create .d64 images
