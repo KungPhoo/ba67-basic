@@ -330,7 +330,7 @@ size_t FilePtr::read(void* buffer, size_t bytes) {
         if (serial->available()) {
             auto rec = serial->read(int(bytes), 10);
             uint8_t* pb = reinterpret_cast<uint8_t*>(buffer);
-            for (uint8_t b : rec) { *pb++=b; }
+            for (uint8_t b : rec) { *pb=b; ++pb; }
             // memcpy(buffer, &rec[0], rec.size());
             return rec.size();
         }
@@ -359,7 +359,7 @@ size_t FilePtr::read(void* buffer, size_t bytes) {
 
 std::string FilePtr::getline() {
     std::string str;
-    char c = 0;
+    char c = '\0';
     while (read(&c, 1) != 0) {
         str += c;
         if (c == '\n') {

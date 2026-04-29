@@ -165,9 +165,11 @@ void IPCIMP::pipeThread() {
             std::lock_guard<std::mutex> lock(outMutex);
 #ifdef _WIN32
             DWORD w;
-            WriteFile(hInW, outBuf.data(), (DWORD)outBuf.size(), &w, NULL);
+            BOOL ok=WriteFile(hInW, outBuf.data(), (DWORD)outBuf.size(), &w, NULL);
+            (void)ok;
 #else
-            ::write(inFd, outBuf.data(), outBuf.size());
+            size_t n = ::write(inFd, outBuf.data(), outBuf.size());
+            (void)n;
 #endif
             outBuf.clear();
         }
