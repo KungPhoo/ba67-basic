@@ -162,7 +162,9 @@ void OsFPL::setEnv(const std::string& name, const std::string& value) {
         Unicode::toU16String(value.c_str(), v16);
     ::SetEnvironmentVariableW((const wchar_t*)n16.c_str(), (const wchar_t*)v16.c_str());
     #else
-        ::putenv(all.c_str());
+
+        ::putenv(all.data());
+
     #endif
 }
 
@@ -206,7 +208,7 @@ int getFreeMemoryProcMeminfo() {
     fInput      = fopen("/proc/meminfo", "r");
     if (fInput != NULL) {
         while (!feof(fInput)) {
-            fgets(buffer, BUFFER_SIZE - 1, fInput);
+            char* fgs = fgets(buffer, BUFFER_SIZE - 1, fInput); (void)fgs;
             if (feof(fInput)) {
                 break;
             }
@@ -445,14 +447,23 @@ void OsFPL::presentScreen() {
         screen.updateScreenPixelsPalette(cursorVisible, backBuffer->pixelsPal);
 
         switch (settings.renderMode) {
+            case BA68settings::RenderMode::Text:
+                {
+            static bool warned=false;
+                if (!warned) {
+                    warned = true;
+                    printf("Error: rendering in text mode not supported");
+                }
+            }
+                [[fallthrough]];
+        case BA68settings::RenderMode::Software:
+            renderSoftware();
+            break;
         case BA68settings::RenderMode::OpenGL:
     #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
             renderOpenGL();
             break;
     #endif
-        case BA68settings::RenderMode::Software:
-            renderSoftware();
-            break;
         }
     }
 }

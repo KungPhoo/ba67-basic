@@ -120,9 +120,14 @@ bool IPCIMP::openPipe() {
     CloseHandle(pi.hThread);
     hChild = pi.hProcess;
 #else
-    int pin[2], pout[2];
-    pipe(pin);
-    pipe(pout);
+    int pin[2] = { 0, 0 }, pout[2] = { 0, 0 }, ierr;
+    ierr = pipe(pin); if(ierr){return false;}
+    ierr = pipe(pout);
+    if (ierr) {
+        close(pin[0]);
+        close(pin[1]);
+        return false;
+    }
 
     childPid = fork();
     if (childPid == 0) {

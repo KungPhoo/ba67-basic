@@ -3850,9 +3850,9 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
                 if (!fp) {
                     throw Error(ErrorId::FILE_NOT_OPEN);
                 }
-                char buffer[4] = { 0, 0, 0, 0 };
-                if (fp.read(&buffer[0], 1) == 1) {
-                    str = buffer;
+                std::vector<uint8_t> buffer;
+                if (fp.read(buffer, 1) == 1) {
+                    str = buffer[0];
                 } else {
                     cpu.RAM[krnl.STATUS] = Basic::FS_EOF;
                 }
@@ -3914,27 +3914,26 @@ void Basic::handleINPUTFile(const std::vector<Token>& tokens) {
                 cpu.RAM[krnl.STATUS] |= Basic::FS_ERROR_READ;
             } else {
                 for (;;) {
-                    char buffer[4] = { 0, 0, 0, 0 };
-                    if (!(fp.read(&buffer[0], 1) == 1)) {
+                    char ch = fp.getc();
+                    if (ch == '\0') {
                         cpu.RAM[krnl.STATUS] |= Basic::FS_EOF;
-                        buffer[0] = '\0';
                     }
 
                     if (s.empty()) {
-                        firstChar = buffer[0];
+                        firstChar = ch;
                         if (firstChar == '\"') {
                             continue;
                         }
                     }
 
                     if (
-                        firstChar != '\"' && (buffer[0] == ',' || buffer[0] == ';' || buffer[0] == ':')
-                        || buffer[0] == '\0'
-                        || buffer[0] == '\r'
-                        || buffer[0] == '\n') {
+                        firstChar != '\"' && (ch == ',' || ch == ';' || ch == ':')
+                        || ch == '\0'
+                        || ch == '\r'
+                        || ch == '\n') {
                         break;
                     }
-                    s += buffer;
+                    s += ch;
                 }
                 // trim closing quotes when started with quotes
                 if (firstChar == '\"' && s.ends_with("\"")) {
@@ -6205,7 +6204,7 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
     }
 
     doNEW();
-    std::vector<char> buff;
+    std::vector<uint8_t> buff;
 
     std::string fileExt;
     if (inOutFilenameUtf8.length() > 4) {
@@ -6239,11 +6238,12 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
         size_t length = file.tell();
 
         // strip optional utf8 BOM
-        uint8_t bom[4] = { 0, 0, 0, 0 };
+        std::vector<uint8_t> bom;
         file.seek(0, SEEK_SET);
         if (length > 2) {
             auto nr = file.read(bom, 3);
         }
+        bom.resize(3);
         if (bom[0] == 0xef && bom[1] == 0xbb && bom[2] == 0xbf) {
             file.seek(3, SEEK_SET);
             length -= 3;
@@ -6251,16 +6251,16 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
             file.seek(0, SEEK_SET);
         }
 
-        buff.resize(length + 1);
-
-        file.read(&buff[0], length);
-        buff[length] = '\0';
+        buff.reserve(length + 1);
+        file.read(buff, length);
+        buff.push_back('\0');
+        // buff[length] = '\0';
         file.close();
     }
 
     // Establish string and get the first token:
     char* next_token = nullptr;
-    char* line       = StringHelper::strtok_r(&buff[0], "\r\n", &next_token);
+    char* line       = StringHelper::strtok_r(reinterpret_cast<char*>(&buff[0]), "\r\n", &next_token);
 
     std::string str;
     auto& listmodule  = moduleListingStack.back()->second;
@@ -6812,9 +6812,10 @@ bool Basic::monitor() {
                     file.seek(0, SEEK_SET);
                 }
                 for (size_t i = from; i <= to; ++i) {
-                    uint8_t b = 0;
-                    file.read(&b, 1);
-                    cpu.setByte(uint16_t(i), b);
+                    static std::vector<uint8_t> rbuf;
+                    if (file.read(rbuf, 1) == 1) {
+                        cpu.setByte(uint16_t(i), rbuf[0]);
+                    }
                 }
                 swapm();
                 file.close();

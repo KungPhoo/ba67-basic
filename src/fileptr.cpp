@@ -325,12 +325,14 @@ size_t FilePtr::tell() {
     return std::ftell(file);
 }
 
-size_t FilePtr::read(void* buffer, size_t bytes) {
+size_t FilePtr::read(std::vector<uint8_t>& buffer, size_t bytes) {
+    buffer.clear();
     if (serial) {
         if (serial->available()) {
-            auto rec = serial->read(int(bytes), 10);
-            uint8_t* pb = reinterpret_cast<uint8_t*>(buffer);
-            for (uint8_t b : rec) { *pb=b; ++pb; }
+            const std::vector<uint8_t> rec = serial->read(int(bytes), 10);
+            for (size_t i = 0; i < rec.size() && i < bytes; ++i) {
+                buffer.push_back(char(rec[i]));
+            }
             // memcpy(buffer, &rec[0], rec.size());
             return rec.size();
         }
@@ -342,25 +344,41 @@ size_t FilePtr::read(void* buffer, size_t bytes) {
         return 0;
     }
     if (ipc) {
-        size_t n    = 0;
-        uint8_t* p8 = reinterpret_cast<uint8_t*>(buffer);
+        size_t n = 0;
         while (bytes) {
             --bytes;
             if (!ipc->hasData()) {
                 break;
             }
-            p8[n++] = ipc->getc();
+            buffer.push_back(ipc->getc());
         }
         return n;
     }
 
-    return fread(buffer, bytes, 1, file);
+    // classic FILE
+    buffer.resize(bytes);
+    size_t nr = fread(&buffer[0], 1, bytes, file);
+    buffer.resize(nr);
+    return nr;
+}
+
+char FilePtr::getc() {
+    std::vector<uint8_t> b;
+    size_t n = read(b, 1);
+    if (n == 1) {
+        return b[0];
+    }
+    return '\0';
 }
 
 std::string FilePtr::getline() {
     std::string str;
-    char c = '\0';
-    while (read(&c, 1) != 0) {
+
+    for (;;) {
+        char c = getc();
+        if (c == '\0') {
+            break;
+        }
         str += c;
         if (c == '\n') {
             break;
@@ -418,7 +436,7 @@ std::vector<uint8_t> FilePtr::readAll() {
     }
     seek(0, SEEK_SET);
     std::vector<uint8_t> bytes(len);
-    read(&bytes[0], len);
+    read(bytes, len);
     return bytes;
 }
 

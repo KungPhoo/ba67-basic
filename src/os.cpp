@@ -660,7 +660,8 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
                     this->updateEvents();
                     this->screen.putC(c32);
                     std::string inputUtf8 = Unicode::toUtf8String(&c32);
-                    write(stdinPipe[1], inputUtf8.c_str(), inputUtf8.size());
+                    size_t written=write(stdinPipe[1], inputUtf8.c_str(), inputUtf8.size());
+                    (void)written;
                 }
             }
         }

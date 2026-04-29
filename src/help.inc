@@ -77,6 +77,7 @@
 ,{"CHR$", R"RAW(CHR$(code [,8]))RAW"}
 ,{"COS", R"RAW(COS(expr))RAW"}
 ,{"DEC", R"RAW(PRINT DEC("FF"))RAW"}
+,{"ENV$", R"RAW(ENV$(name$))RAW"}
 ,{"EXP", R"RAW(EXP(expr))RAW"}
 ,{"FRE", R"RAW(FRE(1))RAW"}
 ,{"HEX$", R"RAW(PRINT HEX$( $ff001234 ))RAW"}

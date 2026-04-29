@@ -13575,12 +13575,12 @@ LRESULT CALLBACK fpl__Win32MessageProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
     {
         if (!appState->currentSettings.input.disabledEvents) {
             uint64_t keyCode = wParam;
-            bool isDown = (lParam & (1 << 31)) == 0;
-            bool wasDown = (lParam & (1 << 30)) != 0;
+            bool isDown = (lParam & (1ULL << 31)) == 0;
+            bool wasDown = (lParam & (1ULL << 30)) != 0;
             bool altKeyIsDown = fpl__Win32IsKeyDown(wapi, VK_MENU);
             fplButtonState keyState = isDown ? fplButtonState_Press : fplButtonState_Release;
             fplKeyboardModifierFlags modifiers = fpl__Win32GetKeyboardModifiers(wapi);
-            fpl__HandleKeyboardButtonEvent(&appState->window, GetTickCount(), keyCode, modifiers, keyState, false);
+            fpl__HandleKeyboardButtonEvent(&appState->window, GetTickCount64(), keyCode, modifiers, keyState, false);
         }
     } break;
 
@@ -14168,7 +14168,7 @@ fpl_internal bool fpl__Win32InitWindow(const fplSettings* initSettings, fplWindo
     windowClass.lpszClassName = FPL__WIN32_CLASSNAME;
     windowClass.lpfnWndProc = fpl__Win32MessageProc;
     windowClass.style |= CS_OWNDC;
-    lstrcpynW(windowState->windowClass, windowClass.lpszClassName, fplArrayCount(windowState->windowClass));
+    (void)lstrcpynW(windowState->windowClass, windowClass.lpszClassName, fplArrayCount(windowState->windowClass));
     if (wapi->user.RegisterClassExW(&windowClass) == 0) {
         FPL__ERROR(FPL__MODULE_WINDOW, "Failed registering window class '%s'", windowState->windowClass);
         return false;
@@ -14180,7 +14180,7 @@ fpl_internal bool fpl__Win32InitWindow(const fplSettings* initSettings, fplWindo
         fplUTF8StringToWideString(initWindowSettings->title, fplGetStringLength(initWindowSettings->title), windowTitleBuffer, fplArrayCount(windowTitleBuffer));
     } else {
         const wchar_t* defaultTitle = FPL__WIN32_UNNAMED_WINDOW;
-        lstrcpynW(windowTitleBuffer, defaultTitle, fplArrayCount(windowTitleBuffer));
+        (void)lstrcpynW(windowTitleBuffer, defaultTitle, fplArrayCount(windowTitleBuffer));
     }
     wchar_t* windowTitle = windowTitleBuffer;
     fplWideStringToUTF8String(windowTitle, lstrlenW(windowTitle), currentWindowSettings->title, fplArrayCount(currentWindowSettings->title));
@@ -14431,7 +14431,7 @@ fpl_internal bool fpl__Win32InitPlatform(const fplInitFlags initFlags, const fpl
             fplUTF8StringToWideString(initConsoleSettings->title, fplGetStringLength(initConsoleSettings->title), consoleTitleBuffer, fplArrayCount(consoleTitleBuffer));
         } else {
             const wchar_t* defaultTitle = FPL__WIN32_UNNAMED_CONSOLE;
-            lstrcpynW(consoleTitleBuffer, defaultTitle, fplArrayCount(consoleTitleBuffer));
+            (void)lstrcpynW(consoleTitleBuffer, defaultTitle, fplArrayCount(consoleTitleBuffer));
         }
         wchar_t* windowTitle = consoleTitleBuffer;
         fplWideStringToUTF8String(windowTitle, lstrlenW(windowTitle), currentConsoleSettings->title, fplArrayCount(currentConsoleSettings->title));
@@ -14659,6 +14659,7 @@ fpl_platform_api bool fplOSGetVersionInfos(fplOSVersionInfos* outInfos) {
 
     // @NOTE(final): Prefer RtlGetVersion always, because MS might decide to totally remove GetVersion() and GetVersionEx()
     HMODULE ntdllModule = GetModuleHandleA("ntdll");
+    if (!ntdllModule) { return false; }
     fpl__func_ntdll_RtlGetVersionProc* rtlGetVersionProc = (fpl__func_ntdll_RtlGetVersionProc*)(void*)GetProcAddress(ntdllModule, "RtlGetVersion");
     if (rtlGetVersionProc != fpl_null) {
         RTL_OSVERSIONINFOW info = fplZeroInit;
@@ -20295,8 +20296,8 @@ fpl_platform_api bool fplSignalWaitForOne(fplSignalHandle* signal, const fplTime
     }
     int ev = signal->internalHandle.linuxEventHandle;
     if (timeout == FPL_TIMEOUT_INFINITE) {
-        uint64_t value;
-        read(ev, &value, sizeof(value));
+        uint64_t value=0;
+        size_t nr = read(ev, &value, sizeof(value)); (void)nr;
         return true;
     } else {
         fd_set f;

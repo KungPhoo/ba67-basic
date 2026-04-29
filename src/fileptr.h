@@ -71,7 +71,8 @@ public:
     void flush();
     int seek(int offset, int origin /* SEEK_SET/SEEK_END*/);
     size_t tell();
-    size_t read(void* buffer, size_t bytes);
+    size_t read(std::vector<uint8_t>& buffer, size_t bytes);
+    char getc();
     std::string getline();
     size_t write(const void* buffer, size_t bytes);
     std::vector<uint8_t> readAll();
@@ -101,5 +102,5 @@ protected:
     std::string lastStatus;
 
     bool fopenLocal(std::string filenameUtf8, const char* mode);
-    void fopenCloud(std::string filenameUtf8, const char* mode);
+    //void fopenCloud(std::string filenameUtf8, const char* mode);
 };
