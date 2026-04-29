@@ -300,22 +300,149 @@ void ScreenBuffer::resetDefaultColors() {
     defineColor(15, 0x95, 0x95, 0x95); // 16 Light Gray
 #else
     // https://www.colodore.com/ from https://www.pepto.de/projects/colorvic/
-    defineColor(0, 0x00, 0x00, 0x00); //  1 Black
-    defineColor(1, 0xFF, 0xFF, 0xFF); //  2 White
-    defineColor(2, 0x81, 0x33, 0x38); //  3 Red
-    defineColor(3, 0x75, 0xce, 0xc8); //  4 Cyan
-    defineColor(4, 0x8e, 0x3c, 0x97); //  5 Purple
-    defineColor(5, 0x56, 0xac, 0x4d); //  6 Green
-    defineColor(6, 0x2e, 0x2c, 0x9b); //  7 Blue
-    defineColor(7, 0xed, 0xf1, 0x71); //  8 Yellow
-    defineColor(8, 0x8e, 0x50, 0x29); //  9 Orange
-    defineColor(9, 0x55, 0x38, 0x00); //  0 Brown
-    defineColor(10, 0xc4, 0x6c, 0x71); // 11 Light Red
-    defineColor(11, 0x4a, 0x4a, 0x4a); // 12 Dark Gray
-    defineColor(12, 0x7b, 0x7b, 0x7b); // 13 Medium Gray
-    defineColor(13, 0xa9, 0xff, 0x9f); // 14 Light Green
-    defineColor(14, 0x70, 0x6d, 0xeb); // 15 Light Blue
-    defineColor(15, 0xb2, 0xb2, 0xb2); // 16 Light Gray
+    // defineColor(0, 0x00, 0x00, 0x00); //  1 Black
+    // defineColor(1, 0xFF, 0xFF, 0xFF); //  2 White
+    // defineColor(2, 0x81, 0x33, 0x38); //  3 Red
+    // defineColor(3, 0x75, 0xce, 0xc8); //  4 Cyan
+    // defineColor(4, 0x8e, 0x3c, 0x97); //  5 Purple
+    // defineColor(5, 0x56, 0xac, 0x4d); //  6 Green
+    // defineColor(6, 0x2e, 0x2c, 0x9b); //  7 Blue
+    // defineColor(7, 0xed, 0xf1, 0x71); //  8 Yellow
+    // defineColor(8, 0x8e, 0x50, 0x29); //  9 Orange
+    // defineColor(9, 0x55, 0x38, 0x00); //  0 Brown
+    // defineColor(10, 0xc4, 0x6c, 0x71); // 11 Light Red
+    // defineColor(11, 0x4a, 0x4a, 0x4a); // 12 Dark Gray
+    // defineColor(12, 0x7b, 0x7b, 0x7b); // 13 Medium Gray
+    // defineColor(13, 0xa9, 0xff, 0x9f); // 14 Light Green
+    // defineColor(14, 0x70, 0x6d, 0xeb); // 15 Light Blue
+    // defineColor(15, 0xb2, 0xb2, 0xb2); // 16 Light Gray
+
+
+    // from colodore.com
+    #if 1
+
+    auto gamma_pepto = [](double value) -> double {
+        double gammasrc = 2.8; // PAL
+        double gammatgt = 2.2; // sRGB
+        value           = std::min(std::max(value, 0.0), 255.0);
+
+        // reverse gamma correction of source
+        double factor = std::pow(255.0, 1.0 - gammasrc);
+        value         = std::min(std::max(factor * std::pow(value, gammasrc), 0.0), 255.0);
+
+        // apply gamma correction for target
+        factor = std::pow(255.0, 1.0 - 1.0 / gammatgt);
+        value  = std::min(std::max(factor * pow(value, 1 / gammatgt), 0.0), 255.0);
+        return value;
+    };
+
+    auto yuv2r = [](double y, double v) -> uint8_t {
+        return uint8_t(std::min(std::max(y + 1.140 * v, 0.0), 255.0));
+    };
+
+    auto yuv2g = [](double y, double u, double v) -> uint8_t {
+        return uint8_t(std::min(std::max(y - 0.396 * u - 0.581 * v, 0.0), 255.0));
+    };
+
+    auto yuv2b = [](double y, double u) -> uint8_t {
+        return uint8_t(std::min(std::max(y + 2.029 * u, 0.0), 255.0));
+    };
+
+    auto luma = [](double input) {
+        double factor = (256.0 / 32.0);
+
+        return input * factor;
+    };
+
+    auto angle = [](double input, double phs) {
+        double factor = 360.0 / 16.0;
+        double degree = 3.14158 / 180.0;
+        double rotate = factor / 2.0 + phs;
+
+        return (input * factor + rotate) * degree;
+    };
+    auto crop = [](double c) -> uint8_t {
+        int i = int(c + 0.499999);
+        if (i < 0) {
+            return 0;
+        }
+        if (i > 255) {
+            return 255;
+        }
+        return i & 0xff;
+    };
+    std::vector<double> lumas(16);
+    lumas[0]  = 0; // Black
+    lumas[1]  = 32; // White
+    lumas[2]  = 10; // Red
+    lumas[3]  = 20; // Cyan
+    lumas[4]  = 12; // Purple
+    lumas[5]  = 16; // Green
+    lumas[6]  = 8; // Blue
+    lumas[7]  = 24; // Yellow
+    lumas[8]  = lumas[4]; // Orange
+    lumas[9]  = lumas[6]; // Brown
+    lumas[10] = lumas[5]; // Light Red
+    lumas[11] = lumas[2]; // Dark Grey
+    lumas[12] = 15; // Grey
+    lumas[13] = lumas[7]; // Light Green
+    lumas[14] = lumas[12]; // Light Blue
+    lumas[15] = lumas[3]; // Light Grey
+
+
+    std::vector<double> angles(16);
+
+    angles[0]  = -1; // Black
+    angles[1]  = -1; // White
+    angles[2]  = 4; // Red
+    angles[3]  = 4 + 8; // Cyan
+    angles[4]  = 2; // Purple
+    angles[5]  = 2 + 8; // Green
+    angles[6]  = 7 + 8; // Blue
+    angles[7]  = 7; // Yellow
+    angles[8]  = 5; // Orange
+    angles[9]  = 6; // Brown
+    angles[10] = angles[2]; // Light Red
+    angles[11] = -1; // Dark Grey
+    angles[12] = -1; // Grey
+    angles[13] = angles[5]; // Light Green
+    angles[14] = angles[6]; // Light Blue
+    angles[15] = -1; // Light Grey
+
+    //  This is how I remember them (without the CRT emulation)
+    double bri   = 50.0; // brightness
+    double con   = 100.0; // contrast
+    double sat   = 75.0 / 1.25; // saturation /1.25. Max 0.80
+
+    bool invert  = false;
+    double phase = 0.0;
+
+    for (int i = 0; i < 16; i++) {
+        double y = luma(lumas[i]);
+        double u = 0, v = 0;
+
+        if (angles[i] == -1) {
+            u = 0;
+            v = 0;
+        } else {
+            u = sat * cos(angle(angles[i], phase));
+            v = sat * sin(angle(angles[i], phase)) * ((invert == true) ? -1 : 1);
+        }
+
+        y *= con/100.0;
+        u *= con/100.0;
+        v *= con/100.0;
+        y += bri; // apply brightness and contrast
+
+        double r = gamma_pepto(yuv2r(y, v));
+        double g = gamma_pepto(yuv2g(y, u, v));
+        double b = gamma_pepto(yuv2b(y, u));
+
+        defineColor(i, crop(r), crop(g), crop(b));
+    }
+
+
+    #endif
 
 #endif
 }

@@ -38,13 +38,12 @@ uniform bool crt_emulation;
 
 // Hard-coded 4x4 RGB multipliers
 const float one=1.0;
-const float drk=0.85; // darkening of rgb components
+const float drk=0.90; // darkening of rgb components
 const float scn=0.85; // scanline
 const vec3 blockMatrix[16] = vec3[16]( // vertically flipped
     scn*vec3(one, drk, drk), scn*vec3(drk, one, drk), scn*vec3(drk, drk, one), scn*vec3(drk, drk, drk),
     vec3(one, drk, drk),vec3(drk, one, drk),vec3(drk, drk, one),vec3(scn, scn, scn),
     scn*vec3(one, drk, drk), scn*vec3(drk, one, drk), scn*vec3(drk, drk, one), scn*vec3(drk, drk, drk),
-    //vec3(one, drk, drk),vec3(drk, one, drk),vec3(drk, drk, one),vec3(scn, scn, scn),
     vec3(one, drk, drk),vec3(drk, one, drk),vec3(drk, drk, one),vec3(scn, scn, scn)
 );
 
