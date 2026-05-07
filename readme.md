@@ -318,10 +318,9 @@ Integers can be given up to 64 bits. A prefixed `$` is
 interpreted as a hex number. `a = $7ffffff`.
 
 Commodore allowed the dot `.` to be interpreted as zero.
-BA67 can allow this with the options.dotAsZero=true set.
-That's the default. Please don't do this in new projects.
-People did this because parsing '.' was faster than '0' in
-Commodore BASIC.
+BA67 allows this as well.
+Please don't do this in new projects. People did this
+because parsing '.' was faster than '0' in Commodore BASIC.
 
 -------------------------------------------------------------
 ## Unicode

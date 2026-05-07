@@ -1,4 +1,5 @@
 #include "screen_buffer.h"
+#include <cmath>
 #include "font.h"
 #include <algorithm>
 #include <stdexcept>
@@ -128,7 +129,7 @@ ScreenBuffer::ScreenBuffer() {
 
 void ScreenBuffer::initMemory(RomImage& image) {
     memory             = &image.RAM[0];
-    lineLinkTable      = memory + krnl.LDTB1;
+    lineLinkTable      = &memory[krnl.LDTB1];
     size_t charAddress = memory[krnl.HIBASE] << 8;
     charRam            = memory + charAddress;
     VIC                = &image.IO[0];

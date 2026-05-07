@@ -1,9 +1,9 @@
 #pragma once
 #include <atomic>
-#include <iostream>
+// #include <iostream>
 #include <array>
-#include <unordered_map>
-#include <memory>
+// #include <unordered_map>
+// #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -235,7 +235,7 @@ private:
         size_t width() const { return characters.size(); }
         std::vector<MEMCELL> characters;
         std::vector<uint8_t> colors;
-        MEMCELL lineLink;
+        MEMCELL lineLink=0;
     };
     std::vector<LineOverflow> overflowTop, overflowBottom;
 

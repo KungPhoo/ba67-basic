@@ -119,11 +119,14 @@ std::string OsSDL2::getHomeDirectory() {
 }
 
 std::string OsSDL2::getEnv(const std::string& name) {
-    return std::string(SDL_GetEnvironmentVariable(SDL_GetEnvironment(), name.c_str()));
+    return getenv(name.c_str());
+    // SDL3: return std::string(SDL_GetEnvironmentVariable(SDL_GetEnvironment(), name.c_str()));
 }
 
 void OsSDL2::setEnv(const std::string& name, const std::string& value) {
-    SDL_SetEnvironmentVariable(SDL_GetEnvironment(), name.c_str(), value.c_str(), true);
+    std::string cmd(name + "=" + value);
+    putenv(cmd.data());
+    // SDL3 : SDL_SetEnvironmentVariable(SDL_GetEnvironment(), name.c_str(), value.c_str(), true);
 }
 
 

@@ -57,15 +57,15 @@ Os* getOsConsole() {
 #endif
 
 #if 0
-void cmdWHATEVER(Basic* basic, const std::vector<Basic::Value>& values) {
+void cmdWHATEVER(Basic* basic, const std::vector<BA67::Value>& values) {
     // attention! values contains operators (COMMA)
     for (auto& v : values)
     {
         basic->printUtf8String(
-            Basic::valueToString(v).c_str());
+            BA67::ValueToString(v).c_str());
     }
 }
-Basic::Value fktFOO$(Basic* basic, const std::vector<Basic::Value>& values) {
+Basic::Value fktFOO$(Basic* basic, const std::vector<BA67::Value>& values) {
     // attention! values contains operators (COMMA)
     return {"foo"};
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include "token.h"
 #include <array>
 #include <functional>
 #include <map>
@@ -10,8 +11,10 @@
 #include <vector>
 #include <list>
 #include "cpu-6502.h"
+#include "error.h"
 
 #include "os.h"
+using namespace BA67;
 
 class SoundSystem;
 
@@ -25,7 +28,7 @@ public:
 
     struct Options {
         bool spacingRequired  = true; // 'false' allows FORI=1TO10 without spaces
-        bool dotAsZero        = true; // 'true' allows a=. instead of a=0
+        // bool dotAsZero        = true; // 'true' allows a=. instead of a=0
         bool uppercaseInput   = false; // 'true' returns only upper-case characters in GET/INPUT
         bool colorzizeListing = true;
         bool listDelay        = true; // add delay when list lines
@@ -35,220 +38,7 @@ public:
     static double constexpr eps = 2.32830644e-10; // found by 10 E=1 20 IF1+E=1 THEN END 30 E=E/2: GOTO 20
 
 
-    // Variable types
-    class Operator {
-    public:
-        Operator()                = default;
-        Operator(const Operator&) = default;
-        Operator(const std::string& s) { value = s; }
-        Operator& operator=(const Operator&) = default;
-        bool operator==(const Operator& o) const { return o.value == value; }
-        std::string value;
-    };
-
-#if 0 // _DEBUG
-
-    class Value: public std::variant<int64_t, double, std::string, Operator> {
-    public:
-        Value(): std::variant<int64_t, double, std::string, Operator>(std::string()) {}
-        Value(const std::string& p): std::variant<int64_t, double, std::string, Operator>(p) {}
-        Value(int64_t p): std::variant<int64_t, double, std::string, Operator>(p) {}
-        Value(double p): std::variant<int64_t, double, std::string, Operator>(p) {}
-        Value(const Operator& p): std::variant<int64_t, double, std::string, Operator>(p) {}
-        Value(const Value&) = default;
-
-        Value& operator=(int64_t i) {
-            if (i < 0) {
-                int pause = 0;
-            }
-            std::variant<int64_t, double, std::string, Operator>::operator=(i);
-            return *this;
-        }
-        Value& operator=(double i) {
-            if (i < 0) {
-                int pause = 0;
-            }
-            std::variant<int64_t, double, std::string, Operator>::operator=(i);
-            return *this;
-        }
-        Value& operator=(const std::string& i) {
-            std::variant<int64_t, double, std::string, Operator>::operator=(i);
-            return *this;
-        }
-        Value& operator=(const Operator& i) {
-            std::variant<int64_t, double, std::string, Operator>::operator=(i);
-            return *this;
-        }
-        Value& operator=(const Value& i) {
-            std::variant<int64_t, double, std::string, Operator>::operator=(i);
-            return *this;
-        }
-    };
-
-#else
-    // string is stored in UTF-8 encoding
-    using Value = std::variant<int64_t, double, std::string, Operator>;
-#endif
-
-    // https://sta.c64.org/cbm64baserr.html
-    enum ErrorId {
-        INTERNAL         = 1,
-        SYNTAX           = 11,
-        FILE_OPEN        = 2,
-        FILE_NOT_OPEN    = 3,
-        FILE_NOT_FOUND   = 4,
-        ILLEGAL_DEVICE   = 9, // illegal device NUMBER
-        UNDEFD_STATEMENT = 17,
-        TYPE_MISMATCH    = 22,
-        ILLEGAL_QUANTITY = 14,
-        BAD_SUBSCRIPT    = 18 // out of dim bounds
-        ,
-        OUT_OF_DATA          = 13,
-        OUT_OF_MEMORY        = 16,
-        NEXT_WITHOUT_FOR     = 10,
-        RETURN_WITHOUT_GOSUB = 12,
-        FORMULA_TOO_COMPLEX  = 25,
-
-        // these are not from BASIC V7
-
-        BREAK                 = 30,
-        UNDEFD_MODULE         = 254,
-        ARGUMENT_COUNT        = 101,
-        VARIABLE_UNDEFINED    = 201,
-        DEF_WITHOUT_FNEND     = 202,
-        READY_COMMAND         = 203, // easter egg: press enter on "READY."
-        UNIMPLEMENTED_COMMAND = 255
-    };
-
-
-    class Error : std::exception {
-    public:
-        Error(ErrorId id) {
-            if (id != ErrorId::BREAK) {
-                int stop = 1;
-            }
-            ID = id;
-        }
-        Error(const Error&)            = default;
-        Error& operator=(const Error&) = default;
-        ErrorId ID;
-
-        const char* what() const noexcept override {
-            static std::map<ErrorId, std::string> errorMessages = {
-                {              ErrorId::INTERNAL,              "INTERNAL ERROR" },
-                {                ErrorId::SYNTAX,                "SYNTAX ERROR" },
-                {             ErrorId::FILE_OPEN,             "FILE OPEN ERROR" },
-                {         ErrorId::FILE_NOT_OPEN,         "FILE NOT OPEN ERROR" },
-                {        ErrorId::FILE_NOT_FOUND,        "FILE NOT FOUND ERROR" },
-                {        ErrorId::ILLEGAL_DEVICE,        "ILLEGAL DEVICE ERROR" },
-                {      ErrorId::UNDEFD_STATEMENT,     "UNDEF'D STATEMENT ERROR" },
-                {         ErrorId::TYPE_MISMATCH,        "TYPE MISTMATCH ERROR" },
-                {      ErrorId::ILLEGAL_QUANTITY,      "ILLEGAL QUANTITY ERROR" },
-                {         ErrorId::BAD_SUBSCRIPT,         "BAD SUBSCRIPT ERROR" },
-                {           ErrorId::OUT_OF_DATA,           "OUT OF DATA ERROR" },
-                {         ErrorId::OUT_OF_MEMORY,         "OUT OF MEMORY ERROR" },
-                {  ErrorId::RETURN_WITHOUT_GOSUB,        "RETURN WITHOUT GOSUB" },
-                {      ErrorId::NEXT_WITHOUT_FOR,            "NEXT WITHOUT FOR" },
-                {   ErrorId::FORMULA_TOO_COMPLEX,         "FORMULA TOO COMPLEX" },
-                {                 ErrorId::BREAK,                       "BREAK" },
-                {         ErrorId::UNDEFD_MODULE,         "UNDEFD MODULE ERROR" },
-                {        ErrorId::ARGUMENT_COUNT,        "ARGUMENT COUNT ERROR" },
-                {    ErrorId::VARIABLE_UNDEFINED,    "VARIABLE UNDEFINED ERROR" },
-                {     ErrorId::DEF_WITHOUT_FNEND,           "DEF WITHOUT FNEND" },
-                {         ErrorId::READY_COMMAND,                "YES, I AM..." },
-                { ErrorId::UNIMPLEMENTED_COMMAND, "UNIMPLEMENTED COMMAND ERROR" }
-            };
-
-            return errorMessages[ID].c_str();
-        }
-    };
-
 protected:
-    // Token types
-    enum class TokenType {
-        NUMBER,
-        INTEGER,
-        STRING,
-        IDENTIFIER /*variable name*/,
-        COMMA,
-        OPERATOR,
-        UNARY_OPERATOR,
-        KEYWORD,
-        COMMAND,
-        PARENTHESIS,
-        MODULE,
-        FILEHANDLE,
-
-        END
-    };
-
-    // Token structure
-    struct Token {
-        TokenType type = TokenType::END;
-        std::string_view valueForDebugging;
-        Value tv;
-
-
-        private:
-        const std::string* strOrNull()const {
-            if (auto* s = std::get_if<std::string>(&tv)) {
-                return s;
-            }
-            if (auto* op = std::get_if<Operator>(&tv)) {
-                return &op->value;
-            }
-            return nullptr;
-        }
-
-    public:
-        const std::string& str() const {
-            auto* s = strOrNull();
-            if (s != nullptr) {
-                return *s;
-            }
-            throw Basic::ErrorId::INTERNAL;
-        }
-
-
-        bool is(char c) const { 
-            auto* s = strOrNull();
-            if (s == nullptr) {
-                return false;
-            }
-            return s->length()==1 && (*s)[0] == c;
-        }
-        bool is(const std::string_view& str) const { 
-            auto* s = strOrNull();
-            if (s == nullptr) {
-                return false;
-            }
-            return (*s) == str;
-        }
-
-
-
-        // returns '#', '%', '$'
-        char valuePostfix() const {
-            if (type == TokenType::INTEGER) {
-                return '%';
-            }
-            if (type == TokenType::NUMBER) {
-                return '#';
-            }
-            if (type == TokenType::STRING) {
-                return '$';
-            }
-            if (auto* s = std::get_if<std::string>(&tv)) {
-                if (s->ends_with('$')) {
-                    return '$';
-                }
-                if (s->ends_with('%')) {
-                    return '%';
-                }
-            }
-            return '#';
-        }
-    };
 
 
     std::set<std::string> keywords;
@@ -324,7 +114,7 @@ public:
         Value& at(const ArrayIndex& ix);
         Value& atKey(const Value& key) {
             if (!isDictionary) {
-                throw Basic::Error(Basic::ErrorId::TYPE_MISMATCH);
+                throw BA67::Error(ErrorId::TYPE_MISMATCH);
             }
             for (auto& p : dict) {
                 if (p.first == key) {
@@ -489,27 +279,7 @@ public:
     ProgramCounter& programCounter() { return moduleListingStack.back()->second.programCounter; }
     void storeProgramCounterForCont();
 
-public:
-    // Represent value as string
-    static std::string valueToString(const Value& v);
-    static double valueToDouble(const Value& v);
-    static double valueToDoubleOrZero(const Value& v);
-    static int64_t valueToInt(const Value& v);
-    static bool valueIsOperator(const Value& v);
-    static bool valueIsString(const Value& v);
-    static bool valueIsInt(const Value& v);
-    static bool valueIsDouble(const Value& v);
 
-    static bool isEndOfWord(char c);
-    static bool isNumeric(char c);
-    inline static bool isWhiteSpace(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
-    static const char* skipWhite(const char*& str);
-    static bool parseDouble(const char*& str, double* number = nullptr);
-    static bool parseInt(const char*& str, int64_t* number = nullptr); // int - not a double! "1.23" returns false
-    static bool parseGotoInt(const char*& str, int64_t* number = nullptr);
-    static bool parseFileHandle(const char*& str, std::string_view* number = nullptr);
-    static int64_t strToInt(const std::string& str); // parses "255" and "$ff"
-    static int64_t strToInt(const std::string_view& str); // parses "255" and "$ff"
 protected:
     bool parseKeyword(const char*& str, std::string_view* keyword = nullptr);
     bool parseCommand(const char*& str, std::string_view* command = nullptr);
@@ -527,7 +297,7 @@ protected:
     int precedence(const std::string_view& op);
     int precedence(const Token* op);
  
-    Basic::Value evaluateDefFnCall(Basic::FunctionDefinition & fn, const std::vector<Basic::Value>& arguments);
+    Value evaluateDefFnCall(Basic::FunctionDefinition & fn, const std::vector<Value>& arguments);
 
     // Evaluate expression using Shunting-Yard algorithm
     std::vector<Value> evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd = nullptr, bool breakEarly = false);

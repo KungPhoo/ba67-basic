@@ -18,7 +18,7 @@
 #include "rom.h"
 #include "cbm_rnd.h"
 
-
+#include "parse_string.h"
 
 // TODO try 10 DIM JU(13): FOR I = 0 TO 13 : READ JU(I) : NEXT : PRINT JU(I): DATA 5, 4, 3, 2, 1, 1, 0, 0, -1, -1, -2, -3, -4, -5
 
@@ -35,7 +35,7 @@
 #define ASSERT(a)                                         \
     {                                                     \
         if (!(a)) {                                       \
-            throw Basic::Error(Basic::ErrorId::INTERNAL); \
+            throw BA67::Error(ErrorId::INTERNAL); \
         }                                                 \
     }
 
@@ -99,7 +99,7 @@ void runAssemblerCode(Basic* basic) {
             // see set filename: FDF9
             uint16_t fnaddr = (cpu.RAM[0xBB] & 0xff) | ((cpu.RAM[0xBC] & 0xff) << 8);
             if (fnaddr + fnlen >= 0x10000) {
-                throw Basic::ErrorId::OUT_OF_MEMORY;
+                throw ErrorId::OUT_OF_MEMORY;
             }
 
             std::string fname;
@@ -205,9 +205,9 @@ void runAssemblerCode(Basic* basic) {
         basic->os->screen.cleanCurrentLine();
         basic->printUtf8String(err);
         if (cpu.cpuJam) {
-            throw Basic::Error(Basic::ErrorId::INTERNAL);
+            throw BA67::Error(ErrorId::INTERNAL);
         } else {
-            throw Basic::Error(Basic::ErrorId::BREAK);
+            throw BA67::Error(ErrorId::BREAK);
         }
     }
 }
@@ -217,7 +217,7 @@ void runAssemblerCode(Basic* basic) {
 
 namespace CMD {
 // Built In Commands
-void ABOUT(Basic* basic, const std::vector<Basic::Value>&) {
+void ABOUT(Basic* basic, const std::vector<Value>&) {
 
     std::string raw = about::text();
     StringHelper::replace(raw, "{VERSION}", Basic::version());
@@ -262,11 +262,11 @@ void ABOUT(Basic* basic, const std::vector<Basic::Value>&) {
     }
 }
 
-void AUTO(Basic* basic, const std::vector<Basic::Value>& values) {
-    if (values.empty() || basic->valueToInt(values[0]) < 1) {
+void AUTO(Basic* basic, const std::vector<BA67::Value>& values) {
+    if (values.empty() || ValueToInt(values[0]) < 1) {
         basic->currentModule().autoNumbering = 0;
     }
-    basic->currentModule().autoNumbering = int32_t(basic->valueToInt(values[0]));
+    basic->currentModule().autoNumbering = int32_t(ValueToInt(values[0]));
 }
 
 
@@ -292,7 +292,7 @@ void bakePRGtoC64(Basic* basic) {
     for (size_t i = 2; i < prg.size(); ++i) {
         RAM[address++] = prg[i]; // skip 2 byte loading address header
         if (address >= krnl.BASICEND) {
-            throw Basic::ErrorId::OUT_OF_MEMORY;
+            throw ErrorId::OUT_OF_MEMORY;
         }
     }
     // cpu.RAM[address++] = 0;
@@ -318,10 +318,10 @@ void bakePRGtoC64(Basic* basic) {
 
 
 
-void BAKE(Basic* basic, const std::vector<Basic::Value>& values) {
+void BAKE(Basic* basic, const std::vector<BA67::Value>& values) {
 
     bool bakeToC64 = false;
-    if (values.size() > 0 && basic->valueIsInt(values[0]) && basic->valueToInt(values[0]) == 64) {
+    if (values.size() > 0 && ValueIsInt(values[0]) && ValueToInt(values[0]) == 64) {
         bakeToC64 = true;
     }
 
@@ -386,7 +386,7 @@ void BAKE(Basic* basic, const std::vector<Basic::Value>& values) {
             } else {
                 basic->programCounter().line   = itr;
                 basic->programCounter().cmdpos = 0;
-                throw Basic::Error(Basic::ErrorId::UNDEFD_STATEMENT);
+                throw BA67::Error(ErrorId::UNDEFD_STATEMENT);
             }
         }
         line = updatedLine;
@@ -397,40 +397,40 @@ void BAKE(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-void CHAR(Basic* basic, const std::vector<Basic::Value>& values) {
+void CHAR(Basic* basic, const std::vector<BA67::Value>& values) {
     auto curPos = basic->os->screen.getCursorPos();
     int color = 0, x = int(curPos.x), y = int(curPos.y);
     std::string text;
     bool inverse = false;
 
     if (values.size() < 4) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
     int ipara = 0;
     for (size_t i = 0; i < values.size(); ++i) {
         auto& v = values[i];
-        if (basic->valueIsOperator(v)) {
+        if (ValueIsOperator(v)) {
             ++ipara;
             continue;
         }
         switch (ipara) {
         case 0:
-            color = int(Basic::valueToInt(v));
+            color = int(ValueToInt(v));
             break;
         case 1:
-            x = int(Basic::valueToInt(v));
+            x = int(ValueToInt(v));
             break;
         case 2:
-            y = int(Basic::valueToInt(v));
+            y = int(ValueToInt(v));
             break;
         case 3:
-            text = Basic::valueToString(v);
+            text = ValueToString(v);
             break;
         case 4:
-            inverse = Basic::valueToInt(v) != 0;
+            inverse = ValueToInt(v) != 0;
             break;
         default:
-            throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+            throw BA67::Error(ErrorId::ARGUMENT_COUNT);
         }
     }
 
@@ -441,7 +441,7 @@ void CHAR(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 
     if (x < 0 || y < 0 || y > basic->os->screen.width) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
     ScreenBuffer::Cursor cr;
     cr.x = x;
@@ -452,7 +452,7 @@ void CHAR(Basic* basic, const std::vector<Basic::Value>& values) {
     }
     if (color > 0) {
         if (color > 16) {
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+            throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
         }
 
         int old = basic->os->screen.getTextColor();
@@ -479,26 +479,26 @@ void CHAR(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->os->presentScreen();
 }
 
-void CHDIR(Basic* basic, const std::vector<Basic::Value>& values) {
+void CHDIR(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    std::string dir = basic->valueToString(values[0]);
+    std::string dir = ValueToString(values[0]);
     dir             = basic->os->findFirstFileNameWildcard(dir, true);
 
     if (!basic->os->setCurrentDirectory(dir)) {
-        throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
+        throw BA67::Error(ErrorId::FILE_NOT_FOUND);
     }
 }
 
-void CATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
+void CATALOG(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() > 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
     std::string filter = "";
     if (values.size() > 0) {
-        filter = basic->valueToString(values[0]);
+        filter = ValueToString(values[0]);
     }
 
     // file size, 4 characters wide
@@ -509,7 +509,7 @@ void CATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
             s /= 1024;
             ++p;
         }
-        std::string str(basic->valueToString(int64_t(s)));
+        std::string str(ValueToString(int64_t(s)));
         str += *p;
         while (str.length() < 4) {
             str.insert(str.begin(), ' ');
@@ -602,18 +602,18 @@ void CATALOG(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->printUtf8String(colKW +(const char*)(u8"╚══Σ") + colLN + niceSize(totalBytes) +colKW + (const char*)(u8"═══"), true, false);
 }
 
-void CLOUD(Basic* basic, const std::vector<Basic::Value>& values) {
+void CLOUD(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() == 0) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    basic->os->cloudUser = basic->valueToString(values[0]);
+    basic->os->cloudUser = ValueToString(values[0]);
     if (values.size() > 2) {
-        basic->os->cloudUrl = basic->valueToString(values[2]);
+        basic->os->cloudUrl = ValueToString(values[2]);
     }
 }
 
 
-void CONT(Basic* basic, const std::vector<Basic::Value>& values) {
+void CONT(Basic* basic, const std::vector<BA67::Value>& values) {
     auto& modl = basic->currentModule();
     auto ln    = modl.listing.find(modl.lineNumberForCONT);
     if (ln != modl.listing.end()) {
@@ -623,49 +623,49 @@ void CONT(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
-void COLOR(Basic* basic, const std::vector<Basic::Value>& values) {
+void COLOR(Basic* basic, const std::vector<BA67::Value>& values) {
     int colorsource = 1, color = 1;
 
     if (values.size() < 3) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
     int ipara = 0;
     uint8_t red, green, blue;
     for (size_t i = 0; i < values.size(); ++i) {
         auto& v = values[i];
-        if (basic->valueIsOperator(v)) {
+        if (ValueIsOperator(v)) {
             ++ipara;
             continue;
         }
         switch (ipara) {
         case 0:
-            colorsource = int(Basic::valueToInt(v));
+            colorsource = int(BA67::ValueToInt(v));
             break;
         case 1:
-            color = int(Basic::valueToInt(v));
+            color = int(BA67::ValueToInt(v));
             red   = uint8_t(color);
             break;
         case 2: /*optional brightness*/
-            green = uint8_t(Basic::valueToInt(v));
+            green = uint8_t(BA67::ValueToInt(v));
             break;
         case 3: /*optional brightness*/
-            blue = uint8_t(Basic::valueToInt(v));
+            blue = uint8_t(BA67::ValueToInt(v));
             break;
         default:
-            throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+            throw BA67::Error(ErrorId::ARGUMENT_COUNT);
         }
     }
 
     if (ipara == 3) {
         color = colorsource;
         if (color > 16 || color < 1) {
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+            throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
         }
         basic->os->screen.defineColor(color - 1, red, green, blue);
     } else {
         if (color > 16 || color < 1) {
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+            throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
         }
         switch (colorsource) {
         case 0:
@@ -683,7 +683,7 @@ void COLOR(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-void CHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
+void CHARDEF(Basic* basic, const std::vector<BA67::Value>& values) {
     // TODO #error ARM is big endian?
     char32_t codePoint = 0;
     uint64_t bytes8;
@@ -692,21 +692,21 @@ void CHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
     size_t iarg = 0;
     for (size_t i = 0; i < values.size(); ++i) {
         if (iarg > 16) {
-            throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+            throw BA67::Error(ErrorId::ARGUMENT_COUNT);
         }
-        const Basic::Value& v = values[i];
-        if (basic->valueIsOperator(v)) {
+        const BA67::Value& v = values[i];
+        if (ValueIsOperator(v)) {
             continue;
         }
         if (iarg == 0) {
-            std::string s = Basic::valueToString(v);
+            std::string s = BA67::ValueToString(v);
             if (!s.empty()) {
                 const char* pc = s.c_str();
                 codePoint      = Unicode::parseNextUtf8(pc);
                 ;
             }
         } else {
-            bytes8           = uint64_t(Basic::valueToInt(v));
+            bytes8           = uint64_t(BA67::ValueToInt(v));
             bytes[iarg - 1]  = (uint8_t(bytes8));
             dwords[iarg - 1] = (uint32_t(bytes8));
         }
@@ -714,7 +714,7 @@ void CHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 
     if (iarg != 1 + 1 && iarg != 8 + 1 && iarg != 16 + 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
     // one 64 bit integer - 8x8 mono
@@ -747,17 +747,17 @@ void CHARDEF(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->os->screen.defineChar(codePoint, CharBitmap(&bytes[0], iarg - 1));
 }
 
-void SPRDEF(Basic* basic, const std::vector<Basic::Value>& values) {
+void SPRDEF(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 3) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    int id = int(basic->valueToInt(values[0]));
+    int id = int(ValueToInt(values[0]));
     if (id < 1 || id > basic->os->screen.sprites.size()) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
-    std::string str = basic->valueToString(values[2]);
+    std::string str = ValueToString(values[2]);
     if (Unicode::utf8StrLen(str) > 6) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
 
     auto& sprite   = basic->os->screen.sprites[id];
@@ -767,28 +767,28 @@ void SPRDEF(Basic* basic, const std::vector<Basic::Value>& values) {
         sprite.charmap[i] = c;
     }
     if (Unicode::parseNextUtf8(pc) != 0) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
 
     basic->os->screen.dirtyFlag = true;
 }
 
-void SPRITE(Basic* basic, const std::vector<Basic::Value>& values) {
+void SPRITE(Basic* basic, const std::vector<BA67::Value>& values) {
     // `SPRITE nr, on, color, prio, x2, y2`
     Sprite* sprite = nullptr;
 
     int ipara = 0;
     for (size_t i = 0; i < values.size(); ++i) {
         auto& v = values[i];
-        if (basic->valueIsOperator(v)) {
+        if (ValueIsOperator(v)) {
             ++ipara;
             continue;
         }
-        int64_t iv = Basic::valueToInt(v);
+        int64_t iv = BA67::ValueToInt(v);
         switch (ipara) {
         case 0:
             if (iv < 1 || iv > int64_t(basic->os->screen.sprites.size())) {
-                throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+                throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
             }
             sprite = &basic->os->screen.sprites[iv];
             break;
@@ -798,60 +798,60 @@ void SPRITE(Basic* basic, const std::vector<Basic::Value>& values) {
         case 4: sprite->stretchX = (iv != 0); break;
         case 5: sprite->stretchY = (iv != 0); break;
         default:
-            throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+            throw BA67::Error(ErrorId::ARGUMENT_COUNT);
         }
     }
     basic->os->screen.dirtyFlag = true;
 }
 
-void MOVSPR(Basic* basic, const std::vector<Basic::Value>& values) {
+void MOVSPR(Basic* basic, const std::vector<BA67::Value>& values) {
     Sprite* sprite = nullptr;
 
     int ipara = 0;
     for (size_t i = 0; i < values.size(); ++i) {
         auto& v = values[i];
-        if (basic->valueIsOperator(v)) {
+        if (ValueIsOperator(v)) {
             ++ipara;
             continue;
         }
-        int64_t iv = Basic::valueToInt(v);
+        int64_t iv = BA67::ValueToInt(v);
         switch (ipara) {
         case 0:
             if (iv < 1 || iv > int64_t(basic->os->screen.sprites.size())) {
-                throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+                throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
             }
             sprite = &basic->os->screen.sprites[iv];
             break;
         case 1:  sprite->x = iv; break;
         case 2:  sprite->y = iv; break;
-        default: throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        default: throw BA67::Error(ErrorId::ARGUMENT_COUNT);
         }
     }
     basic->os->screen.dirtyFlag = true;
 }
-void MONITOR(Basic* basic, const std::vector<Basic::Value>& values) {
+void MONITOR(Basic* basic, const std::vector<BA67::Value>& values) {
     if (basic->monitor()) {
         ASM::runAssemblerCode(basic);
     }
 }
 
-void QUIT(Basic* basic, const std::vector<Basic::Value>& values) {
+void QUIT(Basic* basic, const std::vector<BA67::Value>& values) {
     int code = 0;
     if (values.size() == 1) {
-        code = int(Basic::valueToInt(values[0]));
+        code = int(BA67::ValueToInt(values[0]));
     }
     exit(code);
 }
 
-void FIND(Basic* basic, const std::vector<Basic::Value>& values) {
+void FIND(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
     std::u32string find32;
     Unicode::toU32String(
         Unicode::toLowerAscii(
-            ("*" + basic->valueToString(values[0]) + "*").c_str())
+            ("*" + ValueToString(values[0]) + "*").c_str())
             .c_str(),
         find32);
 
@@ -886,12 +886,12 @@ void FIND(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-void SYS(Basic* basic, const std::vector<Basic::Value>& values);
-void GO(Basic* basic, const std::vector<Basic::Value>& values) {
+void SYS(Basic* basic, const std::vector<BA67::Value>& values);
+void GO(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    int64_t where = int(Basic::valueToInt(values[0]));
+    int64_t where = int(BA67::ValueToInt(values[0]));
 
     if (where == 64) {
         // if (basic->AreYouSureQuestion()) {        }
@@ -925,14 +925,14 @@ void GO(Basic* basic, const std::vector<Basic::Value>& values) {
 
         basic->restoreColorsAndCursor(true);
     } else {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
 }
 
-void GRAPHIC(Basic* basic, const std::vector<Basic::Value>& values) {
+void GRAPHIC(Basic* basic, const std::vector<BA67::Value>& values) {
     int code = 0;
     if (values.size() == 1) {
-        code = int(Basic::valueToInt(values[0]));
+        code = int(BA67::ValueToInt(values[0]));
         if (code == 5) {
             basic->os->screen.setSize(80, 25);
         } else {
@@ -942,30 +942,30 @@ void GRAPHIC(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
-void LOAD(Basic* basic, const std::vector<Basic::Value>& values) {
+void LOAD(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    std::string path = basic->valueToString(values[0]);
+    std::string path = ValueToString(values[0]);
     // if (!basic->fileExists(path, true)) {
-    //     throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
+    //     throw BA67::Error(ErrorId::FILE_NOT_FOUND);
     // }
 
     basic->os->screen.cleanCurrentLine();
     basic->printUtf8String("LOADING\n");
     if (!basic->loadProgram(path)) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
+        throw BA67::Error(ErrorId::ILLEGAL_DEVICE);
     }
     basic->currentModule().setProgramCounterToEnd();
     basic->currentModule().forceTokenizing();
     basic->currentModule().filenameQSAVE = path;
 }
 
-void SAVE(Basic* basic, const std::vector<Basic::Value>& values) {
+void SAVE(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() > 3 || values.size() < 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    std::string filename = basic->valueToString(values[0]);
+    std::string filename = ValueToString(values[0]);
     if (basic->fileExists(filename, false)) {
         basic->os->screen.cleanCurrentLine();
         basic->printUtf8String("OVERWRITES FILE. ");
@@ -976,26 +976,26 @@ void SAVE(Basic* basic, const std::vector<Basic::Value>& values) {
 
     int startAddressOfPRG = int(krnl.BASICCODE);
     if (values.size() > 2) {
-        startAddressOfPRG = int(basic->valueToInt(values[2]));
+        startAddressOfPRG = int(ValueToInt(values[2]));
     }
 
     basic->os->screen.cleanCurrentLine();
     basic->printUtf8String("SAVING\n");
     if (!basic->saveProgram(filename, startAddressOfPRG)) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
+        throw BA67::Error(ErrorId::ILLEGAL_DEVICE);
     }
 
     basic->currentModule().filenameQSAVE = filename;
 }
 
 
-void QSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
+void QSAVE(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 0) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
     std::string filename = basic->currentModule().filenameQSAVE;
     if (filename.empty()) {
-        throw Basic::Error(Basic::ErrorId::VARIABLE_UNDEFINED);
+        throw BA67::Error(ErrorId::VARIABLE_UNDEFINED);
     }
     basic->os->screen.cleanCurrentLine();
     basic->printUtf8String("SAVE \"");
@@ -1005,48 +1005,48 @@ void QSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
-void BLOAD(Basic* basic, const std::vector<Basic::Value>& values) {
+void BLOAD(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 3) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    std::string path    = basic->valueToString(values[0]);
-    size_t startAddress = size_t(basic->valueToInt(values[2]));
+    std::string path    = ValueToString(values[0]);
+    size_t startAddress = size_t(ValueToInt(values[2]));
 
 
     FilePtr file(basic->os);
     file.open(path, "rb");
     if (!file) {
         basic->cpu.RAM[krnl.STATUS] = Basic::FS_ERROR_READ;
-        throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
+        throw BA67::Error(ErrorId::FILE_NOT_FOUND);
     }
     auto bytes = file.readAll();
     file.close();
 
     for (size_t i = 0; i < bytes.size(); ++i) {
         if (startAddress < 0 || startAddress >= basic->cpu.RAM.size()) {
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+            throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
         }
         basic->cpu.RAM[startAddress++] = bytes[i];
     }
 }
 
-void BSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
+void BSAVE(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 5) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    std::string path    = basic->valueToString(values[0]);
-    size_t startAddress = size_t(basic->valueToInt(values[2]));
-    size_t endAddress   = size_t(basic->valueToInt(values[4]));
+    std::string path    = ValueToString(values[0]);
+    size_t startAddress = size_t(ValueToInt(values[2]));
+    size_t endAddress   = size_t(ValueToInt(values[4]));
 
     if (startAddress < 0 || startAddress >= endAddress || endAddress > basic->cpu.RAM.size()) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
 
     FilePtr file(basic->os);
     file.open(path, "wb");
     if (!file) {
         basic->cpu.RAM[krnl.STATUS] = Basic::FS_ERROR_WRITE;
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
+        throw BA67::Error(ErrorId::ILLEGAL_DEVICE);
     }
     for (size_t i = startAddress; i < endAddress; ++i) {
         uint8_t b = uint8_t(basic->cpu.RAM[i] & 0xff);
@@ -1056,18 +1056,18 @@ void BSAVE(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
-void SCRATCH(Basic* basic, const std::vector<Basic::Value>& values) {
+void SCRATCH(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
-    std::string filename = basic->valueToString(values[0]);
+    std::string filename = ValueToString(values[0]);
 
     for (int ifile = 0; ifile < 999; ++ifile) {
         std::string fn = basic->os->findFirstFileNameWildcard(filename);
         if (!basic->fileExists(fn, false)) {
             if (ifile == 0) {
-                throw Basic::Error(Basic::ErrorId::FILE_NOT_FOUND);
+                throw BA67::Error(ErrorId::FILE_NOT_FOUND);
             }
             break;
         }
@@ -1083,15 +1083,15 @@ void SCRATCH(Basic* basic, const std::vector<Basic::Value>& values) {
         }
 
         if (!basic->os->scratchFile(fn)) {
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
+            throw BA67::Error(ErrorId::ILLEGAL_DEVICE);
         }
     }
 }
 
 // TODO: OPEN no, drive(8,9,...), !!15!!: direct mode "S:file" = scratch
-void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
+void OPEN(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() < 3) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
     std::vector<int64_t> intparams = { 0, 1, 0 };
@@ -1099,14 +1099,14 @@ void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
 
     size_t iint = 0;
     for (auto& v : values) {
-        if (basic->valueIsString(v)) {
-            path = basic->valueToString(v);
+        if (ValueIsString(v)) {
+            path = ValueToString(v);
             break;
-        } else if (basic->valueIsInt(v) || basic->valueIsDouble(v)) {
+        } else if (ValueIsInt(v) || ValueIsDouble(v)) {
             if (iint == 3) {
-                throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+                throw BA67::Error(ErrorId::ARGUMENT_COUNT);
             }
-            intparams[iint++] = basic->valueToInt(v);
+            intparams[iint++] = ValueToInt(v);
         }
     }
 
@@ -1115,13 +1115,13 @@ void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     int64_t secondary = intparams[2];
 
     if (ifile < 1 || size_t(ifile) >= basic->fileHandles.size()) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
     // file slot is already open
     if (basic->fileHandles[ifile]) {
         if (device < 4 || device > 6) {
             basic->cpu.RAM[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
-            throw Basic::Error(Basic::ErrorId::FILE_OPEN);
+            throw BA67::Error(ErrorId::FILE_OPEN);
         } else {
             return; // can re-OPEN 4-6 (stdin/stdout)
         }
@@ -1132,7 +1132,7 @@ void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
     case 0: // Inter Process Communication
     {
 #if defined(__EMSCRIPTEN__)
-        throw Basic::Error(Basic::ErrorId::UNIMPLEMENTED_COMMAND);
+        throw BA67::Error(ErrorId::UNIMPLEMENTED_COMMAND);
 #endif
 
         IPC::Options opt = {};
@@ -1162,7 +1162,7 @@ void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
         const char* iomode = "r";
 
         std::string filepath(path);
-        // std::string filepath   = basic->valueToString(values[2]); // "name*, R", "name, W"
+        // std::string filepath   = ValueToString(values[2]); // "name*, R", "name, W"
 
 
         std::string fileExt = "";
@@ -1177,7 +1177,7 @@ void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
             StringHelper::trimRight(filepath, " ");
             StringHelper::trimLeft(strpara, " ");
             if (strpara.empty()) {
-                throw Basic::Error(Basic::ErrorId::SYNTAX);
+                throw BA67::Error(ErrorId::SYNTAX);
             }
 
             switch (iComma) {
@@ -1190,7 +1190,7 @@ void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
                 case 'U': fileExt = ".USR"; break;
                 case 'R': fileExt = ".REL"; break;
                 default:
-                    throw Basic::Error(Basic::ErrorId::SYNTAX);
+                    throw BA67::Error(ErrorId::SYNTAX);
                 }
 
                 filepath += fileExt;
@@ -1203,7 +1203,7 @@ void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
                     iomode = "w";
                 } else {
                     basic->cpu.RAM[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
-                    throw Basic::Error(Basic::ErrorId::INTERNAL);
+                    throw BA67::Error(ErrorId::INTERNAL);
                 }
                 break;
             }
@@ -1217,30 +1217,30 @@ void OPEN(Basic* basic, const std::vector<Basic::Value>& values) {
         break;
     } // default
     case 15:
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
+        throw BA67::Error(ErrorId::ILLEGAL_DEVICE);
         break;
     } // switch
 
 
     if (!basic->fileHandles[ifile]) {
         basic->cpu.RAM[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
-        throw Basic::Error(Basic::ErrorId::FILE_NOT_OPEN);
+        throw BA67::Error(ErrorId::FILE_NOT_OPEN);
     }
     basic->cpu.RAM[krnl.STATUS] = Basic::FS_OK;
 }
 
-void CLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
+void CLOSE(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
-    int64_t ifile = basic->valueToInt(values[0]);
+    int64_t ifile = ValueToInt(values[0]);
     if (ifile < 1 || size_t(ifile) >= basic->fileHandles.size()) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
     if (!basic->fileHandles[ifile]) {
         basic->cpu.RAM[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
-        throw Basic::Error(Basic::ErrorId::FILE_NOT_OPEN);
+        throw BA67::Error(ErrorId::FILE_NOT_OPEN);
     }
 
     basic->cpu.RAM[krnl.STATUS] = Basic::FS_OK;
@@ -1248,7 +1248,7 @@ void CLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
     if (!basic->fileHandles[ifile].close()) {
         basic->cpu.RAM[krnl.STATUS] = Basic::FS_DEVICE_ERROR;
         basic->printUtf8String(basic->fileHandles[ifile].status());
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_DEVICE);
+        throw BA67::Error(ErrorId::ILLEGAL_DEVICE);
     }
 
     // TODO currentFileNo should not be a member variable at all
@@ -1257,7 +1257,7 @@ void CLOSE(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 }
 
-void RENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
+void RENUMBER(Basic* basic, const std::vector<BA67::Value>& values) {
     // RENUMBER new_start, step, start_from_old, milestone
 
     int newstart      = 10;
@@ -1269,26 +1269,26 @@ void RENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
     int ipara = 0;
     for (size_t i = 0; i < values.size(); ++i) {
         auto& v = values[i];
-        if (basic->valueIsOperator(v)) {
+        if (ValueIsOperator(v)) {
             ++ipara;
             continue;
         }
         switch (ipara) {
-        case 0: newstart = int(basic->valueToInt(v)); break;
-        case 1: step = int(basic->valueToInt(v)); break;
-        case 2: startFromLine = int(basic->valueToInt(v)); break;
-        case 3: milestone = int(basic->valueToInt(v)); break;
+        case 0: newstart = int(ValueToInt(v)); break;
+        case 1: step = int(ValueToInt(v)); break;
+        case 2: startFromLine = int(ValueToInt(v)); break;
+        case 3: milestone = int(ValueToInt(v)); break;
         default:
-            throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+            throw BA67::Error(ErrorId::ARGUMENT_COUNT);
         }
     }
 
 
     basic->os->screen.cleanCurrentLine();
-    basic->printUtf8String(basic->valueToString(newstart)
-                           + " STEP " + basic->valueToString(step)
-                           + " FROM " + basic->valueToString(startFromLine)
-                           + " MILE " + basic->valueToString(milestone)
+    basic->printUtf8String(ValueToString(newstart)
+                           + " STEP " + ValueToString(step)
+                           + " FROM " + ValueToString(startFromLine)
+                           + " MILE " + ValueToString(milestone)
                            + ".\n");
     if (!basic->AreYouSureQuestion()) {
         return;
@@ -1309,7 +1309,7 @@ void RENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
             if (lastLineNumber > newLineNumber) {
                 basic->os->screen.cleanCurrentLine();
                 basic->printUtf8String("LINE NUMBERS WOULD OVERLAP! \n");
-                throw Basic::Error(Basic::ErrorId::UNDEFD_STATEMENT);
+                throw BA67::Error(ErrorId::UNDEFD_STATEMENT);
             }
 
             if (oldLine > newLineNumber && milestone != 0 && (oldLine % milestone) == 0) {
@@ -1341,7 +1341,7 @@ void RENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
             std::string str   = it->str(2);
             const char* pnum  = str.c_str();
             int64_t oldTarget = 0;
-            if (basic->parseInt(pnum, &oldTarget)) {
+            if (parseInt(pnum, &oldTarget)) {
                 updatedCode += std::to_string(lineMapping[int(oldTarget)]);
                 lastPos = it->position() + it->length();
             }
@@ -1356,31 +1356,31 @@ void RENUMBER(Basic* basic, const std::vector<Basic::Value>& values) {
     basic->currentModule().forceTokenizing();
 }
 
-void REMODEL(Basic* basic, const std::vector<Basic::Value>& values) {
+void REMODEL(Basic* basic, const std::vector<BA67::Value>& values) {
     auto& opt = basic->options;
     auto& set = basic->os->settings;
     if (values.empty()) {
         // sort alphabetically, here
-        basic->printUtf8String("REMODEL \"COLORLIST\", " + basic->valueToString(opt.colorzizeListing) + "\n");
-        basic->printUtf8String("REMODEL \"LISTDELAY\", " + basic->valueToString(opt.listDelay) + "\n");
-        basic->printUtf8String("REMODEL \"SPACING\", " + basic->valueToString(opt.spacingRequired) + "\n");
-        basic->printUtf8String("REMODEL \"UPPERCASE\", " + basic->valueToString(opt.uppercaseInput) + "\n");
-        basic->printUtf8String("REMODEL \"ZERODOT\", " + basic->valueToString(opt.dotAsZero) + "\n");
-        basic->printUtf8String("REMODEL \"CRTEMULATION\", " + basic->valueToString(set.emulateCRT) + "\n");
-        // basic->printUtf8String("REMODEL \"\", " + basic->valueToString(0));
+        basic->printUtf8String("REMODEL \"COLORLIST\", " + ValueToString(opt.colorzizeListing) + "\n");
+        basic->printUtf8String("REMODEL \"LISTDELAY\", " + ValueToString(opt.listDelay) + "\n");
+        basic->printUtf8String("REMODEL \"SPACING\", " + ValueToString(opt.spacingRequired) + "\n");
+        basic->printUtf8String("REMODEL \"UPPERCASE\", " + ValueToString(opt.uppercaseInput) + "\n");
+        // basic->printUtf8String("REMODEL \"ZERODOT\", " + ValueToString(opt.dotAsZero) + "\n");
+        basic->printUtf8String("REMODEL \"CRTEMULATION\", " + ValueToString(set.emulateCRT) + "\n");
+        // basic->printUtf8String("REMODEL \"\", " + ValueToString(0));
         return;
     }
 
     if (values.size() != 3) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
-    std::string key = basic->valueToString(values[0]);
-    int64_t val     = basic->valueToInt(values[2]);
+    std::string key = ValueToString(values[0]);
+    int64_t val     = ValueToInt(values[2]);
     if (key == "SPACING") {
         opt.spacingRequired = (val != 0);
-    } else if (key == "ZERODOT") {
-        opt.dotAsZero = (val != 0);
+    // } else if (key == "ZERODOT") {
+    //     opt.dotAsZero = (val != 0);
     } else if (key == "UPPERCASE") {
         opt.uppercaseInput = (val != 0);
     } else if (key == "COLORLIST") {
@@ -1390,31 +1390,31 @@ void REMODEL(Basic* basic, const std::vector<Basic::Value>& values) {
     } else if (key == "CRTEMULATION") {
         set.emulateCRT = (val != 0);
     } else {
-        throw Basic::Error(Basic::ErrorId::UNDEFD_STATEMENT);
+        throw BA67::Error(ErrorId::UNDEFD_STATEMENT);
     }
 }
 
-void PLAY(Basic* basic, const std::vector<Basic::Value>& values) {
+void PLAY(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    if (!basic->valueIsString(values[0])) {
-        throw Basic::Error(Basic::ErrorId::TYPE_MISMATCH);
+    if (!ValueIsString(values[0])) {
+        throw BA67::Error(ErrorId::TYPE_MISMATCH);
     }
 
-    std::string cmd = basic->valueToString(values[0]);
+    std::string cmd = ValueToString(values[0]);
 
     basic->os->soundSystem().PLAY(cmd);
 }
 
-void POKE(Basic* basic, const std::vector<Basic::Value>& values) {
+void POKE(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 3) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    int64_t address = basic->valueToInt(values[0]);
-    int64_t value   = basic->valueToInt(values[2]);
+    int64_t address = ValueToInt(values[0]);
+    int64_t value   = ValueToInt(values[2]);
     if (address < 0 || address >= int64_t(basic->cpu.RAM.size())) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
 
     MEMCELL v = MEMCELL(uint32_t(value) & 0xffffffff);
@@ -1427,28 +1427,28 @@ void POKE(Basic* basic, const std::vector<Basic::Value>& values) {
 }
 
 
-void SOUND(Basic* basic, const std::vector<Basic::Value>& values) {
+void SOUND(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() != 3) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    if (!basic->valueIsString(values[2])) {
-        throw Basic::Error(Basic::ErrorId::TYPE_MISMATCH);
+    if (!ValueIsString(values[2])) {
+        throw BA67::Error(ErrorId::TYPE_MISMATCH);
     }
 
-    int voice       = int(basic->valueToInt(values[0]));
-    std::string cmd = basic->valueToString(values[2]);
+    int voice       = int(ValueToInt(values[0]));
+    std::string cmd = ValueToString(values[2]);
 
     basic->os->soundSystem().SOUND(voice, cmd);
 }
 
-void SYS(Basic* basic, const std::vector<Basic::Value>& values) {
+void SYS(Basic* basic, const std::vector<BA67::Value>& values) {
     if (values.size() == 0) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
     // address specified
-    if (!basic->valueIsString(values[0])) {
-        int64_t address = basic->valueToInt(values[0]);
+    if (!ValueIsString(values[0])) {
+        int64_t address = ValueToInt(values[0]);
 
         auto& RAM = basic->cpu.RAM;
         if (values.size() > 1) {
@@ -1467,18 +1467,18 @@ void SYS(Basic* basic, const std::vector<Basic::Value>& values) {
             // *ptr++       = U'S';
             // *ptr++       = U' ';
             for (size_t i = 1 /*skip address*/; i < values.size(); ++i) {
-                if (basic->valueIsOperator(values[i])) {
+                if (ValueIsOperator(values[i])) {
                     *ptr++ = U',';
                     continue;
                 }
-                if (basic->valueIsString(values[i])) {
+                if (ValueIsString(values[i])) {
                     *ptr++ = U'\"';
                 }
-                std::string str = basic->valueToString(values[i]);
+                std::string str = ValueToString(values[i]);
                 for (char c : str) {
                     *ptr++ = c;
                 }
-                if (basic->valueIsString(values[i])) {
+                if (ValueIsString(values[i])) {
                     *ptr++ = U'\"';
                 }
             }
@@ -1501,10 +1501,10 @@ void SYS(Basic* basic, const std::vector<Basic::Value>& values) {
         }
 
         if (address < 0 || address >= int64_t(RAM.size())) {
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+            throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
         }
         if (!basic->cpu.sys(uint16_t(address & 0xffff))) {
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+            throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
         }
 
         ASM::runAssemblerCode(basic);
@@ -1519,10 +1519,10 @@ void SYS(Basic* basic, const std::vector<Basic::Value>& values) {
     }
 
     // command specified
-    if (!basic->valueIsString(values[0])) {
-        throw Basic::Error(Basic::ErrorId::TYPE_MISMATCH);
+    if (!ValueIsString(values[0])) {
+        throw BA67::Error(ErrorId::TYPE_MISMATCH);
     }
-    std::string cmd = basic->valueToString(values[0]);
+    std::string cmd = ValueToString(values[0]);
 
     basic->os->systemCall(cmd);
     // system(cmd.c_str());
@@ -1533,25 +1533,25 @@ void SYS(Basic* basic, const std::vector<Basic::Value>& values) {
 
 namespace FKT {
 
-Basic::Value CHR$(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value CHR$(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() < 1 || args.size() > 3) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
-    char32_t i = char32_t(basic->valueToInt(args[0]));
+    char32_t i = char32_t(ValueToInt(args[0]));
     std::string s;
     if (i == 0) {
         s.push_back(0);
     } else {
         if (args.size() >= 3) {
-            if (!basic->valueIsOperator(args[1])) {
-                throw Basic::Error(Basic::ErrorId::SYNTAX);
+            if (!ValueIsOperator(args[1])) {
+                throw BA67::Error(ErrorId::SYNTAX);
             }
-            int enc = int(basic->valueToInt(args[2]));
+            int enc = int(ValueToInt(args[2]));
             if (enc == 8) {
                 s += (char)(i & 0xff);
             } else {
-                throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+                throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
             }
         } else {
             Unicode::appendAsUtf8(s, i);
@@ -1561,47 +1561,47 @@ Basic::Value CHR$(Basic* basic, const std::vector<Basic::Value>& args) {
 }
 
 
-Basic::Value DEC(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value DEC(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    return basic->strToInt("$" + basic->valueToString(args[0]));
+    return strToInt("$" + ValueToString(args[0]));
 }
 
-Basic::Value ENV$(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value ENV$(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    if (!basic->valueIsString(args[0])) { 
-        throw Basic::Error(Basic::ErrorId::TYPE_MISMATCH);
+    if (!ValueIsString(args[0])) { 
+        throw BA67::Error(ErrorId::TYPE_MISMATCH);
     }
 
-    return basic->os->getEnv(basic->valueToString(args[0]));
+    return basic->os->getEnv(ValueToString(args[0]));
 }
 
-Basic::Value HEX$(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value HEX$(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    int64_t n = basic->valueToInt(args[0]);
+    int64_t n = ValueToInt(args[0]);
 
     return StringHelper::int2hex(n);
 }
 
-Basic::Value INSTR(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value INSTR(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() < 3 || args.size() > 5) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
     size_t startOffset = 1;
     if (args.size() == 5) {
-        startOffset = basic->valueToInt(args[6]);
+        startOffset = ValueToInt(args[6]);
     }
 
     if (startOffset < 1) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
 
-    auto pos = Unicode::strstr(basic->valueToString(args[0]), basic->valueToString(args[2]), startOffset - 1);
+    auto pos = Unicode::strstr(ValueToString(args[0]), ValueToString(args[2]), startOffset - 1);
     // INSTR is on index, base 1.
     if (pos == std::string::npos) {
         return 0;
@@ -1609,11 +1609,11 @@ Basic::Value INSTR(Basic* basic, const std::vector<Basic::Value>& args) {
     return int64_t(pos + 1);
 }
 
-Basic::Value JOY(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value JOY(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    int64_t port      = basic->valueToInt(args[0]);
+    int64_t port      = ValueToInt(args[0]);
     const auto* state = &basic->os->getGamepadState(int(port - 1));
 
 #if defined(_WIN32)
@@ -1653,15 +1653,15 @@ Basic::Value JOY(Basic* basic, const std::vector<Basic::Value>& args) {
     return joy;
 }
 
-Basic::Value MAX(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value MAX(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() == 0) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
     bool gotOne = false;
-    Basic::Value ret;
+    BA67::Value ret;
     for (auto& a : args) {
-        if (basic->valueIsOperator(a)) {
+        if (ValueIsOperator(a)) {
             continue;
         }
         if (!gotOne) {
@@ -1669,32 +1669,32 @@ Basic::Value MAX(Basic* basic, const std::vector<Basic::Value>& args) {
             ret    = a;
         }
 
-        if (basic->valueIsInt(a) && basic->valueIsInt(ret)) {
-            if (basic->valueToInt(a) > basic->valueToInt(ret)) {
+        if (ValueIsInt(a) && ValueIsInt(ret)) {
+            if (ValueToInt(a) > ValueToInt(ret)) {
                 ret = a;
             }
         } else {
-            if (basic->valueToDouble(a) > basic->valueToDouble(ret)) {
+            if (ValueToDouble(a) > ValueToDouble(ret)) {
                 ret = a;
             }
         }
     }
 
     if (!gotOne) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
     return ret;
 }
 
-Basic::Value MIN(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value MIN(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() == 0) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
     bool gotOne = false;
-    Basic::Value ret;
+    BA67::Value ret;
     for (auto& a : args) {
-        if (basic->valueIsOperator(a)) {
+        if (ValueIsOperator(a)) {
             continue;
         }
         if (!gotOne) {
@@ -1702,56 +1702,56 @@ Basic::Value MIN(Basic* basic, const std::vector<Basic::Value>& args) {
             ret    = a;
         }
 
-        if (basic->valueIsInt(a) && basic->valueIsInt(ret)) {
-            if (basic->valueToInt(a) < basic->valueToInt(ret)) {
+        if (ValueIsInt(a) && ValueIsInt(ret)) {
+            if (ValueToInt(a) < ValueToInt(ret)) {
                 ret = a;
             }
         } else {
-            if (basic->valueToDouble(a) < basic->valueToDouble(ret)) {
+            if (ValueToDouble(a) < ValueToDouble(ret)) {
                 ret = a;
             }
         }
     }
 
     if (!gotOne) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
     return ret;
 }
 
 
-Basic::Value LEFT$(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value LEFT$(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 3) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    size_t length = basic->valueToInt(args[2]);
-    return Unicode::substr(basic->valueToString(args[0]), 0, length);
+    size_t length = ValueToInt(args[2]);
+    return Unicode::substr(ValueToString(args[0]), 0, length);
 }
 
-Basic::Value MID$(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value MID$(Basic* basic, const std::vector<BA67::Value>& args) {
     // str$, start, [length]
     if (args.size() < 3 || args.size() > 5) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    int64_t start = basic->valueToInt(args[2]); // base 1
+    int64_t start = ValueToInt(args[2]); // base 1
     if (start < 1) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
     --start; // base 0
 
     size_t length = ~size_t(0);
     if (args.size() == 5) {
-        length = basic->valueToInt(args[4]);
+        length = ValueToInt(args[4]);
     }
-    return Unicode::substr(basic->valueToString(args[0]), start, length);
+    return Unicode::substr(ValueToString(args[0]), start, length);
 }
 
-Basic::Value RIGHT$(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value RIGHT$(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 3) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    size_t right    = basic->valueToInt(args[2]);
-    std::string str = basic->valueToString(args[0]);
+    size_t right    = ValueToInt(args[2]);
+    std::string str = ValueToString(args[0]);
     size_t length   = Unicode::utf8StrLen(str);
     if (right >= length) {
         return str;
@@ -1760,12 +1760,12 @@ Basic::Value RIGHT$(Basic* basic, const std::vector<Basic::Value>& args) {
 }
 
 
-Basic::Value RND(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value RND(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
-    double f = basic->valueToDouble(args[0]);
+    double f = ValueToDouble(args[0]);
     if (f == 0) {
         f = int(basic->os->tick()) + cbm_rnd(1.0);
         if (f >= 0) {
@@ -1776,35 +1776,35 @@ Basic::Value RND(Basic* basic, const std::vector<Basic::Value>& args) {
 }
 
 
-Basic::Value LCASE$(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value LCASE$(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    return Unicode::toLower(basic->valueToString(args[0]).c_str());
+    return Unicode::toLower(ValueToString(args[0]).c_str());
 }
-Basic::Value UCASE$(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value UCASE$(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    return Unicode::toUpper(basic->valueToString(args[0]).c_str());
+    return Unicode::toUpper(ValueToString(args[0]).c_str());
 }
 
-Basic::Value TAB(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value TAB(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    int64_t tab = basic->valueToInt(args[0]);
+    int64_t tab = ValueToInt(args[0]);
     auto crsr   = basic->os->screen.getCursorPos();
     if (int64_t(crsr.x) < tab) {
         basic->os->screen.setCursorPos({ size_t(tab), crsr.y });
     }
     return std::string();
 }
-Basic::Value SPC(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value SPC(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    int64_t tab = basic->valueToInt(args[0]);
+    int64_t tab = ValueToInt(args[0]);
     auto crsr   = basic->os->screen.getCursorPos();
     if (int64_t(crsr.x) < tab) {
         basic->os->screen.setCursorPos({ size_t(tab), crsr.y });
@@ -1813,11 +1813,11 @@ Basic::Value SPC(Basic* basic, const std::vector<Basic::Value>& args) {
 }
 
 
-Basic::Value PEN(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value PEN(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    int64_t index = basic->valueToInt(args[0]);
+    int64_t index = ValueToInt(args[0]);
     auto mouse    = basic->os->getMouseStatus();
     switch (index) {
     case 0:
@@ -1826,23 +1826,23 @@ Basic::Value PEN(Basic* basic, const std::vector<Basic::Value>& args) {
     case 3: return { int64_t(mouse.y) };
     case 4: return { int64_t(mouse.buttonBits) };
     }
-    throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+    throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
 }
 
-Basic::Value PETSCII$(Basic* basic, const std::vector<Basic::Value>& args) {
+BA67::Value PETSCII$(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
     std::string str;
-    int64_t index = basic->valueToInt(args[0]);
+    int64_t index = ValueToInt(args[0]);
     if (index >= 0 && index <= 0xff) {
         Unicode::appendAsUtf8(str, PETSCII::realPETSCIItoUnicode(index & 0xff, false));
     } else if (index < 0 && index >= -0xff) {
         Unicode::appendAsUtf8(str, PETSCII::realPETSCIItoUnicode(-index & 0xff, false));
     } else {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
-    return Basic::Value(str);
+    return BA67::Value(str);
 }
 
 }; // FKT
@@ -1877,7 +1877,7 @@ void Basic::Array::dim(Value init, const ArrayIndex& ai) {
     }
 }
 
-Basic::Value& Basic::Array::at(const Basic::ArrayIndex& ix) {
+BA67::Value& Basic::Array::at(const Basic::ArrayIndex& ix) {
     if (isDictionary) {
         throw Error(ErrorId::TYPE_MISMATCH);
     }
@@ -2062,11 +2062,11 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "POKE", CMD::POKE },
         { "REMODEL", CMD::REMODEL },
         { "SOUND", CMD::SOUND },
-        { "STOP", [&](Basic* basic, const std::vector<Basic::Value>&) { throw Error(ErrorId::BREAK); } },
-        { "SLOW", [&](Basic* basic, const std::vector<Basic::Value>&) { basic->moduleVariableStack.back()->second.fastMode = false; } },
-        { "FAST", [&](Basic* basic, const std::vector<Basic::Value>&) { basic->moduleVariableStack.back()->second.fastMode = true; } },
-        { "TRON", [&](Basic* basic, const std::vector<Basic::Value>&) { basic->moduleVariableStack.back()->second.traceOn = true; } },
-        { "TROFF", [&](Basic* basic, const std::vector<Basic::Value>&) { basic->moduleVariableStack.back()->second.traceOn = false; } },
+        { "STOP", [&](Basic* basic, const std::vector<BA67::Value>&) { throw Error(ErrorId::BREAK); } },
+        { "SLOW", [&](Basic* basic, const std::vector<BA67::Value>&) { basic->moduleVariableStack.back()->second.fastMode = false; } },
+        { "FAST", [&](Basic* basic, const std::vector<BA67::Value>&) { basic->moduleVariableStack.back()->second.fastMode = true; } },
+        { "TRON", [&](Basic* basic, const std::vector<BA67::Value>&) { basic->moduleVariableStack.back()->second.traceOn = true; } },
+        { "TROFF", [&](Basic* basic, const std::vector<BA67::Value>&) { basic->moduleVariableStack.back()->second.traceOn = false; } },
     });
     // commands["PRINT"] = cmdPRINT;
     // // commands["INPUT"] = cmdINPUT;
@@ -2074,55 +2074,55 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     // commands["LIST"] = cmdLIST;
 
     // throw if the argument count does not match
-    auto nargs = [](const std::vector<Basic::Value>& a, size_t n) {if (a.size() != n) { throw Error(ErrorId::ARGUMENT_COUNT); } };
+    auto nargs = [](const std::vector<BA67::Value>& a, size_t n) {if (a.size() != n) { throw Error(ErrorId::ARGUMENT_COUNT); } };
 
     // functions
     // functions["SIN"] = fktSIN;
     // args contain comma operators!
     functions.insert({
-        { "ABS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return fabs(basic->valueToDouble(args[0])); } },
-        { "ASC", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); std::string s = Basic::valueToString(args[0]); const char* p = s.c_str(); return (int64_t)Unicode::parseNextUtf8(p); } },
-        { "ATN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return atan(basic->valueToDouble(args[0])); } },
+        { "ABS", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return fabs(ValueToDouble(args[0])); } },
+        { "ASC", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); std::string s = BA67::ValueToString(args[0]); const char* p = s.c_str(); return (int64_t)Unicode::parseNextUtf8(p); } },
+        { "ATN", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return atan(ValueToDouble(args[0])); } },
         { "CHR$", FKT::CHR$ },
-        { "COS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return cos(basic->valueToDouble(args[0])); } },
+        { "COS", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return cos(ValueToDouble(args[0])); } },
         { "DEC", FKT::DEC },
-        { "EXP", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return exp(basic->valueToDouble(args[0])); } },
-        { "FRE", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return (int64_t)basic->os->getFreeMemoryInBytes(); } },
+        { "EXP", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return exp(ValueToDouble(args[0])); } },
+        { "FRE", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return (int64_t)basic->os->getFreeMemoryInBytes(); } },
         { "ENV$", FKT::ENV$ },
         { "HEX$", FKT::HEX$ },
-        { "INT", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return basic->valueToInt(args[0]); } },
+        { "INT", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return ValueToInt(args[0]); } },
         { "INSTR", FKT::INSTR },
         { "JOY", FKT::JOY },
         { "LEFT$", FKT::LEFT$ },
         { "LCASE$", FKT::LCASE$ },
         { "UCASE$", FKT::UCASE$ },
-        { "LEN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return (int64_t)Unicode::utf8StrLen(basic->valueToString(args[0])); } },
-        { "LOG", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return log(basic->valueToDouble(args[0])); } },
-        { "MOD", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 3); auto div = basic->valueToInt(args[2]); if (div == 0) { throw Error(ErrorId::ILLEGAL_QUANTITY); }return basic->valueToInt(args[0]) % div; } },
+        { "LEN", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return (int64_t)Unicode::utf8StrLen(ValueToString(args[0])); } },
+        { "LOG", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return log(ValueToDouble(args[0])); } },
+        { "MOD", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 3); auto div = ValueToInt(args[2]); if (div == 0) { throw Error(ErrorId::ILLEGAL_QUANTITY); }return ValueToInt(args[0]) % div; } },
         { "MAX", FKT::MAX },
         { "MIN", FKT::MIN },
         { "MID$", FKT::MID$ },
-        { "PEEK", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->cpu.readBankedMem(basic->valueToInt(args[0]))); } },
+        { "PEEK", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return int64_t(basic->cpu.readBankedMem(ValueToInt(args[0]))); } },
         { "PEN", FKT::PEN },
         { "PETSCII$", FKT::PETSCII$ },
-        { "POS", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().x); } },
-        { "POSY", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().y); } },
+        { "POS", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().x); } },
+        { "POSY", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return int64_t(basic->os->screen.getCursorPos().y); } },
         { "RIGHT$", FKT::RIGHT$ },
         { "RND", FKT::RND },
-        { "SGN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value {
+        { "SGN", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value {
              nargs(args, 1);
-             double d = basic->valueToDouble(args[0]);
+             double d = ValueToDouble(args[0]);
              return (d == 0.0) ? 0.0 : ((d < 0.0) ? -1.0 : 1.0);
          } },
-        { "SIN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return sin(basic->valueToDouble(args[0])); } },
+        { "SIN", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return sin(ValueToDouble(args[0])); } },
 
         { "SPC", FKT::SPC },
-        { "SQR", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return sqrt(basic->valueToDouble(args[0])); } },
-        { "STR$", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return basic->valueToString(args[0]); } },
+        { "SQR", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return sqrt(ValueToDouble(args[0])); } },
+        { "STR$", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return ValueToString(args[0]); } },
         { "TAB", FKT::TAB },
-        { "TAN", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return tan(basic->valueToDouble(args[0])); } },
-        { "VAL", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 1); return basic->valueToDoubleOrZero(args[0]); } },
-        { "XOR", [&](Basic* basic, const std::vector<Basic::Value>& args) -> Basic::Value { nargs(args, 3); return basic->valueToInt(args[0]) ^ basic->valueToInt(args[2]); } }
+        { "TAN", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return tan(ValueToDouble(args[0])); } },
+        { "VAL", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return ValueToDoubleOrZero(args[0]); } },
+        { "XOR", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 3); return ValueToInt(args[0]) ^ ValueToInt(args[2]); } }
     });
 
 
@@ -2131,7 +2131,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     printUtf8String(
         std::string(centerx, ' ') + std::string(" ****    BA67 BASIC") + charLogo + " V" + version() + ("   ****\n"));
 
-    std::string strmem = "   " + valueToString(int64_t(os->getFreeMemoryInBytes()) / (1024 * 1024)) + std::string(" BASIC MBYTES FREE");
+    std::string strmem = "   " + ValueToString(int64_t(os->getFreeMemoryInBytes()) / (1024 * 1024)) + std::string(" BASIC MBYTES FREE");
     while (strmem.length() < 31) {
         strmem.insert(strmem.begin(), ' ');
     }
@@ -2170,229 +2170,6 @@ void Basic::storeProgramCounterForCont() {
     }
 }
 
-// Represent value as string
-inline std::string Basic::valueToString(const Value& v) {
-    if (auto s = std::get_if<std::string>(&v)) {
-        return *s;
-    }
-    if (auto i = std::get_if<int64_t>(&v)) {
-        return std::to_string(*i);
-    }
-    if (auto d = std::get_if<double>(&v)) {
-#if defined(__cplusplus) && __cplusplus > 202002L
-        return return std::format("{:.9g}", *d);
-#else
-        std::ostringstream oss;
-        oss << std::setprecision(9) << std::noshowpoint << *d;
-        return oss.str();
-#endif
-        return std::to_string(*d);
-    }
-    throw Error(ErrorId::TYPE_MISMATCH);
-}
-
-inline double Basic::valueToDouble(const Value& v) {
-    if (auto i = std::get_if<int64_t>(&v)) {
-        return (double)(*i);
-    }
-    if (auto d = std::get_if<double>(&v)) {
-        return (*d);
-    }
-    if (auto s = std::get_if<std::string>(&v)) {
-        const char* str = s->c_str();
-        double d        = 0;
-        if (parseDouble(str, &d) && *str == '\0') {
-            return d;
-        }
-    }
-    throw Error(ErrorId::TYPE_MISMATCH);
-}
-inline double Basic::valueToDoubleOrZero(const Value& v) {
-    if (auto i = std::get_if<int64_t>(&v)) {
-        return (double)(*i);
-    }
-    if (auto d = std::get_if<double>(&v)) {
-        return (*d);
-    }
-    if (auto s = std::get_if<std::string>(&v)) {
-        const char* str = s->c_str();
-        double d        = 0;
-        if (parseDouble(str, &d) && *str == '\0') {
-            return d;
-        }
-    }
-    return 0.0; // VAL("X") instead of throw Error(ErrorId::TYPE_MISMATCH);
-}
-
-inline int64_t Basic::valueToInt(const Value& v) {
-    if (auto* i = std::get_if<int64_t>(&v)) {
-        return (*i);
-    }
-    if (auto* d = std::get_if<double>(&v)) {
-        return (int)(*d);
-    }
-    if (auto* s = std::get_if<std::string>(&v)) {
-        const char* str = s->c_str();
-        int64_t i       = 0;
-        if (parseInt(str, &i) && *str == '\0') {
-            return i;
-        }
-    }
-    throw Error(ErrorId::TYPE_MISMATCH);
-}
-
-bool Basic::valueIsOperator(const Value& v) {
-    if (auto i = std::get_if<Basic::Operator>(&v)) {
-        return true;
-    }
-    return false;
-}
-
-bool Basic::valueIsString(const Value& v) {
-    if (auto* s = std::get_if<std::string>(&v)) {
-        return true;
-    }
-    return false;
-}
-bool Basic::valueIsInt(const Value& v) {
-    if (auto* s = std::get_if<int64_t>(&v)) {
-        return true;
-    }
-    return false;
-}
-bool Basic::valueIsDouble(const Value& v) {
-    if (auto* s = std::get_if<double>(&v)) {
-        return true;
-    }
-    return false;
-}
-
-inline bool Basic::isEndOfWord(char c) {
-    return (
-        (c >= 0 && c < '0') // operators, space, newline, tab, quotes, braces
-        || (c >= ':' && c <= '@') // colons, comparators
-        || (c >= '{' && c <= 0x7f) // curly braces, or-operator
-        // || c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == ':' || c == ';' || c == '\"' || c == '\0'
-    );
-}
-inline bool Basic::isNumeric(char c) {
-    return c >= '0' && c <= '9';
-}
-
-inline const char* Basic::skipWhite(const char*& str) {
-    while (isWhiteSpace(*str)) {
-        ++str;
-    }
-    return str;
-}
-
-// positive double value
-inline bool Basic::parseDouble(const char*& str, double* number) {
-    skipWhite(str);
-
-    char* end;
-    double d = strtod(str, &end);
-    if (number) {
-        *number = d;
-    }
-    if (end > str) {
-        str = end;
-        return true;
-    }
-
-    if (options.dotAsZero && *str == '.') {
-        ++str;
-        if (number) {
-            *number = 0.0;
-        }
-        return true;
-    }
-
-    return false;
-}
-
-// positive int - not a double! "1.23" returns false
-inline bool Basic::parseInt(const char*& str, int64_t* number) {
-    skipWhite(str);
-    char* endInt;
-
-    int base = 10;
-    if (*str == '$') {
-        ++str;
-        base = 16;
-    }
-
-    int64_t i = strtoll(str, &endInt, base);
-    if (number) {
-        *number = i;
-    }
-
-    if (endInt == str) {
-        return false;
-    }
-
-    // might be a double?
-    if (base == 10) {
-        const char* endDbl = str;
-        if (!parseDouble(endDbl)) {
-            throw Error(ErrorId::SYNTAX);
-        }
-        if (endDbl > endInt) {
-            return false;
-        }
-    }
-    str = endInt;
-    return true;
-}
-
-bool Basic::parseGotoInt(const char*& str, int64_t* number) {
-    skipWhite(str);
-    char* endInt;
-
-    int64_t i = strtoll(str, &endInt, 10);
-    if (number) {
-        *number = i;
-    }
-    if (endInt == str) {
-        return false;
-    }
-    while (!isEndOfWord(*str)) {
-        ++str;
-    }
-
-    str = endInt;
-    return true;
-}
-
-bool Basic::parseFileHandle(const char*& str, std::string_view* number) {
-    skipWhite(str);
-    char* endInt;
-    if (*str == '#') {
-        int64_t i = strtoll(str + 1, &endInt, 10);
-        if (number) {
-            std::string_view s((const char*)(str) + 1, (const char*)(endInt));
-            *number = s;
-        }
-        if (endInt == str + 1) {
-            return false;
-        }
-        str = endInt;
-        return true;
-    }
-    return false;
-}
-
-int64_t Basic::strToInt(const std::string& str) {
-    return strToInt(std::string_view(str));
-}
-int64_t Basic::strToInt(const std::string_view& str) {
-    if (str[0] == '$' && str[1] != '\0') { // str.starts_with("$") && str.length() > 1
-        return StringHelper::strtoi64_hex(str.substr(1));
-    } else if (str[0] != '\0') { // str.length() > 0
-        return StringHelper::strtoi64(str);
-    }
-    return 0;
-}
 
 bool Basic::parseKeyword(const char*& str, std::string_view* keyword) {
     skipWhite(str);
@@ -2592,7 +2369,7 @@ inline bool Basic::parseIdentifier(const char*& str, std::string_view* identifie
 // }
 
 // parse next command, advance the program code pointer
-const char* Basic::tokenizeNextCommand(const char* pc, std::vector<Basic::Token>& tokens) {
+const char* Basic::tokenizeNextCommand(const char* pc, std::vector<Token>& tokens) {
     tokens.clear();
 
     double d;
@@ -2741,7 +2518,7 @@ inline int Basic::precedence(const Token* op) {
     return precedence(op->str());
 }
 
-Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::vector<Basic::Value>& arguments) {
+BA67::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::vector<BA67::Value>& arguments) {
     auto& mod = currentModule();
 
     // arguments are comma separated
@@ -2764,7 +2541,7 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
         // GOSUB but FNEND instead of RETURN
         auto pc = mod.programCounter;
         // set PC to DEF FN code
-        executeCommands(("GOTO " + valueToString(fn.gotoLine)).c_str());
+        executeCommands(("GOTO " + ValueToString(fn.gotoLine)).c_str());
         // run
         runToEnd();
         // reset PC to FN call
@@ -2805,7 +2582,7 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
         for (auto& token : substitutedBody) {
             if (token.type == TokenType::IDENTIFIER && token.str() == fn.parameters[i].str()) {
                 token.type = valType;
-                // argumentStrings.emplace_back(valueToString(arguments[i * 2 /* every other arg is the comma operator*/]));
+                // argumentStrings.emplace_back(ValueToString(arguments[i * 2 /* every other arg is the comma operator*/]));
                 // token.str() = argumentStrings.back();
                 token.tv = arguments[i * 2 /* every other arg is the comma operator*/];
             }
@@ -2821,7 +2598,7 @@ Basic::Value Basic::evaluateDefFnCall(Basic::FunctionDefinition& fn, const std::
 // put start to the open brace '(' - endPtr will point to the item after the matching close brace
 // put start to inside the brace '(' - endPtr will point to matching the closing brace
 // function calls itself recursively.
-std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd, bool breakEarly) {
+std::vector<BA67::Value> Basic::evaluateExpression(const std::vector<Token>& tokens, size_t start, size_t* ptrEnd, bool breakEarly) {
     std::vector<Value> output;
     output.reserve(tokens.size());
     std::vector<Value> values;
@@ -3073,7 +2850,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
 
         // printf("______________\n");
         // for (auto& v : values) {
-        //     printf(valueToString(v).c_str());
+        //     printf(ValueToString(v).c_str());
         //     printf("\n");
         // }
         // printf(ops.back().c_str());
@@ -3102,7 +2879,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         a = values.back();
         values.pop_back();
 
-        // debug(valueToString(a).c_str()); debug(op.c_str()); debug(valueToString(b).c_str()); debug("\n");
+        // debug(ValueToString(a).c_str()); debug(op.c_str()); debug(ValueToString(b).c_str()); debug("\n");
         const double* da = get_if<double>(&a);
         const double* db = get_if<double>(&b);
         if (da && db) {
@@ -3133,13 +2910,13 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
         if (sa) {
             throw Error(ErrorId::TYPE_MISMATCH);
 
-            // values.push_back(applyOpSS(*sa, valueToString(b), op));
+            // values.push_back(applyOpSS(*sa, ValueToString(b), op));
             // return;
         }
         if (sb) {
             throw Error(ErrorId::TYPE_MISMATCH);
 
-            // values.push_back(applyOpSS(valueToString(a), *sb, op));
+            // values.push_back(applyOpSS(ValueToString(a), *sb, op));
             // return;
         }
 
@@ -3258,7 +3035,7 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
                 values.pop_back();
             }
             // output.push_back(Operator(std::string(toki.value)));
-            ASSERT(valueIsOperator(toki.tv));
+            ASSERT(ValueIsOperator(toki.tv));
             output.push_back(toki.tv);
 
             values.clear();
@@ -3324,14 +3101,14 @@ std::vector<Basic::Value> Basic::evaluateExpression(const std::vector<Token>& to
     return output;
 }
 
-Basic::ArrayIndex Basic::indexFromValues(const std::vector<Basic::Value>& vals) {
+Basic::ArrayIndex Basic::indexFromValues(const std::vector<BA67::Value>& vals) {
     ArrayIndex ai = {};
     size_t i      = 0;
     for (auto& v : vals) {
-        if (valueIsOperator(v)) {
+        if (ValueIsOperator(v)) {
             continue;
         }
-        int64_t iv = valueToInt(v);
+        int64_t iv = ValueToInt(v);
         if (iv < 0) {
             throw Error(ErrorId::BAD_SUBSCRIPT);
         }
@@ -3412,14 +3189,14 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
 
         switch (tokens[ivarname].valuePostfix()) {
         case '%':
-            *pval = valueToInt(values[0]);
+            *pval = ValueToInt(values[0]);
             break;
         case '$':
             *pval = values[0];
             break;
         default:
         case '#':
-            *pval = valueToDouble(values[0]);
+            *pval = ValueToDouble(values[0]);
             break;
         }
     } else {
@@ -3428,7 +3205,7 @@ inline void Basic::handleLET(const std::vector<Token>& tokens) {
 
     static const std::string_view varTI("TI$");
     if (tokens[ivarname].is(varTI)) {
-        std::string ti$ = valueToString(*pval);
+        std::string ti$ = ValueToString(*pval);
         if (ti$.length() != 6) {
             throw Error(ErrorId::ILLEGAL_QUANTITY);
         }
@@ -3447,7 +3224,7 @@ void Basic::handleRUN(const std::vector<Token>& tokens) {
 
     if (tokens.size() > 2) {
         auto vals = evaluateExpression(tokens, 1);
-        runFrom   = int(valueToInt(vals[0]));
+        runFrom   = int(ValueToInt(vals[0]));
         if (runFrom < 0) {
             throw Error(ErrorId::UNDEFD_STATEMENT);
         }
@@ -3509,8 +3286,8 @@ void Basic::handleMODULE(const std::vector<Token>& tokens) {
 }
 
 void Basic::doPrintValue(Value& v) {
-    // if (valueIsOperator(v)) {
-    if (auto op = std::get_if<Basic::Operator>(&v)) {
+    // if (ValueIsOperator(v)) {
+    if (auto op = std::get_if<BA67::Operator>(&v)) {
         if (op->value == ",") {
             if (currentFileNo == 0) {
                 auto crsr = os->screen.getCursorPos();
@@ -3524,10 +3301,10 @@ void Basic::doPrintValue(Value& v) {
         }
         // }
     } else {
-        if (valueIsString(v)) {
-            printUtf8String(Basic::valueToString(v), true /* apply control characters */, true /*even in quotes*/);
+        if (ValueIsString(v)) {
+            printUtf8String(BA67::ValueToString(v), true /* apply control characters */, true /*even in quotes*/);
         } else {
-            printUtf8String((" " + Basic::valueToString(v) + " "));
+            printUtf8String((" " + BA67::ValueToString(v) + " "));
         }
     }
 }
@@ -3538,10 +3315,10 @@ void Basic::handlePRINT(const std::vector<Token>& tokens) {
     bool changedFileNo = false;
     if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
         changedFileNo=true;
-        currentFileNo = valueToInt(tokens[1].tv);
+        currentFileNo = ValueToInt(tokens[1].tv);
 
         if (tokens.size() > 2 && tokens[2].type != TokenType::COMMA) {
-            throw Basic::Error(Basic::ErrorId::SYNTAX);
+            throw BA67::Error(ErrorId::SYNTAX);
         }
 
         // tokens.erase(tokens.begin() + 1);
@@ -3566,7 +3343,7 @@ void Basic::handlePRINT(const std::vector<Token>& tokens) {
             }
             for (auto& v : vals) {
                 doPrintValue(v);
-                forceNewline = !valueIsOperator(v);
+                forceNewline = !ValueIsOperator(v);
             }
         }
         if (forceNewline) {
@@ -3583,7 +3360,7 @@ static std::string printUsing(const std::string& format, std::string value) {
     std::ostringstream oss;
     size_t fieldWidth = format.length();
     if (fieldWidth == 0) {
-        throw Basic::Error(Basic::ErrorId::SYNTAX);
+        throw BA67::Error(ErrorId::SYNTAX);
     }
     if (fieldWidth < value.length()) {
         value = value.substr(0, fieldWidth);
@@ -3592,7 +3369,7 @@ static std::string printUsing(const std::string& format, std::string value) {
     bool hasRight = format.find('>') != std::string::npos;
     if (hasEqual) {
         if (hasRight) {
-            throw Basic::Error(Basic::ErrorId::SYNTAX);
+            throw BA67::Error(ErrorId::SYNTAX);
         }
         size_t padLeft  = (fieldWidth - value.length()) / 2;
         size_t padRight = (fieldWidth - value.length() - padLeft);
@@ -3624,7 +3401,7 @@ static std::string printUsing(const std::string& format, double value) {
     if (p != std::string::npos) {
         signPos = p;
         if (forcePlusSign) {
-            throw Basic::Error(Basic::ErrorId::SYNTAX);
+            throw BA67::Error(ErrorId::SYNTAX);
         }
     }
     char sign = (value == 0) ? ' ' : ((value < 0) ? '-' : '+');
@@ -3641,7 +3418,7 @@ static std::string printUsing(const std::string& format, double value) {
     size_t decimalPos   = format.find('.');
     size_t firstHash    = format.find('#');
     if (firstHash == std::string::npos) {
-        throw Basic::Error(Basic::ErrorId::SYNTAX);
+        throw BA67::Error(ErrorId::SYNTAX);
     }
 
     size_t fieldWidth          = format.length();
@@ -3700,13 +3477,13 @@ void Basic::handlePRINT_USING(const std::vector<Token>& tokens) {
             break;
         }
         if (irun == 0) {
-            format = valueToString(vals[0]);
+            format = ValueToString(vals[0]);
             vals.erase(vals.begin());
         }
 
         for (auto& v : vals) {
             forceNewline = true;
-            if (valueIsOperator(v)) {
+            if (ValueIsOperator(v)) {
                 forceNewline = false;
                 continue;
             }
@@ -3726,10 +3503,10 @@ void Basic::handlePRINT_USING(const std::vector<Token>& tokens) {
             }
 
             if (subformat.length() > 0) {
-                if (valueIsString(v)) {
-                    output += printUsing(subformat, valueToString(v));
+                if (ValueIsString(v)) {
+                    output += printUsing(subformat, ValueToString(v));
                 } else {
-                    output += printUsing(subformat, valueToDouble(v));
+                    output += printUsing(subformat, ValueToDouble(v));
                 }
             } else {
                 doPrintValue(v);
@@ -3750,10 +3527,10 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
     size_t istart = 1;
     currentFileNo = 0;
     if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
-        currentFileNo = valueToInt(tokens[1].tv);
+        currentFileNo = ValueToInt(tokens[1].tv);
 
         if (tokens.size() > 2 && tokens[2].type != TokenType::COMMA) {
-            throw Basic::Error(Basic::ErrorId::SYNTAX);
+            throw BA67::Error(ErrorId::SYNTAX);
         }
 
         istart += 2; // handle and comma
@@ -3860,14 +3637,14 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
 
             switch (tk.valuePostfix()) {
             case '%':
-                *pval = valueToInt(str);
+                *pval = ValueToInt(str);
                 break;
             case '$':
                 *pval = str;
                 break;
             default:
             case '#':
-                *pval = valueToDouble(str);
+                *pval = ValueToDouble(str);
                 break;
             }
         }
@@ -3878,10 +3655,10 @@ void Basic::handleGET(const std::vector<Token>& tokens, bool waitForKeypress) {
 // INPUT from file
 void Basic::handleINPUTFile(const std::vector<Token>& tokens) {
     currentFileNo = 0;
-    currentFileNo = valueToInt(tokens[1].tv);
+    currentFileNo = ValueToInt(tokens[1].tv);
 
     if (tokens.size() > 2 && tokens[2].type != TokenType::COMMA) {
-        throw Basic::Error(Basic::ErrorId::SYNTAX);
+        throw BA67::Error(ErrorId::SYNTAX);
     }
 
     size_t istart = 3; // INPUT handle and comma
@@ -3943,14 +3720,14 @@ void Basic::handleINPUTFile(const std::vector<Token>& tokens) {
 
             switch (tk.valuePostfix()) {
             case '%':
-                *pval = valueToInt(s);
+                *pval = ValueToInt(s);
                 break;
             case '$':
                 *pval = s;
                 break;
             default:
             case '#':
-                *pval = valueToDouble(s);
+                *pval = ValueToDouble(s);
                 break;
             }
         }
@@ -3997,14 +3774,14 @@ void Basic::handleINPUT(const std::vector<Token>& tokens) {
 
                     switch (tk.valuePostfix()) {
                     case '%':
-                        *pval = valueToInt(s);
+                        *pval = ValueToInt(s);
                         break;
                     case '$':
                         *pval = s;
                         break;
                     default:
                     case '#':
-                        *pval = valueToDouble(s);
+                        *pval = ValueToDouble(s);
                         break;
                     }
                     badinput = false;
@@ -4032,7 +3809,7 @@ void Basic::handleNETGET(const std::vector<Token>& tokens) {
     }
 
     MiniFetch fetch;
-    fetch.request.fillServerFromUrl(valueToString(firstValues[0]));
+    fetch.request.fillServerFromUrl(ValueToString(firstValues[0]));
     auto response = fetch.fetch();
 
 
@@ -4084,9 +3861,9 @@ inline void Basic::handleDIM(const std::vector<Token>& tokens) {
             if (value == nullptr) {
                 throw Error(ErrorId::SYNTAX);
             }
-            if (valueIsString(*value)) {
+            if (ValueIsString(*value)) {
                 *value = "";
-            } else if (valueToInt(*value)) {
+            } else if (ValueToInt(*value)) {
                 *value = 0;
             } else {
                 *value = 0.0;
@@ -4161,26 +3938,26 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
         // list all
     } else if (tokens.size() == 2 && tokens[1].type != TokenType::OPERATOR) {
         // LIST 10
-        from = to = int(valueToInt(tokens[1].tv));
+        from = to = int(ValueToInt(tokens[1].tv));
     } else if (tokens.size() == 4 && tokens[2].type == TokenType::OPERATOR) {
         // LIST 10-20
-        from = int(valueToInt(tokens[1].tv));
-        to   = int(valueToInt(tokens[3].tv));
+        from = int(ValueToInt(tokens[1].tv));
+        to   = int(ValueToInt(tokens[3].tv));
         if (to < from) {
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+            throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
         }
     } else if (tokens.size() == 3 && tokens[1].type == TokenType::UNARY_OPERATOR) {
         // LIST -20
-        to = int(valueToInt(tokens[2].tv));
+        to = int(ValueToInt(tokens[2].tv));
     } else if (tokens.size() == 3 && tokens[2].type == TokenType::OPERATOR) {
         // LIST 20-
-        from = int(valueToInt(tokens[1].tv));
+        from = int(ValueToInt(tokens[1].tv));
     } else if (tokens.size() == 2 && tokens[1].type == TokenType::OPERATOR) {
         // LIST -
         from = lastFrom;
         to   = lastTo;
     } else {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
     lastFrom = from;
@@ -4292,15 +4069,15 @@ void Basic::handleDELETE(const std::vector<Token>& tokens) {
     int from = 0;
     int to   = 0x7ffffff;
     if (tokens.size() > 1) {
-        from = int(valueToInt(tokens[1].tv));
+        from = int(ValueToInt(tokens[1].tv));
         if (from < 0) {
             from = 0;
         }
     }
     if (tokens.size() > 3 && tokens[2].type == TokenType::OPERATOR) {
-        to = int(valueToInt(tokens[3].tv));
+        to = int(ValueToInt(tokens[3].tv));
         if (to < from) {
-            throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+            throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
         }
     }
 
@@ -4337,7 +4114,7 @@ void Basic::handleDUMP(const std::vector<Token>& tokens) {
         if (!varnames.empty() && !varnames.contains(v.first)) {
             continue;
         }
-        oss << v.first << " = " << valueToString(v.second) << std::endl;
+        oss << v.first << " = " << ValueToString(v.second) << std::endl;
     }
     for (auto& v : currentModule().arrays) {
         auto& arr = v.second;
@@ -4348,7 +4125,7 @@ void Basic::handleDUMP(const std::vector<Token>& tokens) {
         if (arr.isDictionary) {
             int count = 0;
             for (auto& p : arr.dict) {
-                oss << v.first << "(" << valueToString(p.first) << ") = " << valueToString(p.second) << std::endl;
+                oss << v.first << "(" << ValueToString(p.first) << ") = " << ValueToString(p.second) << std::endl;
                 if (++count > 9) {
                     oss << "..." << std::endl;
                     break;
@@ -4362,10 +4139,10 @@ void Basic::handleDUMP(const std::vector<Token>& tokens) {
         case 1:
             oss << v.first << "(" << arr.bounds.index[0] << " )" << std::endl;
             for (size_t i = 0; i < std::min(size_t(10), arr.bounds.index[0]); ++i) {
-                oss << "    (" << int(i) << ") = " << valueToString(arr.at(ArrayIndex(i))) << std::endl;
+                oss << "    (" << int(i) << ") = " << ValueToString(arr.at(ArrayIndex(i))) << std::endl;
             }
             if (arr.bounds.index[0] >= 10) {
-                oss << "    (" << int(arr.bounds.index[0]) << ") = " << valueToString(arr.at(arr.bounds.index[0])) << std::endl;
+                oss << "    (" << int(arr.bounds.index[0]) << ") = " << ValueToString(arr.at(arr.bounds.index[0])) << std::endl;
             }
             break;
         case 2: oss << v.first << "(" << arr.bounds.index[0] << ", " << arr.bounds.index[1] << " )" << std::endl; break;
@@ -4390,19 +4167,19 @@ void Basic::handleDUMP(const std::vector<Token>& tokens) {
 void Basic::handleKEY(const std::vector<Token>& tokens) {
     if (tokens.size() == 1) {
         for (size_t k = 0; k < keyShortcuts.size(); ++k) {
-            std::string s = "KEY " + valueToString(int64_t(1 + k)) + "," + keyShortcuts[k] + " \n";
+            std::string s = "KEY " + ValueToString(int64_t(1 + k)) + "," + keyShortcuts[k] + " \n";
             os->screen.cleanCurrentLine();
             printUtf8String(s);
         }
         return;
     }
     if (tokens.size() < 4) {
-        throw Basic::Error(Basic::ErrorId::ARGUMENT_COUNT);
+        throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
 
-    size_t k = valueToInt(tokens[1].tv) - 1;
+    size_t k = ValueToInt(tokens[1].tv) - 1;
     if (k >= keyShortcuts.size()) {
-        throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+        throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
     }
     auto& str = keyShortcuts[k];
     str       = "";
@@ -4431,7 +4208,7 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
             } else if (tk.type == TokenType::IDENTIFIER) {
                 Value* pval = findLeftValue(currentModule(), tokens, itk, &itk);
                 if (pval != nullptr) {
-                    str = valueToString(*pval);
+                    str = ValueToString(*pval);
                 } else {
                     // RCHARDEF CHR$(1+1), mono, a,b,c,d,e,f,g,h
                     throw Error(ErrorId::FORMULA_TOO_COMPLEX);
@@ -4439,13 +4216,13 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
                     // if (vals.size() != 1) {
                     //     throw Error(ErrorId::SYNTAX);
                     // }
-                    // str = valueToString(values[0]);
+                    // str = ValueToString(values[0]);
                 }
             } else {
                 throw Error(ErrorId::FORMULA_TOO_COMPLEX);
             }
             if (str.empty()) {
-                throw Basic::Error(Basic::ErrorId::ILLEGAL_QUANTITY);
+                throw BA67::Error(ErrorId::ILLEGAL_QUANTITY);
             }
             const char* ptr = str.c_str();
             char32_t ichar  = Unicode::parseNextUtf8(ptr);
@@ -4482,7 +4259,7 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
                 *pval = v;
                 break;
             case '$':
-                *pval = valueToString(v);
+                *pval = ValueToString(v);
                 break;
             default:
             case '#':
@@ -4497,7 +4274,7 @@ void Basic::handleRCHARDEF(const std::vector<Token>& tokens) {
 
 // put endPtr to the next token to process
 // returns nullptr on error
-Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr, bool allowDimArray) {
+BA67::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tokens, size_t start, size_t* endPtr, bool allowDimArray) {
     size_t i = start;
     if (tokens.size() > i + 2 && tokens[i + 1].type == TokenType::PARENTHESIS && tokens[i + 1].is('(')) {
         auto& arrays = module.arrays;
@@ -4556,7 +4333,7 @@ Basic::Value* Basic::findLeftValue(Module& module, const std::vector<Token>& tok
         if (variableName == svTI || variableName == svTI$) { //  TI or TI$
             int64_t ti_ms = os->tick() - time0;
             int64_t ti    = int64_t((ti_ms) * 60LL) / 1000LL; // jiffies
-            TIvariable    = Basic::Value(ti);
+            TIvariable    = BA67::Value(ti);
 
             if (variableName == svTI$) {
                 int64_t secs  = ti_ms / 1000;
@@ -4636,7 +4413,7 @@ void Basic::handleGOTO(const std::vector<Token>& tokens) {
     if (values.size() == 0 || values.size() > 2) {
         throw Error(ErrorId::SYNTAX);
     }
-    int64_t line = valueToInt(values.front());
+    int64_t line = ValueToInt(values.front());
     // TODO why? tokens.clear();
     doGOTO(int(line), false);
 }
@@ -4646,7 +4423,7 @@ void Basic::handleGOSUB(const std::vector<Token>& tokens) {
     if (values.size() == 0 || values.size() > 2) {
         throw Error(ErrorId::SYNTAX);
     }
-    int64_t line = valueToInt(values.front());
+    int64_t line = ValueToInt(values.front());
     // TODO why ? tokens.clear();
     doGOTO(int(line), true);
 }
@@ -4654,7 +4431,7 @@ void Basic::handleGOSUB(const std::vector<Token>& tokens) {
 void Basic::handleONGOTO(const std::vector<Token>& tokens) {
     // ON expression GOSUB/GOTO line1, line2
     size_t i   = 1;
-    int64_t on = valueToInt(evaluateExpression(tokens, i, &i)[0]);
+    int64_t on = ValueToInt(evaluateExpression(tokens, i, &i)[0]);
 
     auto lines = evaluateExpression(tokens, i + 1);
 
@@ -4666,9 +4443,9 @@ void Basic::handleONGOTO(const std::vector<Token>& tokens) {
     static const std::string_view cmdGOTO("GOTO");
     static const std::string_view cmdGOSUB("GOSUB");
     if (tokens[i].is(cmdGOTO)) {
-        doGOTO(int(valueToInt(lines[index])), false); // 1=[0], 2=[2], 3=[4]
+        doGOTO(int(ValueToInt(lines[index])), false); // 1=[0], 2=[2], 3=[4]
     } else if (tokens[i].is(cmdGOSUB)) {
-        doGOTO(int(valueToInt(lines[index])), true); // 1=[0], 2=[2], 3=[4]
+        doGOTO(int(ValueToInt(lines[index])), true); // 1=[0], 2=[2], 3=[4]
     } else {
         throw Error(ErrorId::SYNTAX);
     }
@@ -4697,7 +4474,7 @@ void Basic::handleCMD(const std::vector<Token>& intokens) {
     
     size_t fileNo = 0;
     try {
-        fileNo = valueToInt(copyToken[1].tv);
+        fileNo = ValueToInt(copyToken[1].tv);
     } catch (...) { 
         throw Error(ErrorId::TYPE_MISMATCH);
     }
@@ -4829,7 +4606,7 @@ void Basic::handleFOR(const std::vector<Token>& tokens) {
     if (values.size() != 1) {
         throw Error(ErrorId::SYNTAX);
     }
-    double start = valueToDouble(values.back());
+    double start = ValueToDouble(values.back());
 
     auto& modl = currentModule();
 
@@ -4845,14 +4622,14 @@ void Basic::handleFOR(const std::vector<Token>& tokens) {
             if (values.size() != 1) {
                 throw Error(ErrorId::SYNTAX);
             }
-            toEnd = valueToDouble(values.back());
+            toEnd = ValueToDouble(values.back());
         }
         if (tokens[i].is(cmdSTEP)) {
             auto values = evaluateExpression(tokens, i + 1);
             if (values.size() != 1) {
                 throw Error(ErrorId::SYNTAX);
             }
-            step = valueToDouble(values.back());
+            step = ValueToDouble(values.back());
         }
     }
     modl.variables[varName] = start;
@@ -4962,10 +4739,10 @@ void Basic::handleNEXT(const std::vector<Token>& tokens) {
 
     const auto& loop = modl.loopStack.back();
     Value& v         = modl.variables[loop.varName];
-    double loopVar   = valueToDouble(v) + loop.step;
+    double loopVar   = ValueToDouble(v) + loop.step;
     v                = loopVar;
 
-    // debug("next "); debug(loop.varName.c_str()); debug("="); debug(valueToString(v).c_str()); debug("\n");
+    // debug("next "); debug(loop.varName.c_str()); debug("="); debug(ValueToString(v).c_str()); debug("\n");
 
     auto sgn = [](double n) -> int { return (n > 0.0) ? 1 : (n < 0.0 ? -1 : 0); };
     if (sgn(loopVar - loop.end) != sgn(loop.step)) {
@@ -4991,7 +4768,7 @@ void Basic::handleIFTHEN(const std::vector<Token>& tokens) {
     if (values.size() != 1) {
         throw Error(ErrorId::SYNTAX);
     }
-    if (valueToInt(values[0]) != 0 && endtok > 0) {
+    if (ValueToInt(values[0]) != 0 && endtok > 0) {
         auto copyTok = tokens; // TODO you can do better than this
         copyTok.erase(copyTok.begin(), copyTok.begin() + (endtok));
 
@@ -5018,7 +4795,7 @@ void Basic::handleIFTHEN(const std::vector<Token>& tokens) {
     }
 }
 
-void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
+void Basic::readNextData(BA67::Value* pval, char valuePostfix) {
     auto& cm = currentModule();
 
     // std::vector<Basic::Token> tokens;
@@ -5113,13 +4890,13 @@ void Basic::readNextData(Basic::Value* pval, char valuePostfix) {
                         if (valuePostfix == '$') {
                             throw Error(ErrorId::TYPE_MISMATCH);
                         }
-                        *pval = unaryMinus ? -valueToInt(t.tv) : valueToInt(t.tv);
+                        *pval = unaryMinus ? -ValueToInt(t.tv) : ValueToInt(t.tv);
                         break;
                     case TokenType::NUMBER:
                         if (valuePostfix == '$') {
                             throw Error(ErrorId::TYPE_MISMATCH);
                         }
-                        *pval = unaryMinus ? -valueToDouble(t.tv) : valueToDouble(t.tv);
+                        *pval = unaryMinus ? -ValueToDouble(t.tv) : ValueToDouble(t.tv);
                         break;
                     case TokenType::COMMA:
                         skipComma = false;
@@ -5172,7 +4949,7 @@ void Basic::handleREAD(const std::vector<Token>& tokens) {
             }
             readNextData(pval, tk.valuePostfix());
 
-            // std::string dbg = valueToString(programCounter().line->first) + ": " + valueToString(*pval) + "\n";
+            // std::string dbg = ValueToString(programCounter().line->first) + ": " + ValueToString(*pval) + "\n";
             // printUtf8String(dbg);
         }
     }
@@ -5184,7 +4961,7 @@ void Basic::handleRESTORE(const std::vector<Token>& tokens) {
     if (args.empty()) {
         cm.restoreDataPosition();
     } else {
-        int line = int(valueToInt(args[0]));
+        int line = int(ValueToInt(args[0]));
         for (auto it = cm.listing.begin(); it != cm.listing.end(); ++it) {
             if (it->first == line) {
                 cm.readDataPosition.line   = it;
@@ -5474,7 +5251,7 @@ std::string Basic::inputLine(bool allowVertical) {
             if (vals.empty()) {
                 return;
             }
-            for (auto& c : valueToString(vals[0])) {
+            for (auto& c : ValueToString(vals[0])) {
                 os->putToKeyboardBuffer(c);
             }
         }
@@ -5663,7 +5440,7 @@ std::string Basic::inputLine(bool allowVertical) {
                                 int nextLineNo = itr->first;
                                 if (nextLineNo > lineNo + 1) {
                                     lineNo              = (nextLineNo + lineNo) / 2;
-                                    std::string strLiNo = this->valueToString(lineNo);
+                                    std::string strLiNo = ValueToString(lineNo);
                                     printUtf8String(strLiNo);
                                     printUtf8String(" ");
                                 }
@@ -5995,13 +5772,13 @@ Basic::ParseStatus Basic::parseInput(const char* pline) {
         }
         if (iline >= 0) {
             restoreColorsAndCursor(true);
-            std::string msg = "?" + std::string(e.what()) + " IN " + valueToString(iline) + "\n";
+            std::string msg = "?" + std::string(e.what()) + " IN " + ValueToString(iline) + "\n";
             // msg += std::string(os->screen.width - msg.length() - 1, ' ') ;
             os->screen.cleanCurrentLine();
             printUtf8String(msg);
 
             if (e.ID != ErrorId::BREAK && iline >= 0) {
-                parseInput((std::string("LIST ") + valueToString(iline) + " - " + valueToString(iline)).c_str());
+                parseInput((std::string("LIST ") + ValueToString(iline) + " - " + ValueToString(iline)).c_str());
             }
         } else {
             os->screen.cleanCurrentLine();
@@ -6062,7 +5839,7 @@ void Basic::runInterpreter() {
             if (cm.autoNumbering > 0) {
                 int64_t number = int64_t(cm.autoNumbering) + cm.lastEnteredLineNumber;
 
-                std::string str = valueToString(number) + " ";
+                std::string str = ValueToString(number) + " ";
                 if (cm.listing.find(int(number)) == cm.listing.end()) {
                     printUtf8String(str);
                 } else {
@@ -6129,7 +5906,7 @@ void Basic::runToEnd() {
                 scn.setTextColor(1);
                 scn.setBackgroundColor(0);
                 auto crsr        = scn.getCursorPos();
-                std::string text = "[" + valueToString(line) + "]\n";
+                std::string text = "[" + ValueToString(line) + "]\n";
                 crsr.x           = scn.width - text.length();
                 scn.setCursorPos(crsr);
                 printUtf8String(text);
@@ -6280,14 +6057,14 @@ bool Basic::loadProgram(std::string& inOutFilenameUtf8) {
             iline = int(n);
             if (iline <= iLastLine) {
                 os->screen.cleanCurrentLine();
-                printUtf8String("PROGRAM NOT SORTED! LINE: " + valueToString(iline) + "\n");
+                printUtf8String("PROGRAM NOT SORTED! LINE: " + ValueToString(iline) + "\n");
             }
 
             const char* programLineCode = skipWhite(pc);
 
             if (iline == 1 && StringHelper::strncmp(programLineCode, "REMBA67", 7) == 0) {
                 options.spacingRequired = false;
-                options.dotAsZero       = true;
+                // options.dotAsZero       = true;
 
                 if (StringHelper::strstr(programLineCode, "PETCAT") != nullptr) {
                     escapePetcat = true;
@@ -6465,7 +6242,7 @@ bool Basic::fileExists(const std::string& filenameUtf8, bool allowWildCard) {
 bool Basic::saveState(std::string& filenameUtf8) {
     RawConfig cfg(os);
     cfg.set("options.spacingRequired", options.spacingRequired);
-    cfg.set("options.dotAsZero", options.dotAsZero);
+    // cfg.set("options.dotAsZero", options.dotAsZero);
     cfg.set("options.uppercaseInput", options.uppercaseInput);
     cfg.set("options.colorizeListing", options.colorzizeListing);
     cfg.set("options.listdelay", options.listDelay);
@@ -6497,7 +6274,7 @@ bool Basic::loadState(std::string& filenameUtf8) {
         return false;
     }
     cfg.get("options.spacingRequired", options.spacingRequired);
-    cfg.get("options.dotAsZero", options.dotAsZero);
+    // cfg.get("options.dotAsZero", options.dotAsZero);
     cfg.get("options.uppercaseInput", options.uppercaseInput);
     cfg.get("memory", &cpu.RAM[0], cpu.RAM.size(), sizeof(cpu.RAM[0]));
     cfg.get("rom", &cpu.ROM[0], cpu.ROM.size(), sizeof(cpu.ROM[0]));

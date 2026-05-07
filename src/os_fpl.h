@@ -40,7 +40,7 @@ public:
 
 
     // thread buffered window update
-    bool hasFocus; // window has focus/is active
+    bool hasFocus=false; // window has focus/is active
 
     size_t videoW = 100, videoH = 100; // size of rendering window in pixels
 
