@@ -44,20 +44,21 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     settings.window.windowSize  = { 640 + 2 * border, 400 + 2 * border };
     StringHelper::strcpy(settings.window.title, "BA67 BASIC");
     settings.window.fullscreenRefreshRate = 60;
-    settings.video.isAutoSize             = false; // we resize ourself
-
     settings.window.isFullscreen            = false;
     settings.window.isScreenSaverPrevented  = true;
     settings.window.isMonitorPowerPrevented = true;
 
-    settings.input.controllerDetectionFrequency = 5000;
+    settings.video.isAutoSize             = false; // we resize ourself
+
+    settings.input.gamepad.detectionFrequency = 5000;
+
 
     #if defined(BA67_GRAPHICS_ENABLE_OPENGL_ON)
     if (this->settings.renderMode == BA68settings::RenderMode::OpenGL) {
         // Use Legacy OpenGL (1.1)
         settings.video.backend = fplVideoBackendType_OpenGL;
         // settings.video.graphics.opengl.compabilityFlags = fplOpenGLCompabilityFlags_Legacy;
-        settings.video.graphics.opengl.compabilityFlags = fplOpenGLCompabilityFlags_Core;
+        settings.video.graphics.opengl.compatibilityFlags = fplOpenGLCompatibilityFlags_Core;
         settings.video.graphics.opengl.majorVersion     = 3;
         settings.video.graphics.opengl.minorVersion     = 3;
         settings.video.isVSync                          = true;
@@ -77,7 +78,7 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
             fplInitFlags_Console |
     #endif
                 // fplInitFlags_Audio |
-                fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_GameController,
+                fplInitFlags_Window | fplInitFlags_Video | fplInitFlags_Gamepad,
             &settings)) {
         return false;
     }
@@ -98,6 +99,10 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     SendMessageW(hWnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
     SendMessageW(hWnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
     #endif
+
+
+    fplInputDevice inputs[8] = { };
+    int ninputs = fplGetInputDevices(fplInputSourceType_All, inputs, 8);
 
     return true;
 }
@@ -238,7 +243,7 @@ int getFreeMemoryProcMeminfo() {
 
 size_t OsFPL::getFreeMemoryInBytes() {
     fplMemoryInfos mem = {};
-    if (fplMemoryGetInfos(&mem)) {
+    if (fplMemoryGetUsage(&mem)) {
         return mem.freePhysicalSize;
     }
     #if !defined(_WIN32)
