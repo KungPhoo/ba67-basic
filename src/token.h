@@ -4,6 +4,7 @@
 
 #include "value.h"
 #include "error.h"
+#include <vector>
 
 namespace BA67 {
 
