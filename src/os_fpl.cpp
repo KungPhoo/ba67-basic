@@ -539,7 +539,7 @@ void OsFPL::updateEvents() {
     // }
 
     // we don't get a close event (bug)
-    if (!fplIsWindowRunning()) {
+    if (!fplIsWindowRunning() || !fplWindowUpdate()) {
         exit(0);
     }
 
