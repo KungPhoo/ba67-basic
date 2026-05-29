@@ -3,6 +3,7 @@
 #ifndef _WIN32
 
 #include "os.h"
+#include <string>
 
 class OsPosixConsole : public Os {
 public:
@@ -38,6 +39,10 @@ public:
         const std::string& value) override;
 
     void updateEvents() override;
+
+private:
+    std::u32string chars;
+    std::string colors;
 };
 
 #endif
