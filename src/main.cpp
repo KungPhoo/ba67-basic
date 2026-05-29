@@ -25,6 +25,8 @@ using OsSoundsystem = SoundSystemSoLoud;
 #ifdef _WIN32
     #include <Windows.h>
     #include "os_windows_console.h"
+#else
+    #include "os_posix_console.h"
 #endif
 
 #include "basic.h"
@@ -45,7 +47,7 @@ Os* getOsConsole() {
 #ifdef _WIN32
     static OsWindowsConsole os;
 #else
-    Os& os = *getOsGraphics();
+    static OsPosixConsole os;
 #endif
     return &os;
 }

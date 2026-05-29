@@ -139,6 +139,11 @@ endif()
 
 # SoLoud
 add_compile_definitions(WITH_MINIAUDIO=1)
+
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "(i386)|(i686)")
+    add_compile_definitions(DISABLE_SIMD=1) # error: inlining failed ... __mm_load_ps because processor has no SSE2
+endif()
+
 add_library(lib_soloud OBJECT "${SOLOUD_CPP}")
 include_directories(AFTER ./soloud/include)
 target_link_libraries(${APP_NAME} PUBLIC lib_soloud)

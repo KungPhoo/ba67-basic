@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <map>
 
 #include "value.h"
 #include "error.h"
@@ -9,18 +10,18 @@ namespace BA67 {
 
 // Token types
 enum class TokenType {
-    NUMBER,
+    NUMBER, // floating point
     INTEGER,
     STRING,
-    IDENTIFIER /*variable name*/,
-    COMMA,
-    OPERATOR,
-    UNARY_OPERATOR,
-    KEYWORD,
-    COMMAND,
-    PARENTHESIS,
+    IDENTIFIER, // variable
+    COMMA,    // ','
+    OPERATOR, // AND NOT OR + - * / ^ ;
+    UNARY_OPERATOR, // -
+    KEYWORD, // IF FOR GOTO ...
+    COMMAND, // PRINT INPUT ...
+    PARENTHESIS, // ( )
     MODULE,
-    FILEHANDLE,
+    FILEHANDLE, // #1
 
     END
 };
@@ -90,5 +91,20 @@ public:
         return '#';
     }
 };
+
+
+struct ProgramLine {
+    ProgramLine() = default;
+    ProgramLine(const ProgramLine& l)
+        : ProgramLine() { *this = l; }
+    ProgramLine& operator=(const ProgramLine& l) {
+        code = l.code;
+        return *this;
+    }
+    std::string code;
+    std::vector<std::vector<Token>> tokens; // tokens for each command. Has string_views to code
+    operator std::string&() { return code; }
+};
+
 
 }; // namespace

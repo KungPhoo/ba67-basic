@@ -126,19 +126,6 @@ public:
         }
     };
 
-    struct ProgramLine {
-        ProgramLine() = default;
-        ProgramLine(const ProgramLine& l)
-            : ProgramLine() { *this = l; }
-        ProgramLine& operator=(const ProgramLine& l) {
-            code = l.code;
-            return *this;
-        }
-        std::string code;
-        std::vector<std::vector<Token>> tokens; // tokens for each command. Has string_views to code
-        operator std::string&() { return code; }
-    };
-
 
     struct ProgramCounter {
         std::map<int, ProgramLine>::iterator line;

@@ -17,29 +17,29 @@ inline void ConsoleColor(int c = 15, int bk = 0) {
     SetConsoleTextAttribute(hConsole, c + bk * 16);
 }
 
-void SetC64ConsoleColours() {
+void SetC64ConsoleColours(const uint32_t* aarrggbb) {
     CONSOLE_SCREEN_BUFFER_INFOEX sbInfoEx;
     sbInfoEx.cbSize   = sizeof(CONSOLE_SCREEN_BUFFER_INFOEX);
     HANDLE consoleOut = GetStdHandle(STD_OUTPUT_HANDLE);
     GetConsoleScreenBufferInfoEx(consoleOut, &sbInfoEx);
 
     // C64 color palette
-    sbInfoEx.ColorTable[0]  = RGB(0x00, 0x00, 0x00); // Black
-    sbInfoEx.ColorTable[1]  = RGB(0xFF, 0xFF, 0xFF); // White
-    sbInfoEx.ColorTable[2]  = RGB(0x96, 0x28, 0x2e); // Red
-    sbInfoEx.ColorTable[3]  = RGB(0x5b, 0xd6, 0xce); // Cyan
-    sbInfoEx.ColorTable[4]  = RGB(0x9f, 0x2d, 0xad); // Purple
-    sbInfoEx.ColorTable[5]  = RGB(0x41, 0xb9, 0x36); // Green
-    sbInfoEx.ColorTable[6]  = RGB(0x27, 0x24, 0xc4); // Blue
-    sbInfoEx.ColorTable[7]  = RGB(0xef, 0xf3, 0x47); // Yellow
-    sbInfoEx.ColorTable[8]  = RGB(0x9f, 0x48, 0x15); // Orange
-    sbInfoEx.ColorTable[9]  = RGB(0x5e, 0x35, 0x00); // Brown
-    sbInfoEx.ColorTable[10] = RGB(0xda, 0x5f, 0x66); // Light Red
-    sbInfoEx.ColorTable[11] = RGB(0x47, 0x47, 0x47); // Dark Gray
-    sbInfoEx.ColorTable[12] = RGB(0x78, 0x78, 0x78); // Medium Gray
-    sbInfoEx.ColorTable[13] = RGB(0x91, 0xff, 0x84); // Light Green
-    sbInfoEx.ColorTable[14] = RGB(0x68, 0x64, 0xff); // Light Blue
-    sbInfoEx.ColorTable[15] = RGB(0xae, 0xae, 0xae); // Light Gray
+    sbInfoEx.ColorTable[0]  = aarrggbb[0]; // RGB(0x00, 0x00, 0x00); // Black
+    sbInfoEx.ColorTable[1]  = aarrggbb[1]; // RGB(0xFF, 0xFF, 0xFF); // White
+    sbInfoEx.ColorTable[2]  = aarrggbb[2]; // RGB(0x96, 0x28, 0x2e); // Red
+    sbInfoEx.ColorTable[3]  = aarrggbb[3]; // RGB(0x5b, 0xd6, 0xce); // Cyan
+    sbInfoEx.ColorTable[4]  = aarrggbb[4]; // RGB(0x9f, 0x2d, 0xad); // Purple
+    sbInfoEx.ColorTable[5]  = aarrggbb[5]; // RGB(0x41, 0xb9, 0x36); // Green
+    sbInfoEx.ColorTable[6]  = aarrggbb[6]; // RGB(0x27, 0x24, 0xc4); // Blue
+    sbInfoEx.ColorTable[7]  = aarrggbb[7]; // RGB(0xef, 0xf3, 0x47); // Yellow
+    sbInfoEx.ColorTable[8]  = aarrggbb[8]; // RGB(0x9f, 0x48, 0x15); // Orange
+    sbInfoEx.ColorTable[9]  = aarrggbb[9]; // RGB(0x5e, 0x35, 0x00); // Brown
+    sbInfoEx.ColorTable[10] = aarrggbb[10]; // RGB(0xda, 0x5f, 0x66); // Light Red
+    sbInfoEx.ColorTable[11] = aarrggbb[11]; // RGB(0x47, 0x47, 0x47); // Dark Gray
+    sbInfoEx.ColorTable[12] = aarrggbb[12]; // RGB(0x78, 0x78, 0x78); // Medium Gray
+    sbInfoEx.ColorTable[13] = aarrggbb[13]; // RGB(0x91, 0xff, 0x84); // Light Green
+    sbInfoEx.ColorTable[14] = aarrggbb[14]; // RGB(0x68, 0x64, 0xff); // Light Blue
+    sbInfoEx.ColorTable[15] = aarrggbb[15]; // RGB(0xae, 0xae, 0xae); // Light Gray
 
     SetConsoleScreenBufferInfoEx(consoleOut, &sbInfoEx);
 }
@@ -128,7 +128,7 @@ bool OsWindowsConsole::init(Basic* basic, SoundSystem* ss) {
     // SetConsoleFont(L"Cascadia Mono", 24, true);
     SetConsoleFont(L"Consolas", 24, true);
     // SetConsoleFont(L"Cascadia Code PL", 24, true);
-    SetC64ConsoleColours();
+    SetC64ConsoleColours(&screen.palette[0]); // std::array<uint32_t, 16> palette; // AABBGGRR little endian format
 
     return true;
 }

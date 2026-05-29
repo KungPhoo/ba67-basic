@@ -1294,7 +1294,7 @@ void RENUMBER(Basic* basic, const std::vector<BA67::Value>& values) {
         return;
     }
 
-    std::map<int, Basic::ProgramLine> newListing;
+    std::map<int, BA67::ProgramLine> newListing;
     std::map<int, int> lineMapping;
     int newLineNumber = newstart;
 
