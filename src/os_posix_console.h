@@ -14,14 +14,14 @@ public:
 
     size_t getFreeMemoryInBytes() override;
 
-    void setTextColor(int index) override;
-    void setBackgroundColor(int index) override;
-    void setBorderColor(int colorIndex) override;
+    void setTextColor(int index);
+    void setBackgroundColor(int index);
+    void setBorderColor(int colorIndex);
 
     void presentScreen() override;
 
-    void setCaretPos(int x, int y) override;
-    void setCursorVisibility(bool visible) override;
+    void setCaretPos(int x, int y);
+    void setCursorVisibility(bool visible);
 
     const bool isKeyPressed(
         char32_t index,
