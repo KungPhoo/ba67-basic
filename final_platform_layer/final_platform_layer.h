@@ -4868,7 +4868,9 @@ fpl_platform_api uint32_t fplAtomicExchangeU32(volatile uint32_t *target, const 
 * @note Ensures that memory operations are completed in order.
 * @see @ref category_threading_atomics_exchange
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicExchangeU64(volatile uint64_t *target, const uint64_t value);
+#endif
 /**
 * @brief Replaces a 32-bit signed integer with the given value atomically.
 * @param[in,out] target The target value to write into.
@@ -4886,7 +4888,9 @@ fpl_platform_api int32_t fplAtomicExchangeS32(volatile int32_t *target, const in
 * @note Ensures that memory operations are completed in order.
 * @see @ref category_threading_atomics_exchange
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicExchangeS64(volatile int64_t *target, const int64_t value);
+#endif
 /**
 * @brief Replaces a pointer with the given value atomically.
 * @param[in,out] target The target value to write into.
@@ -4927,7 +4931,9 @@ fpl_platform_api uint32_t fplAtomicFetchAndAddU32(volatile uint32_t *value, cons
 * @note Ensures that memory operations are completed in order.
 * @see @ref category_threading_atomics_add
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicFetchAndAddU64(volatile uint64_t *value, const uint64_t addend);
+#endif
 /**
 * @brief Adds a 32-bit signed integer to the value by the given addend atomically.
 * @param[in,out] value The target value to add to.
@@ -4945,7 +4951,9 @@ fpl_platform_api int32_t fplAtomicFetchAndAddS32(volatile int32_t *value, const 
 * @note Ensures that memory operations are completed in order.
 * @see @ref category_threading_atomics_add
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicFetchAndAddS64(volatile int64_t *value, const int64_t addend);
+#endif
 /**
 * @brief Adds a size to the value by the given addend atomically.
 * @param[in,out] dest The target value to add to.
@@ -4986,7 +4994,9 @@ fpl_platform_api uint32_t fplAtomicAddAndFetchU32(volatile uint32_t *dest, const
 * @note Ensures that memory operations are completed in order.
 * @see @ref category_threading_atomics_add
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicAddAndFetchU64(volatile uint64_t *dest, const uint64_t addend);
+#endif
 /**
 * @brief Adds the addend to destination 32-bit signed integer atomically and returns the result after the addition.
 * @param[in,out] dest The target value to add to.
@@ -5004,7 +5014,9 @@ fpl_platform_api int32_t fplAtomicAddAndFetchS32(volatile int32_t *dest, const i
 * @note Ensures that memory operations are completed in order.
 * @see @ref category_threading_atomics_add
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicAddAndFetchS64(volatile int64_t *dest, const int64_t addend);
+#endif
 /**
 * @brief Adds the addend to destination size atomically and returns the result after the addition.
 * @param[in,out] dest The target value to add to.
@@ -5043,7 +5055,9 @@ fpl_platform_api uint32_t fplAtomicIncrementU32(volatile uint32_t *dest);
 * @note Ensures that memory operations are completed in order.
 * @see @ref category_threading_atomics_inc
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicIncrementU64(volatile uint64_t *dest);
+#endif
 /**
 * @brief Increments the given 32-bit signed integer by one atomically.
 * @param[in,out] dest The target value to increment to.
@@ -5059,7 +5073,9 @@ fpl_platform_api int32_t fplAtomicIncrementS32(volatile int32_t *dest);
 * @note Ensures that memory operations are completed in order.
 * @see @ref category_threading_atomics_inc
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicIncrementS64(volatile int64_t *dest);
+#endif
 /**
 * @brief Increments the given size by one atomically.
 * @param[in,out] dest The target value to increment to.
@@ -5102,7 +5118,9 @@ fpl_platform_api uint32_t fplAtomicCompareAndSwapU32(volatile uint32_t *dest, co
 * @note Use @ref fplAtomicIsCompareAndSwapU64() when you want to check if the exchange has happened or not.
 * @see @ref category_threading_atomics_cas
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicCompareAndSwapU64(volatile uint64_t *dest, const uint64_t comparand, const uint64_t exchange);
+#endif
 /**
 * @brief Compares a 32-bit signed integer with a comparand and swaps it when comparand matches the destination.
 * @param[in,out] dest The target value to write into.
@@ -5124,7 +5142,9 @@ fpl_platform_api int32_t fplAtomicCompareAndSwapS32(volatile int32_t *dest, cons
 * @note Use @ref fplAtomicIsCompareAndSwapS64() when you want to check if the exchange has happened or not.
 * @see @ref category_threading_atomics_cas
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicCompareAndSwapS64(volatile int64_t *dest, const int64_t comparand, const int64_t exchange);
+#endif
 /**
 * @brief Compares a size with a comparand and swaps it when comparand matches the destination.
 * @param[in,out] dest The target value to write into.
@@ -5167,7 +5187,9 @@ fpl_platform_api bool fplAtomicIsCompareAndSwapU32(volatile uint32_t *dest, cons
 * @note Ensures that memory operations are completed in order.
 * @see @ref category_threading_atomics_cas
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api bool fplAtomicIsCompareAndSwapU64(volatile uint64_t *dest, const uint64_t comparand, const uint64_t exchange);
+#endif
 /**
 * @brief Compares a 32-bit signed integer with a comparand and swaps it when comparand matches the destination and returns a bool indicating the result.
 * @param[in,out] dest The target value to write into.
@@ -5187,7 +5209,9 @@ fpl_platform_api bool fplAtomicIsCompareAndSwapS32(volatile int32_t *dest, const
 * @note Ensures that memory operations are completed in order.
 * @see @ref category_threading_atomics_cas
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api bool fplAtomicIsCompareAndSwapS64(volatile int64_t *dest, const int64_t comparand, const int64_t exchange);
+#endif
 /**
 * @brief Compares a size with a comparand and swaps it when comparand matches the destination and returns a bool indicating the result.
 * @param[in,out] dest The target value to write into.
@@ -5230,7 +5254,9 @@ fpl_platform_api uint32_t fplAtomicLoadU32(volatile uint32_t *source);
 * @note This may use a CAS instruction when there are no suitable compiler intrinsics found.
 * @see @ref category_threading_atomics_load
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicLoadU64(volatile uint64_t *source);
+#endif
 /**
 * @brief Loads the 32-bit signed value atomically and returns the value.
 * @param[in] source The source value to read from.
@@ -5248,7 +5274,9 @@ fpl_platform_api int32_t fplAtomicLoadS32(volatile int32_t *source);
 * @note This may use a CAS instruction when there are no suitable compiler intrinsics found.
 * @see @ref category_threading_atomics_load
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicLoadS64(volatile int64_t *source);
+#endif
 /**
 * @brief Loads the size value atomically and returns the value.
 * @note Ensures that memory operations are completed before the reading.
@@ -5287,7 +5315,9 @@ fpl_platform_api void fplAtomicStoreU32(volatile uint32_t *dest, const uint32_t 
 * @note Ensures that memory operations are completed before the write.
 * @see @ref category_threading_atomics_store
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api void fplAtomicStoreU64(volatile uint64_t *dest, const uint64_t value);
+#endif
 /**
 * @brief Overwrites the 32-bit signed value atomically.
 * @param[out] dest The destination to write to.
@@ -5303,7 +5333,9 @@ fpl_platform_api void fplAtomicStoreS32(volatile int32_t *dest, const int32_t va
 * @note Ensures that memory operations are completed before the write.
 * @see @ref category_threading_atomics_store
 */
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api void fplAtomicStoreS64(volatile int64_t *dest, const int64_t value);
+#endif
 /**
 * @brief Overwrites the size value atomically.
 * @param[out] dest The destination to write to.
@@ -18739,6 +18771,7 @@ fpl_platform_api int32_t fplAtomicExchangeS32(volatile int32_t *target, const in
 	int32_t result = InterlockedExchange((volatile LONG *)target, value);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicExchangeU64(volatile uint64_t *target, const uint64_t value) {
 	fplAssert(target != fpl_null);
 	uint64_t result = InterlockedExchange64((volatile LONG64 *)target, value);
@@ -18749,7 +18782,7 @@ fpl_platform_api int64_t fplAtomicExchangeS64(volatile int64_t *target, const in
 	int64_t result = InterlockedExchange64((volatile LONG64 *)target, value);
 	return (result);
 }
-
+#endif
 fpl_platform_api uint32_t fplAtomicFetchAndAddU32(volatile uint32_t *value, const uint32_t addend) {
 	fplAssert(value != fpl_null);
 	uint32_t result = InterlockedExchangeAdd((volatile LONG *)value, addend);
@@ -18760,6 +18793,7 @@ fpl_platform_api int32_t fplAtomicFetchAndAddS32(volatile int32_t *value, const 
 	int32_t result = InterlockedExchangeAdd((volatile LONG *)value, addend);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicFetchAndAddU64(volatile uint64_t *value, const uint64_t addend) {
 	fplAssert(value != fpl_null);
 	uint64_t result = InterlockedExchangeAdd64((volatile LONG64 *)value, addend);
@@ -18770,7 +18804,7 @@ fpl_platform_api int64_t fplAtomicFetchAndAddS64(volatile int64_t *value, const 
 	int64_t result = InterlockedExchangeAdd64((volatile LONG64 *)value, addend);
 	return(result);
 }
-
+#endif
 fpl_platform_api uint32_t fplAtomicAddAndFetchU32(volatile uint32_t *value, const uint32_t addend) {
 	fplAssert(value != fpl_null);
 	uint32_t result = InterlockedAdd((volatile LONG *)value, addend);
@@ -18781,6 +18815,7 @@ fpl_platform_api int32_t fplAtomicAddAndFetchS32(volatile int32_t *value, const 
 	int32_t result = InterlockedAdd((volatile LONG *)value, addend);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicAddAndFetchU64(volatile uint64_t *value, const uint64_t addend) {
 	fplAssert(value != fpl_null);
 	uint64_t result = InterlockedAdd64((volatile LONG64 *)value, addend);
@@ -18791,6 +18826,7 @@ fpl_platform_api int64_t fplAtomicAddAndFetchS64(volatile int64_t *value, const 
 	int64_t result = InterlockedAdd64((volatile LONG64 *)value, addend);
 	return(result);
 }
+#endif
 
 fpl_platform_api uint32_t fplAtomicIncrementU32(volatile uint32_t *value) {
 	fplAssert(value != fpl_null);
@@ -18802,6 +18838,7 @@ fpl_platform_api int32_t fplAtomicIncrementS32(volatile int32_t *value) {
 	int32_t result = InterlockedIncrement((volatile LONG *)value);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicIncrementU64(volatile uint64_t *value) {
 	fplAssert(value != fpl_null);
 	uint64_t result = InterlockedIncrement64((volatile LONG64 *)value);
@@ -18812,6 +18849,7 @@ fpl_platform_api int64_t fplAtomicIncrementS64(volatile int64_t *value) {
 	int64_t result = InterlockedIncrement64((volatile LONG64 *)value);
 	return(result);
 }
+#endif
 
 fpl_platform_api uint32_t fplAtomicCompareAndSwapU32(volatile uint32_t *dest, const uint32_t comparand, const uint32_t exchange) {
 	fplAssert(dest != fpl_null);
@@ -18823,6 +18861,8 @@ fpl_platform_api int32_t fplAtomicCompareAndSwapS32(volatile int32_t *dest, cons
 	int32_t result = InterlockedCompareExchange((volatile LONG *)dest, exchange, comparand);
 	return (result);
 }
+
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicCompareAndSwapU64(volatile uint64_t *dest, const uint64_t comparand, const uint64_t exchange) {
 	fplAssert(dest != fpl_null);
 	uint64_t result = InterlockedCompareExchange64((volatile LONG64 *)dest, exchange, comparand);
@@ -18833,6 +18873,7 @@ fpl_platform_api int64_t fplAtomicCompareAndSwapS64(volatile int64_t *dest, cons
 	int64_t result = InterlockedCompareExchange64((volatile LONG64 *)dest, exchange, comparand);
 	return (result);
 }
+#endif
 
 fpl_platform_api bool fplAtomicIsCompareAndSwapU32(volatile uint32_t *dest, const uint32_t comparand, const uint32_t exchange) {
 	fplAssert(dest != fpl_null);
@@ -18846,6 +18887,8 @@ fpl_platform_api bool fplAtomicIsCompareAndSwapS32(volatile int32_t *dest, const
 	bool result = (value == comparand);
 	return (result);
 }
+
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api bool fplAtomicIsCompareAndSwapU64(volatile uint64_t *dest, const uint64_t comparand, const uint64_t exchange) {
 	fplAssert(dest != fpl_null);
 	uint64_t value = InterlockedCompareExchange64((volatile LONG64 *)dest, exchange, comparand);
@@ -18858,36 +18901,44 @@ fpl_platform_api bool fplAtomicIsCompareAndSwapS64(volatile int64_t *dest, const
 	bool result = (value == comparand);
 	return (result);
 }
+#endif
 
 fpl_platform_api uint32_t fplAtomicLoadU32(volatile uint32_t *source) {
 	uint32_t result = InterlockedCompareExchange((volatile LONG *)source, 0, 0);
 	return(result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicLoadU64(volatile uint64_t *source) {
 	uint64_t result = InterlockedCompareExchange64((volatile LONG64 *)source, 0, 0);
 	return(result);
 }
+#endif
 fpl_platform_api int32_t fplAtomicLoadS32(volatile int32_t *source) {
 	int32_t result = InterlockedCompareExchange((volatile LONG *)source, 0, 0);
 	return(result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicLoadS64(volatile int64_t *source) {
 	int64_t result = InterlockedCompareExchange64((volatile LONG64 *)source, 0, 0);
 	return(result);
 }
-
+#endif
 fpl_platform_api void fplAtomicStoreU32(volatile uint32_t *dest, const uint32_t value) {
 	InterlockedExchange((volatile LONG *)dest, value);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api void fplAtomicStoreU64(volatile uint64_t *dest, const uint64_t value) {
 	InterlockedExchange64((volatile LONG64 *)dest, value);
 }
+#endif
 fpl_platform_api void fplAtomicStoreS32(volatile int32_t *dest, const int32_t value) {
 	InterlockedExchange((volatile LONG *)dest, value);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api void fplAtomicStoreS64(volatile int64_t *dest, const int64_t value) {
 	InterlockedExchange64((volatile LONG64 *)dest, value);
 }
+#endif
 
 //
 // Win32 OS
@@ -21378,42 +21429,51 @@ fpl_platform_api uint32_t fplAtomicExchangeU32(volatile uint32_t *target, const 
 	uint32_t result = __sync_lock_test_and_set(target, value);
 	return(result);
 }
+
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicExchangeU64(volatile uint64_t *target, const uint64_t value) {
 	__sync_synchronize();
 	uint64_t result = __sync_lock_test_and_set(target, value);
 	return(result);
 }
+#endif
 fpl_platform_api int32_t fplAtomicExchangeS32(volatile int32_t *target, const int32_t value) {
 	__sync_synchronize();
 	int32_t result = __sync_lock_test_and_set(target, value);
 	return(result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicExchangeS64(volatile int64_t *target, const int64_t value) {
 	__sync_synchronize();
 	int64_t result = __sync_lock_test_and_set(target, value);
 	return(result);
 }
+#endif
 
 fpl_platform_api uint32_t fplAtomicFetchAndAddU32(volatile uint32_t *value, const uint32_t addend) {
 	fplAssert(value != fpl_null);
 	uint32_t result = __sync_fetch_and_add(value, addend);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicFetchAndAddU64(volatile uint64_t *value, const uint64_t addend) {
 	fplAssert(value != fpl_null);
 	uint64_t result = __sync_fetch_and_add(value, addend);
 	return (result);
 }
+#endif
 fpl_platform_api int32_t fplAtomicFetchAndAddS32(volatile int32_t *value, const int32_t addend) {
 	fplAssert(value != fpl_null);
 	int32_t result = __sync_fetch_and_add(value, addend);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicFetchAndAddS64(volatile int64_t *value, const int64_t addend) {
 	fplAssert(value != fpl_null);
 	int64_t result = __sync_fetch_and_add(value, addend);
 	return (result);
 }
+#endif
 
 fpl_platform_api uint32_t fplAtomicAddAndFetchU32(volatile uint32_t *value, const uint32_t addend) {
 	fplAssert(value != fpl_null);
@@ -21425,6 +21485,7 @@ fpl_platform_api int32_t fplAtomicAddAndFetchS32(volatile int32_t *value, const 
 	int32_t result = __sync_add_and_fetch(value, addend);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicAddAndFetchU64(volatile uint64_t *value, const uint64_t addend) {
 	fplAssert(value != fpl_null);
 	uint64_t result = __sync_add_and_fetch(value, addend);
@@ -21435,103 +21496,125 @@ fpl_platform_api int64_t fplAtomicAddAndFetchS64(volatile int64_t *value, const 
 	int64_t result = __sync_add_and_fetch(value, addend);
 	return (result);
 }
+#endif
 
 fpl_platform_api uint32_t fplAtomicIncrementU32(volatile uint32_t *value) {
 	fplAssert(value != fpl_null);
 	uint32_t result = __sync_add_and_fetch(value, 1);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicIncrementU64(volatile uint64_t *value) {
 	fplAssert(value != fpl_null);
 	uint64_t result = __sync_add_and_fetch(value, 1);
 	return (result);
 }
+#endif
 fpl_platform_api int32_t fplAtomicIncrementS32(volatile int32_t *value) {
 	fplAssert(value != fpl_null);
 	int32_t result = __sync_add_and_fetch(value, 1);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicIncrementS64(volatile int64_t *value) {
 	fplAssert(value != fpl_null);
 	int64_t result = __sync_add_and_fetch(value, 1);
 	return (result);
 }
+#endif
 
 fpl_platform_api uint32_t fplAtomicCompareAndSwapU32(volatile uint32_t *dest, const uint32_t comparand, const uint32_t exchange) {
 	fplAssert(dest != fpl_null);
 	uint32_t result = __sync_val_compare_and_swap(dest, comparand, exchange);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicCompareAndSwapU64(volatile uint64_t *dest, const uint64_t comparand, const uint64_t exchange) {
 	fplAssert(dest != fpl_null);
 	uint64_t result = __sync_val_compare_and_swap(dest, comparand, exchange);
 	return (result);
 }
+#endif
 fpl_platform_api int32_t fplAtomicCompareAndSwapS32(volatile int32_t *dest, const int32_t comparand, const int32_t exchange) {
 	fplAssert(dest != fpl_null);
 	int32_t result = __sync_val_compare_and_swap(dest, comparand, exchange);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicCompareAndSwapS64(volatile int64_t *dest, const int64_t comparand, const int64_t exchange) {
 	fplAssert(dest != fpl_null);
 	int64_t result = __sync_val_compare_and_swap(dest, comparand, exchange);
 	return (result);
 }
+#endif
 
 fpl_platform_api bool fplAtomicIsCompareAndSwapU32(volatile uint32_t *dest, const uint32_t comparand, const uint32_t exchange) {
 	fplAssert(dest != fpl_null);
 	bool result = __sync_bool_compare_and_swap(dest, comparand, exchange);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api bool fplAtomicIsCompareAndSwapU64(volatile uint64_t *dest, const uint64_t comparand, const uint64_t exchange) {
 	fplAssert(dest != fpl_null);
 	bool result = __sync_bool_compare_and_swap(dest, comparand, exchange);
 	return (result);
 }
+#endif
 fpl_platform_api bool fplAtomicIsCompareAndSwapS32(volatile int32_t *dest, const int32_t comparand, const int32_t exchange) {
 	fplAssert(dest != fpl_null);
 	bool result = __sync_bool_compare_and_swap(dest, comparand, exchange);
 	return (result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api bool fplAtomicIsCompareAndSwapS64(volatile int64_t *dest, const int64_t comparand, const int64_t exchange) {
 	fplAssert(dest != fpl_null);
 	bool result = __sync_bool_compare_and_swap(dest, comparand, exchange);
 	return (result);
 }
+#endif
 
 fpl_platform_api uint32_t fplAtomicLoadU32(volatile uint32_t *source) {
 	uint32_t result = __sync_add_and_fetch(source, 0);
 	return(result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api uint64_t fplAtomicLoadU64(volatile uint64_t *source) {
 	uint64_t result = __sync_add_and_fetch(source, 0);
 	return(result);
 }
+#endif
 fpl_platform_api int32_t fplAtomicLoadS32(volatile int32_t *source) {
 	int32_t result = __sync_add_and_fetch(source, 0);
 	return(result);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api int64_t fplAtomicLoadS64(volatile int64_t *source) {
 	int64_t result = __sync_add_and_fetch(source, 0);
 	return(result);
 }
+#endif
 
 fpl_platform_api void fplAtomicStoreU32(volatile uint32_t *dest, const uint32_t value) {
 	__sync_synchronize();
 	__sync_lock_test_and_set(dest, value);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api void fplAtomicStoreU64(volatile uint64_t *dest, const uint64_t value) {
 	__sync_synchronize();
 	__sync_lock_test_and_set(dest, value);
 }
+#endif
 fpl_platform_api void fplAtomicStoreS32(volatile int32_t *dest, const int32_t value) {
 	__sync_synchronize();
 	__sync_lock_test_and_set(dest, value);
 }
+#if defined(FPL_CPU_64BIT)
 fpl_platform_api void fplAtomicStoreS64(volatile int64_t *dest, const int64_t value) {
 	__sync_synchronize();
 	__sync_lock_test_and_set(dest, value);
 }
+#endif
+
 #else
 #	error "This POSIX compiler/platform is not supported!"
 #endif
