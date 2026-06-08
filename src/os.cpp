@@ -406,7 +406,7 @@ bool Os::keyboardBufferHasData() {
 int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
     const char* msg = "systemCall not supported\n";
     while (*msg != '\0') {
-        this->screen.putC(*msg);
+        this->putChrScreen(*msg);
         ++msg;
     }
     return -1;
@@ -432,9 +432,9 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
                     }
                 }
                 lastWasCR = (c32 == U'\r');
-                this->screen.putC(c32);
+                this->screen.chrout(c32);
             }
-            // this->screen.putC('\n');
+            // this->screen.chrout('\n');
         }
         utf8.clear();
     };
@@ -517,7 +517,7 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
                 break; // No input available
             }
             this->updateEvents();
-            this->screen.putC(c32s[0]);
+            this->screen.chrout(c32s[0]);
 
             std::string inputUtf8 = Unicode::toUtf8String(&c32s[0]);
             DWORD bytesWritten;
@@ -645,7 +645,7 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
                         const char* pc = utf8.c_str();
                         while (*pc) {
                             char32_t c32 = Unicode::parseNextUtf8(pc);
-                            this->screen.putC(c32);
+                            this->screen.chrout(c32);
                         }
                         utf8.clear();
                     }
@@ -659,7 +659,7 @@ int Os::systemCall(const std::string& commandLineUtf8, bool printOutput) {
                 }
                 if (c32 != 0) {
                     this->updateEvents();
-                    this->screen.putC(c32);
+                    this->screen.chrout(c32);
                     std::string inputUtf8 = Unicode::toUtf8String(&c32);
                     size_t written=write(stdinPipe[1], inputUtf8.c_str(), inputUtf8.size());
                     (void)written;

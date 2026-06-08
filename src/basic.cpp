@@ -232,14 +232,14 @@ void ABOUT(Basic* basic, const std::vector<Value>&) {
 
 
         basic->os->screen.setTextColor(1); // white
-        basic->os->screen.putC(c);
+        basic->os->screen.chrout(c);
         basic->os->presentScreen();
         basic->os->delay(16);
         basic->os->screen.setTextColor(13); // lt green
         basic->handleEscapeKey();
         if (c != U'\r' && c != '\n') {
             basic->os->screen.moveCursorPos(-1, 0);
-            basic->os->screen.putC(c);
+            basic->os->screen.chrout(c);
         }
     }
 
@@ -463,7 +463,7 @@ void CHAR(Basic* basic, const std::vector<BA67::Value>& values) {
     basic->printUtf8String(text, true /* apply control characters */);
     // const char* utf8 = text.c_str();
     // while (*utf8 != '\0') {
-    //     basic->os->screen.putC(Unicode::parseNextUtf8(utf8));
+    //     basic->os->putChrScreen(Unicode::parseNextUtf8(utf8));
     // }
 
     // No. The set color remains
@@ -2127,8 +2127,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
 
 
     size_t centerx = 3;
-    printUtf8String("\n");
-    printUtf8String(
+    printUtf8String("\n" +
         std::string(centerx, ' ') + std::string(" ****    BA67 BASIC") + charLogo + " V" + version() + ("   ****\n"));
 
     std::string strmem = "   " + ValueToString(int64_t(os->getFreeMemoryInBytes()) / (1024 * 1024)) + std::string(" BASIC MBYTES FREE");
@@ -5132,13 +5131,6 @@ void Basic::uppercaseProgram(std::string& codeline) {
 
 
 
-
-
-/*
-        { 0x9a,  color (light blue)
-        { 0x9b,  color (light gray)
-        { 0x9f,  color (cyan)
-* */
 void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCodes, bool ctrlInQuotes) {
 
     if (pend == nullptr) {
@@ -5194,15 +5186,15 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
                     case ControlCharacters::textColor14_Light_Blue /*0x9a*/:  os->screen.setTextColor(14); break; // Light Blue
                     case ControlCharacters::textColor15_Light_Gray /*0x9b*/:  os->screen.setTextColor(15); break; // Light Gray
                     default:
-                        os->screen.putC(c);
+                        os->screen.chrout(c);
                     }
                 } else {
-                    os->screen.putC(c);
+                    os->screen.chrout(c);
                 }
             }
         } else {
             while (utf8 < pend) {
-                os->screen.putC(Unicode::parseNextUtf8(utf8));
+                os->screen.chrout(Unicode::parseNextUtf8(utf8));
             }
         }
 
@@ -5370,7 +5362,7 @@ std::string Basic::inputLine(bool allowVertical) {
                 case 190:  {
                     auto emoji = os->emojiPicker();
                     for (auto e : emoji) {
-                        os->screen.putC(e);
+                        os->screen.chrout(e);
                     }
                     break;
                 }
@@ -5606,7 +5598,7 @@ std::string Basic::inputLine(bool allowVertical) {
             if (insertMode) {
                 os->screen.insertSpace();
             }
-            os->screen.putC(ch);
+            os->screen.chrout(ch);
         }
     }
     os->screen.setCursorActive(false);

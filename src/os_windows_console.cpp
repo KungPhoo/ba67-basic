@@ -8,10 +8,15 @@
     #include <stdlib.h>
     #include <string>
 
+#define ESC "\x1b"
+#define CSI "\x1b["
+
+
+
 // DOS colors
 // 0=black,1=dblue, 2=dgreen, 3=dcyan, 4=dred, 5=dpurple, 6=dyellow,7=ltgray
 // 8=gray  9= blue,10= green,11= cyan,12= red,13= purple,14= yellow,15=white
-inline void ConsoleColor(int c = 15, int bk = 0) {
+void ConsoleColor(int c = 15, int bk = 0) {
     HANDLE hConsole;
     hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     SetConsoleTextAttribute(hConsole, c + bk * 16);
@@ -24,22 +29,22 @@ void SetC64ConsoleColours(const uint32_t* aarrggbb) {
     GetConsoleScreenBufferInfoEx(consoleOut, &sbInfoEx);
 
     // C64 color palette
-    sbInfoEx.ColorTable[0]  = aarrggbb[0]; // RGB(0x00, 0x00, 0x00); // Black
-    sbInfoEx.ColorTable[1]  = aarrggbb[1]; // RGB(0xFF, 0xFF, 0xFF); // White
-    sbInfoEx.ColorTable[2]  = aarrggbb[2]; // RGB(0x96, 0x28, 0x2e); // Red
-    sbInfoEx.ColorTable[3]  = aarrggbb[3]; // RGB(0x5b, 0xd6, 0xce); // Cyan
-    sbInfoEx.ColorTable[4]  = aarrggbb[4]; // RGB(0x9f, 0x2d, 0xad); // Purple
-    sbInfoEx.ColorTable[5]  = aarrggbb[5]; // RGB(0x41, 0xb9, 0x36); // Green
-    sbInfoEx.ColorTable[6]  = aarrggbb[6]; // RGB(0x27, 0x24, 0xc4); // Blue
-    sbInfoEx.ColorTable[7]  = aarrggbb[7]; // RGB(0xef, 0xf3, 0x47); // Yellow
-    sbInfoEx.ColorTable[8]  = aarrggbb[8]; // RGB(0x9f, 0x48, 0x15); // Orange
-    sbInfoEx.ColorTable[9]  = aarrggbb[9]; // RGB(0x5e, 0x35, 0x00); // Brown
-    sbInfoEx.ColorTable[10] = aarrggbb[10]; // RGB(0xda, 0x5f, 0x66); // Light Red
-    sbInfoEx.ColorTable[11] = aarrggbb[11]; // RGB(0x47, 0x47, 0x47); // Dark Gray
-    sbInfoEx.ColorTable[12] = aarrggbb[12]; // RGB(0x78, 0x78, 0x78); // Medium Gray
-    sbInfoEx.ColorTable[13] = aarrggbb[13]; // RGB(0x91, 0xff, 0x84); // Light Green
-    sbInfoEx.ColorTable[14] = aarrggbb[14]; // RGB(0x68, 0x64, 0xff); // Light Blue
-    sbInfoEx.ColorTable[15] = aarrggbb[15]; // RGB(0xae, 0xae, 0xae); // Light Gray
+    sbInfoEx.ColorTable[0]  = aarrggbb[0]  & 0x00ffffff; // RGB(0x00, 0x00, 0x00); // Black
+    sbInfoEx.ColorTable[1]  = aarrggbb[1]  & 0x00ffffff; // RGB(0xFF, 0xFF, 0xFF); // White
+    sbInfoEx.ColorTable[2]  = aarrggbb[2]  & 0x00ffffff; // RGB(0x96, 0x28, 0x2e); // Red
+    sbInfoEx.ColorTable[3]  = aarrggbb[3]  & 0x00ffffff; // RGB(0x5b, 0xd6, 0xce); // Cyan
+    sbInfoEx.ColorTable[4]  = aarrggbb[4]  & 0x00ffffff; // RGB(0x9f, 0x2d, 0xad); // Purple
+    sbInfoEx.ColorTable[5]  = aarrggbb[5]  & 0x00ffffff; // RGB(0x41, 0xb9, 0x36); // Green
+    sbInfoEx.ColorTable[6]  = aarrggbb[6]  & 0x00ffffff; // RGB(0x27, 0x24, 0xc4); // Blue
+    sbInfoEx.ColorTable[7]  = aarrggbb[7]  & 0x00ffffff; // RGB(0xef, 0xf3, 0x47); // Yellow
+    sbInfoEx.ColorTable[8]  = aarrggbb[8]  & 0x00ffffff; // RGB(0x9f, 0x48, 0x15); // Orange
+    sbInfoEx.ColorTable[9]  = aarrggbb[9]  & 0x00ffffff; // RGB(0x5e, 0x35, 0x00); // Brown
+    sbInfoEx.ColorTable[10] = aarrggbb[10] & 0x00ffffff; // RGB(0xda, 0x5f, 0x66); // Light Red
+    sbInfoEx.ColorTable[11] = aarrggbb[11] & 0x00ffffff; // RGB(0x47, 0x47, 0x47); // Dark Gray
+    sbInfoEx.ColorTable[12] = aarrggbb[12] & 0x00ffffff; // RGB(0x78, 0x78, 0x78); // Medium Gray
+    sbInfoEx.ColorTable[13] = aarrggbb[13] & 0x00ffffff; // RGB(0x91, 0xff, 0x84); // Light Green
+    sbInfoEx.ColorTable[14] = aarrggbb[14] & 0x00ffffff; // RGB(0x68, 0x64, 0xff); // Light Blue
+    sbInfoEx.ColorTable[15] = aarrggbb[15] & 0x00ffffff; // RGB(0xae, 0xae, 0xae); // Light Gray
 
     SetConsoleScreenBufferInfoEx(consoleOut, &sbInfoEx);
 }
@@ -100,9 +105,34 @@ static BOOL SetConsoleSize(size_t cols, size_t rows) {
     return FALSE;
 }
 
+OsWindowsConsole::~OsWindowsConsole() {
+    printf(ESC "[?1049l"); // leave alternate screen
+
+}
+
 uint64_t OsWindowsConsole::tick() const {
     static uint64_t tick0 = GetTickCount64();
     return GetTickCount64() - tick0;
+}
+
+
+bool EnableVTMode() {
+    // Set output mode to handle virtual terminal sequences
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    DWORD dwMode = 0;
+    if (!GetConsoleMode(hOut, &dwMode)) {
+        return false;
+    }
+
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (!SetConsoleMode(hOut, dwMode)) {
+        return false;
+    }
+    return true;
 }
 
 bool OsWindowsConsole::init(Basic* basic, SoundSystem* ss) {
@@ -110,6 +140,7 @@ bool OsWindowsConsole::init(Basic* basic, SoundSystem* ss) {
 
     // system("chcp 65001");
     SetConsoleOutputCP(CP_UTF8); // 65001 - give programs a chance to output utf-8, if they care
+    EnableVTMode();
 
     wchar_t* user = nullptr;
     size_t len    = 0;
@@ -124,11 +155,16 @@ bool OsWindowsConsole::init(Basic* basic, SoundSystem* ss) {
         ::SetCurrentDirectoryW(home.c_str());
     }
 
-    SetConsoleSize(screen.width + 1, screen.height + 1);
+    SetConsoleSize(screen.width + 1, screen.height + 2);
     // SetConsoleFont(L"Cascadia Mono", 24, true);
     SetConsoleFont(L"Consolas", 24, true);
+    SetConsoleFont(L"BA67 square", 24, true);
     // SetConsoleFont(L"Cascadia Code PL", 24, true);
-    SetC64ConsoleColours(&screen.palette[0]); // std::array<uint32_t, 16> palette; // AABBGGRR little endian format
+    // SetC64ConsoleColours(&screen.palette[0]); // std::array<uint32_t, 16> palette; // AABBGGRR little endian format
+
+
+    printf(ESC "[?1049h"); // enter alternate screen
+    printf(ESC "[1 q"); // cursor blinking block
 
     return true;
 }
@@ -145,168 +181,12 @@ size_t OsWindowsConsole::getFreeMemoryInBytes() {
     return Os::getFreeMemoryInBytes();
 }
 
-void OsWindowsConsole::setTextColor(int index) {
-    foregnd = index;
-    ConsoleColor(foregnd, bkgnd);
-}
-
-void OsWindowsConsole::setBackgroundColor(int index) {
-    bkgnd = index;
-    ConsoleColor(foregnd, bkgnd);
-}
 
 void OsWindowsConsole::presentScreen() {
-
-    uint64_t now             = tick();
-    static uint64_t nextShow = 0;
-    if (nextShow > now) {
-        return;
-    }
-    nextShow = now + 5;
-
-
-    // screen.getPrintBuffer(chars, colors);
-    chars.clear();
-    colors.clear();
-
-    const auto* memCh = screen.getMemory() + krnl.CHARRAM;
-    const auto* memCl = screen.getMemory() + krnl.COLRAM;
-    for (size_t y = 0; y < screen.height; ++y) {
-        const auto* lnCh = memCh + y * screen.width;
-        const auto* lnCo = memCl + y * screen.width;
-
-        // auto& ln = screen.getLineBuffer()[y];
-        for (size_t x = 0; x < screen.width; ++x) {
-            auto& ch = lnCh[x];
-            if (ch == U'\0') {
-                break;
-            }
-            chars.push_back(ch);
-            colors.push_back(char(lnCo[x]));
-        }
-
-        // if (y + 1 < screen.height && !screen.isContinuationRow(y + 1)) {
-        chars.push_back(U'\n');
-        colors.push_back(1);
-        // }
-    }
-
-    if (chars.length() == 0) {
-        return;
-    }
-
-    setCursorVisibility(false);
-    setCaretPos(0, 0);
-    HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-    int ctext = -1, cback = -1;
-
-    size_t cutwidth = screen.width;
-    int x = 0, y = 0;
-    size_t i = 0;
-
-    // add a blank character, that's printed to the rest of the screen to blank it out
-    chars += ' ';
-    colors += colors.back();
-
-    for (size_t ic = 0;; ++ic) {
-        size_t i = ic;
-        if (ic >= chars.length()) {
-            i = chars.length() - 1;
-        }
-        char32_t unicodeCodepoint = chars[i];
-
-        if (x == cutwidth || unicodeCodepoint == U'\n') {
-            x = 0;
-            ++y;
-            if (y > screen.height) {
-                break;
-            }
-            WriteConsoleW(hStdout, L"\n", 1, nullptr, nullptr);
-            // setCaretPos(0, y);
-            continue;
-        }
-
-        int craw = colors[i];
-        int c    = craw & 0x0000000f;
-        if (ctext != c) {
-            ctext = c;
-            setTextColor(c);
-        }
-        c = (craw >> 4) & 0x0000000f;
-        if (cback != c) {
-            cback = c;
-            setBackgroundColor(c);
-        }
-
-        ++x;
-        if (unicodeCodepoint < 0x10000) {
-            // BMP characters can be printed directly
-            WCHAR outputChar = static_cast<WCHAR>(unicodeCodepoint);
-            WriteConsoleW(hStdout, &outputChar, 1, nullptr, nullptr);
-        } else {
-            // TODO Windows console does not support this. It's going to print "??"
-            // Convert to UTF-16 surrogate pair
-            WCHAR surrogatePair[3] = {};
-            surrogatePair[0]       = static_cast<WCHAR>((unicodeCodepoint - 0x10000) / 0x400 + 0xD800);
-            surrogatePair[1]       = static_cast<WCHAR>((unicodeCodepoint - 0x10000) % 0x400 + 0xDC00);
-            // WriteConsoleW(hStdout, surrogatePair, 2, nullptr, nullptr);
-            wprintf(L"%lc%lc", surrogatePair[0], surrogatePair[1]);
-        }
-    }
-
-    auto crsr = screen.getCursorPos();
-    setCaretPos(int(crsr.x), int(crsr.y));
-    setCursorVisibility(true);
+    printf("%s", screen.updateScreenTerminal().c_str());
+    fflush(stdout);
 }
 
-void OsWindowsConsole::setBorderColor(int colorIndex) {
-    const char* hex = "0123456789ABCDEFxxx";
-    char str[3]     = "00";
-    str[0]          = hex[unsigned(colorIndex) & 0x0f];
-    str[1]          = hex[screen.getTextColor()];
-    str[2]          = '\0';
-    system((std::string("color ") + str).c_str()); // Back, fore - this is the correct way to set the background
-}
-
-    #if 0
-
-int OsWindowsConsole::caretPositionX() {
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
-        return csbi.dwCursorPosition.X;
-    }
-    return -1; // Error case
-}
-
-int OsWindowsConsole::caretPositionY() {
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
-        return csbi.dwCursorPosition.Y;
-    }
-    return -1; // Error case
-}
-
-int OsWindowsConsole::screenSizeX() {
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
-        return csbi.srWindow.Right - csbi.srWindow.Left + 1;
-    }
-    return -1; // Error case
-}
-
-int OsWindowsConsole::screenSizeY() {
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
-        return csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
-    }
-    return -1; // Error case
-}
-    #endif
-
-void OsWindowsConsole::setCaretPos(int x, int y) {
-    COORD coord = { static_cast<SHORT>(x), static_cast<SHORT>(y) };
-    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-}
 
 const bool OsWindowsConsole::isKeyPressed(char32_t index, bool withShift, bool withAlt, bool withCtrl) const {
     size_t bitmask = 0x8000;
@@ -435,13 +315,6 @@ Os::KeyPress OsWindowsConsole::getFromKeyboardBuffer() {
     return Os::getFromKeyboardBuffer();
 }
 
-void OsWindowsConsole::setCursorVisibility(bool visible) {
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_CURSOR_INFO cursorInfo;
-    GetConsoleCursorInfo(hConsole, &cursorInfo);
-    cursorInfo.bVisible = visible;
-    SetConsoleCursorInfo(hConsole, &cursorInfo);
-}
 
 // --- FILE SYSTEM ---
 std::string OsWindowsConsole::getHomeDirectory() {

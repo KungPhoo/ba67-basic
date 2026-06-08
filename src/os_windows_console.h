@@ -4,6 +4,7 @@
 class OsWindowsConsole : public Os {
 public:
     OsWindowsConsole() = default;
+    virtual ~OsWindowsConsole();
 
     uint64_t tick() const override;
 
@@ -14,13 +15,10 @@ public:
 
     // --- SCREEN ---
     void presentScreen() override;
-    void setBorderColor(int colorIndex) override;
 
-    void setCaretPos(int x, int y);
     // --- KEYBOARD ---
     const bool isKeyPressed(char32_t index, bool withShift = false, bool withAlt = false, bool withCtrl = false) const override;
     KeyPress getFromKeyboardBuffer() override;
-    void setCursorVisibility(bool visible);
 
     // --- FILE SYSTEM ---
     std::string getHomeDirectory() override;
@@ -30,8 +28,7 @@ public:
 private:
     void setTextColor(int index);
     void setBackgroundColor(int index);
-    std::u32string chars;
-    std::string colors;
+    std::string buffer;
 };
 
 #endif // _WIN32

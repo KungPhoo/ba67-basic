@@ -89,6 +89,11 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     }
 
 
+#ifdef NDEBUG
+#error The XGetKeyboardMapping() function returns the symbols for the specified number of KeyCodes starting with first_keycode. The value specified in first_keycode must be greater than or equal to min_keycode as returned by XDisplayKeycodes(), or a BadValue error results. In addition, the following expression must be less than or equal to max_keycode as returned by XDisplayKeycodes(): 
+    // https://tronche.com/gui/x/xlib/input/XGetKeyboardMapping.html
+    #endif
+
     #ifdef _WIN32
     fpl__PlatformAppState* appState    = fpl__global__AppState;
     fpl__Win32AppState* win32AppState  = &appState->win32;

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <cstring>
+#include "unicode.h"
 
 static CharMap& charMap() {
     static CharMap c;
@@ -221,6 +222,121 @@ void ScreenBuffer::updateScreenBitmap(std::vector<uint8_t>& pixelsPal, std::vect
             p = 0;
         }
     }
+}
+
+std::string& ScreenBuffer::updateScreenTerminal() {
+    // uses ESC-codes for Windows and Liunx: https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
+#define ESC "\x1b"
+#define CSI "\x1b["
+
+
+    static std::string buffer;
+    buffer.clear();
+
+    // only one "gray" in this mode. Might use RGB mode? ESC[38;2;r;g;bm
+    // static std::vector<std::string> colFg = {
+    //     ESC "[30m", // black
+    //     ESC "[97m", // white
+    //     ESC "[31m", // red
+    //     ESC "[36m", // cyan
+    //     ESC "[35m", // purple
+    //     ESC "[32m", // green
+    //     ESC "[34m", // blue
+    //     ESC "[93m", // yellow
+    //     ESC "[33m", // orange
+    //     ESC "[33m", // *brown
+    //     ESC "[91m", // light red
+    //     ESC "[37m", // dark gray
+    //     ESC "[37m", // medium gray
+    //     ESC "[92m", // light green
+    //     ESC "[94m",// light blue
+    //     ESC "[37m" // light gray
+    // };
+    // static std::vector<std::string> colBg = {
+    //     ESC "[40m",// black
+    //     ESC "[107m",// white
+    //     ESC "[41m",// red
+    //     ESC "[46m",// cyan
+    //     ESC "[45m",// purple
+    //     ESC "[42m",// green
+    //     ESC "[44m",// blue
+    //     ESC "[103m",// yellow
+    //     ESC "[43m",// orange
+    //     ESC "[43m",// *brown
+    //     ESC "[101m",// light red
+    //     ESC "[47m",// dark gray
+    //     ESC "[47m",// medium gray
+    //     ESC "[102m",// light green
+    //     ESC "[104m",// light blue
+    //     ESC "[47m" // light gray
+    // };
+
+    static std::vector<std::string> colFg, colBg;
+    if (colFg.empty()) {
+        for (int i = 0; i < 16; ++i) {
+            int r = (palette[i] >> 16) & 0xff;
+            int g = (palette[i] >> 8) & 0xff;
+            int b = (palette[i] >> 0) & 0xff;
+            int id = 16 + 36*(r/51)+6*(g/51)+(b/51);
+
+            if (r == g && r == b) { 
+                id = (r/11) + 232; // grayscales
+            }
+
+            char bf[256];
+            sprintf(bf, ESC "[38;5;%dm", id);
+            colFg.push_back(bf);
+            sprintf(bf, ESC "[48;5;%dm", id);
+            colBg.push_back(bf);
+        }
+    }
+
+    MEMCELL currentColor = MEMCELL(0xffff);
+
+    const auto* memCh = charRam;
+    const auto* memCl = colRam;
+
+    buffer += ESC "[?25l"; // hide cursor
+    // buffer += ESC "[2J"; // erase screen
+    buffer += ESC "[H"; // home
+    for (size_t y = 0; y < height; ++y) {
+
+        buffer += ESC "[0K"; // erase from cursor to end of line
+
+        const auto* lnCh = memCh + y * width;
+        const auto* lnCo = memCl + y * width;
+
+        for (size_t x = 0; x < width; ++x) {
+            char32_t ch = char32_t(lnCh[x]);
+            if (ch >= 0 && ch < 0x20) {
+                ch = U' ';
+            }
+
+            MEMCELL cl = lnCo[x];
+            if (cl != currentColor) {
+                currentColor = cl;
+                size_t fg    = cl & 0x0f;
+                size_t bg    = (cl >> 4) & 0x0f;
+                buffer += colFg[fg];
+                buffer += colBg[bg];
+            }
+            Unicode::appendAsUtf8(buffer, ch);
+        }
+        buffer += "\n";
+    }
+
+
+    char bf[1024];
+    auto crsr = getCursorPos();
+    sprintf(bf, ESC "[%d;%dH", int(crsr.y + 1), int(crsr.x + 1));
+    buffer += bf;
+
+    buffer += ESC "[?25h"; // show cursor
+
+
+    #undef ESC
+    #undef CSI
+    return buffer;
 }
 
 std::u32string ScreenBuffer::getSelectedText(Cursor start, Cursor end) const {
@@ -461,7 +577,7 @@ const CharBitmap& ScreenBuffer::getCharDefinition(char32_t codePoint) const {
     return charMap()[codePoint];
 }
 
-void ScreenBuffer::putC(char32_t c) {
+void ScreenBuffer::chrout(char32_t c) {
     if (!charRam || !lineLinkTable) {
         return;
     }

@@ -116,6 +116,9 @@ public:
     void updateScreenPixelsPalette(bool highlightCursor, std::vector<uint8_t>& pixelsPal);
     // buffer to draw on a bitmap.
     void updateScreenBitmap(std::vector<uint8_t>& pixelsPal, std::vector<uint32_t>& pixelsRGB);
+    // buffer to print on console
+    std::string& updateScreenTerminal();
+
 
     std::u32string getSelectedText(Cursor start, Cursor end) const;
 
@@ -262,7 +265,7 @@ public:
         height            = h;
     }
 
-    void putC(char32_t c);
+    void chrout(char32_t c);
 
     void deleteChar();
     void backspaceChar();
