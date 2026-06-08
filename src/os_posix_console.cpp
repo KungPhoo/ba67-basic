@@ -121,8 +121,22 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
         fs::current_path(home);
     }
 
+
+    int col = 80;
+    int row = 25;
+    struct winsize w {};
+    ioctl(0, TIOCGWINSZ, &w);
+    if (w.ws_row * w.ws_col > 64) {
+        if (w.ws_col < col) {
+            col = w.ws_col;
+        }
+        if (w.ws_row <= row) {
+            row = w.ws_row-1;
+        }
+    }
+
     // GRAPHIC 5
-    screen.setSize(80, 25);
+    screen.setSize(col, row);
     
     printf(ESC "[2J"); // clear screen
     printf(ESC "[H"); // home cursor

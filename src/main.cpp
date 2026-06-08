@@ -123,6 +123,14 @@ int main(int argc, char** argv) {
     sets.renderMode = BA68settings::RenderMode::OpenGL;
 #endif
 
+    #if defined(__linux__)
+    if (!getenv("DISPLAY")) {
+        printf("DISPLAY not set. Missing X11 display, default to text-output.\n");
+        sets.renderMode = BA68settings::RenderMode::Text;
+    }
+    #endif
+
+
     args.push_back(""); // ensure [i] and [i+1]
     for (size_t i = 0; i + 1 < args.size(); ++i) {
 
