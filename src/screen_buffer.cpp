@@ -227,7 +227,6 @@ void ScreenBuffer::updateScreenBitmap(std::vector<uint8_t>& pixelsPal, std::vect
 std::string& ScreenBuffer::updateScreenTerminal() {
     // uses ESC-codes for Windows and Liunx: https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
 #define ESC "\x1b"
-#define CSI "\x1b["
 
 
     static std::string buffer;
@@ -300,9 +299,7 @@ std::string& ScreenBuffer::updateScreenTerminal() {
     // buffer += ESC "[2J"; // erase screen
     buffer += ESC "[H"; // home
     for (size_t y = 0; y < height; ++y) {
-
-        buffer += ESC "[0K"; // erase from cursor to end of line
-
+        // buffer += ESC "[0K"; // erase from cursor to end of line
         const auto* lnCh = memCh + y * width;
         const auto* lnCo = memCl + y * width;
 
@@ -322,6 +319,11 @@ std::string& ScreenBuffer::updateScreenTerminal() {
             }
             Unicode::appendAsUtf8(buffer, ch);
         }
+
+        // print newline - but in black
+        // currentColor = 0;
+        // buffer += colFg[1];
+        // buffer += colBg[1];
         buffer += "\n";
     }
 
@@ -335,7 +337,6 @@ std::string& ScreenBuffer::updateScreenTerminal() {
 
 
     #undef ESC
-    #undef CSI
     return buffer;
 }
 

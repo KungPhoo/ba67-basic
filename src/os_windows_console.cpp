@@ -9,45 +9,7 @@
     #include <string>
 
 #define ESC "\x1b"
-#define CSI "\x1b["
 
-
-
-// DOS colors
-// 0=black,1=dblue, 2=dgreen, 3=dcyan, 4=dred, 5=dpurple, 6=dyellow,7=ltgray
-// 8=gray  9= blue,10= green,11= cyan,12= red,13= purple,14= yellow,15=white
-void ConsoleColor(int c = 15, int bk = 0) {
-    HANDLE hConsole;
-    hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetConsoleTextAttribute(hConsole, c + bk * 16);
-}
-
-void SetC64ConsoleColours(const uint32_t* aarrggbb) {
-    CONSOLE_SCREEN_BUFFER_INFOEX sbInfoEx;
-    sbInfoEx.cbSize   = sizeof(CONSOLE_SCREEN_BUFFER_INFOEX);
-    HANDLE consoleOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    GetConsoleScreenBufferInfoEx(consoleOut, &sbInfoEx);
-
-    // C64 color palette
-    sbInfoEx.ColorTable[0]  = aarrggbb[0]  & 0x00ffffff; // RGB(0x00, 0x00, 0x00); // Black
-    sbInfoEx.ColorTable[1]  = aarrggbb[1]  & 0x00ffffff; // RGB(0xFF, 0xFF, 0xFF); // White
-    sbInfoEx.ColorTable[2]  = aarrggbb[2]  & 0x00ffffff; // RGB(0x96, 0x28, 0x2e); // Red
-    sbInfoEx.ColorTable[3]  = aarrggbb[3]  & 0x00ffffff; // RGB(0x5b, 0xd6, 0xce); // Cyan
-    sbInfoEx.ColorTable[4]  = aarrggbb[4]  & 0x00ffffff; // RGB(0x9f, 0x2d, 0xad); // Purple
-    sbInfoEx.ColorTable[5]  = aarrggbb[5]  & 0x00ffffff; // RGB(0x41, 0xb9, 0x36); // Green
-    sbInfoEx.ColorTable[6]  = aarrggbb[6]  & 0x00ffffff; // RGB(0x27, 0x24, 0xc4); // Blue
-    sbInfoEx.ColorTable[7]  = aarrggbb[7]  & 0x00ffffff; // RGB(0xef, 0xf3, 0x47); // Yellow
-    sbInfoEx.ColorTable[8]  = aarrggbb[8]  & 0x00ffffff; // RGB(0x9f, 0x48, 0x15); // Orange
-    sbInfoEx.ColorTable[9]  = aarrggbb[9]  & 0x00ffffff; // RGB(0x5e, 0x35, 0x00); // Brown
-    sbInfoEx.ColorTable[10] = aarrggbb[10] & 0x00ffffff; // RGB(0xda, 0x5f, 0x66); // Light Red
-    sbInfoEx.ColorTable[11] = aarrggbb[11] & 0x00ffffff; // RGB(0x47, 0x47, 0x47); // Dark Gray
-    sbInfoEx.ColorTable[12] = aarrggbb[12] & 0x00ffffff; // RGB(0x78, 0x78, 0x78); // Medium Gray
-    sbInfoEx.ColorTable[13] = aarrggbb[13] & 0x00ffffff; // RGB(0x91, 0xff, 0x84); // Light Green
-    sbInfoEx.ColorTable[14] = aarrggbb[14] & 0x00ffffff; // RGB(0x68, 0x64, 0xff); // Light Blue
-    sbInfoEx.ColorTable[15] = aarrggbb[15] & 0x00ffffff; // RGB(0xae, 0xae, 0xae); // Light Gray
-
-    SetConsoleScreenBufferInfoEx(consoleOut, &sbInfoEx);
-}
 
 void SetConsoleFont(const wchar_t* fontName, SHORT fontSize, bool bold) {
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -155,13 +117,18 @@ bool OsWindowsConsole::init(Basic* basic, SoundSystem* ss) {
         ::SetCurrentDirectoryW(home.c_str());
     }
 
-    SetConsoleSize(screen.width + 1, screen.height + 2);
     // SetConsoleFont(L"Cascadia Mono", 24, true);
-    SetConsoleFont(L"Consolas", 24, true);
-    SetConsoleFont(L"BA67 square", 24, true);
+    SetConsoleFont(L"Consolas", 12, true);
+    // SetConsoleFont(L"BA67 square", 12, true);
+    SetConsoleFont(L"BA67", 24, true);
     // SetConsoleFont(L"Cascadia Code PL", 24, true);
-    // SetC64ConsoleColours(&screen.palette[0]); // std::array<uint32_t, 16> palette; // AABBGGRR little endian format
 
+    // GRAPHIC 5
+    screen.setSize(80, 25);
+    SetConsoleSize(screen.width + 1, screen.height + 2);
+
+    printf(ESC "[2J"); // clear screen
+    printf(ESC "[H"); // home cursor
 
     printf(ESC "[?1049h"); // enter alternate screen
     printf(ESC "[1 q"); // cursor blinking block

@@ -18,7 +18,6 @@
 namespace fs = std::filesystem;
 
     #define ESC "\x1b"
-    #define CSI "\x1b["
 
 
 // ------------------------------------------------------------
@@ -122,9 +121,11 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
         fs::current_path(home);
     }
 
-    // Clear screen
-    printf(ESC "[2J");
-    printf(ESC "[H");
+    // GRAPHIC 5
+    screen.setSize(80, 25);
+    
+    printf(ESC "[2J"); // clear screen
+    printf(ESC "[H"); // home cursor
 
     printf(ESC "[?1049h"); // enter alternate screen
     printf(ESC "[1 q"); // cursor blinking block
@@ -138,7 +139,9 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
 // ------------------------------------------------------------
 
 size_t OsPosixConsole::getFreeMemoryInBytes() {
-    return Os::getFreeMemoryInBytes();
+    long pages     = sysconf(_SC_PHYS_PAGES);
+    long page_size = sysconf(_SC_PAGE_SIZE);
+    return size_t(pages * page_size);
 }
 
 

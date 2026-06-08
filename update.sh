@@ -2,6 +2,10 @@
 # Exit on error
 set -e
 
+
+
+# /usr/bin/apt-get
+
 if [ ! -f ~/ba67/get_dependecies.sh ]; then
     echo "ensure we have git"
     sudo apt-get update

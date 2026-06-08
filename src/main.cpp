@@ -168,6 +168,7 @@ int main(int argc, char** argv) {
 
     Os* os = (sets.renderMode == BA68settings::RenderMode::Text) ? getOsConsole() : getOsGraphics();
     Basic basic(os, &sound);
+    basic.init();
 
     // load boot.bas
     try {

@@ -25,6 +25,7 @@ public:
 
     Os* os;
     Basic(Os* os, SoundSystem* ss = nullptr);
+    void init();
 
     struct Options {
         bool spacingRequired  = true; // 'false' allows FORI=1TO10 without spaces

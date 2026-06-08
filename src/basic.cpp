@@ -1904,6 +1904,8 @@ Basic::Options Basic::options; // static instance
 inline const std::string Basic::buildVersion() { return __DATE__; }
 
 Basic::Basic(Os* os, SoundSystem* ss) {
+    // Sett all required pointers and memory addresses
+
     // memory.resize(0x20000);
     // cpu.memory = &cpu.RAM[0];
 
@@ -1911,113 +1913,22 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     auto& ROM   = cpu.ROM;
     RAM[0x0289] = 10; // keyboard buffer size
 
-
-    // memcellcpy8(&cpu.RAM[0xA000], RomImage::BASIC_V2(), 0x2000);
-    // memcellcpy8(&cpu.RAM[0xE000], RomImage::KERNAL_C64(), 0x2000);
-    // memcellcpy8(&cpu.RAM[0x0000], RomImage::LOW_RAM(), 0x1000);
-
-
-
-    // // TODO: NOP-out RAMTAS to set upper/lower BASIC memory
-    // for (int i = 0xfd38; i < 0xfd90; ++i) {
-    //     cpu.RAM[i] = 0xEA;
-    // }
-    // // and do this manually
-    // RAM[krnl.MEMSTR_ON_RST + 0] = 0x00;
-    // RAM[krnl.MEMSTR_ON_RST + 1] = 0x80;
-    // RAM[krnl.MEMSIZ_ON_RST + 0] = 0x00;
-    // RAM[krnl.MEMSIZ_ON_RST + 1] = 0xA0;
-
-    // set screen page to $0400
-    RAM[krnl.HIBASE] = 0x04;
-
-
-    // copy the BA67 font to the CHARROM memory.
-    // -- !! this is never used. BA67 takes the PRINT-ing role !! --
-    for (size_t i = 0; i < 0x100; ++i) {
-        char32_t unicode = char32_t(i);
-        if (i > 0x7f) {
-            unicode = PETSCII::toUnicode(uint8_t(i));
-        }
-        auto& bmp = os->screen.getCharDefinition(unicode);
-        for (size_t y = 0; y < 8; ++y) {
-            // uppercase char set
-            ROM[0xD000 + i * 8 + y] = 0x7f; // bmp.bits[y];
-
-            // lowercase char set (same, but reversed)
-            ROM[0xD800 + i * 8 + y] = 0x7f; // ~bmp.bits[y];
-        }
-    }
-
-
-    RAM[0xd0] = 0;
-    RAM[0xd4] = 0;
-    RAM[0xd8] = 0;
-    // ST
-    RAM[krnl.STATUS] = Basic::FS_OK;
-    RAM[krnl.DFLTI]  = 0; // input = keyboard
-    RAM[krnl.DFLTO]  = 3; // ouput = screen
-
-
-
-
-
-#if 0 // defined(_DEBUG)
-    auto savemem = [&](size_t from, size_t len, std::string path) {
-        std::vector<uint8_t> by(len);
-        for (size_t n = 0; n < len; ++n) {
-            by[n] = uint8_t(RAM[from + n]);
-        }
-        FilePtr p(os);
-        p.open(path, "wb");
-        p.write(&by[0], len);
-        p.close();
-    };
-    savemem(0xA000, 0x2000, "C:\\Temp\\basic");
-    savemem(0xE000, 0x2000, "C:\\Temp\\kernal");
-    savemem(0xD000, 0x1000, "C:\\Temp\\chargen");
-#endif
-
-
     os->screen.initMemory(cpu);
 
     for (int i = 0; i < 256; ++i) {
         fileHandles.emplace_back(FilePtr(os));
     }
 
+    // create a module with no name and push it on the stack
     Module mainmodule;
     modules[""] = mainmodule;
-    moduleVariableStack.push_back(modules.begin()); // create a module with no name and push it on the stack
+    moduleVariableStack.push_back(modules.begin());
     moduleListingStack.push_back(modules.begin());
 
     this->os             = os;
     time0                = os->tick();
-    std::string charLogo = Unicode::toUtf8String(U"🌈"); // rainbow - 1F308
-    CMD::CHARDEF(this, {
-                           Value(charLogo),
-                           Value(int64_t(0xbbbbb222LL)), // red
-                           Value(int64_t(0xbbb22888LL)), // orange
-                           Value(int64_t(0xbb288888LL)), // orange
-                           Value(int64_t(0xb2888777LL)), // yellow
-                           Value(int64_t(0xb2887777LL)), // yellow
-                           Value(int64_t(0x22877dddLL)), // green
-                           Value(int64_t(0x287dddeeLL)), // green
-                           Value(int64_t(0x287ddeeeLL)), // blue
-                       });
 
     os->init(this, ss);
-    os->screen.setColors(13, 11);
-    os->screen.setBorderColor(13);
-    os->screen.clear();
-
-    keyShortcuts[1 - 1] = "\"CHDIR\"";
-    keyShortcuts[2 - 1] = "\"LOAD \"";
-    keyShortcuts[3 - 1] = "\"CATALOG \""; // +CHR$(13)
-    keyShortcuts[4 - 1] = "\"SCNCLR \"+CHR$(13)";
-    keyShortcuts[5 - 1] = "\"SAVE \"";
-    keyShortcuts[6 - 1] = "\"RUN \"+CHR$(13)";
-    keyShortcuts[7 - 1] = "\"LIST \"+CHR$(13)";
-    keyShortcuts[9 - 1] = "\"CHDIR \"+CHR$(34)+\"CLOUD\"+CHR$(34)+CHR$(13)+\"CATALOG\"+CHR$(13)";
 
     // hard coded keywords
     // common words first, slow keywords to the back
@@ -2124,11 +2035,110 @@ Basic::Basic(Os* os, SoundSystem* ss) {
         { "VAL", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 1); return ValueToDoubleOrZero(args[0]); } },
         { "XOR", [&](Basic* basic, const std::vector<BA67::Value>& args) -> BA67::Value { nargs(args, 3); return ValueToInt(args[0]) ^ ValueToInt(args[2]); } }
     });
+}
+
+// Perform a clean start
+void Basic::init() {
+    auto& RAM = cpu.RAM;
+    auto& ROM = cpu.ROM;
+
+        // memcellcpy8(&cpu.RAM[0xA000], RomImage::BASIC_V2(), 0x2000);
+    // memcellcpy8(&cpu.RAM[0xE000], RomImage::KERNAL_C64(), 0x2000);
+    // memcellcpy8(&cpu.RAM[0x0000], RomImage::LOW_RAM(), 0x1000);
 
 
-    size_t centerx = 3;
+
+    // // TODO: NOP-out RAMTAS to set upper/lower BASIC memory
+    // for (int i = 0xfd38; i < 0xfd90; ++i) {
+    //     cpu.RAM[i] = 0xEA;
+    // }
+    // // and do this manually
+    // RAM[krnl.MEMSTR_ON_RST + 0] = 0x00;
+    // RAM[krnl.MEMSTR_ON_RST + 1] = 0x80;
+    // RAM[krnl.MEMSIZ_ON_RST + 0] = 0x00;
+    // RAM[krnl.MEMSIZ_ON_RST + 1] = 0xA0;
+
+    // set screen page to $0400
+    RAM[krnl.HIBASE] = 0x04;
+
+
+    // copy the BA67 font to the CHARROM memory.
+    // -- !! this is never used. BA67 takes the PRINT-ing role !! --
+    for (size_t i = 0; i < 0x100; ++i) {
+        char32_t unicode = char32_t(i);
+        if (i > 0x7f) {
+            unicode = PETSCII::toUnicode(uint8_t(i));
+        }
+        auto& bmp = os->screen.getCharDefinition(unicode);
+        for (size_t y = 0; y < 8; ++y) {
+            // uppercase char set
+            ROM[0xD000 + i * 8 + y] = 0x7f; // bmp.bits[y];
+
+            // lowercase char set (same, but reversed)
+            ROM[0xD800 + i * 8 + y] = 0x7f; // ~bmp.bits[y];
+        }
+    }
+
+
+    RAM[0xd0] = 0;
+    RAM[0xd4] = 0;
+    RAM[0xd8] = 0;
+    // ST
+    RAM[krnl.STATUS] = Basic::FS_OK;
+    RAM[krnl.DFLTI]  = 0; // input = keyboard
+    RAM[krnl.DFLTO]  = 3; // ouput = screen
+
+
+
+
+
+#if 0 // defined(_DEBUG)
+    auto savemem = [&](size_t from, size_t len, std::string path) {
+        std::vector<uint8_t> by(len);
+        for (size_t n = 0; n < len; ++n) {
+            by[n] = uint8_t(RAM[from + n]);
+        }
+        FilePtr p(os);
+        p.open(path, "wb");
+        p.write(&by[0], len);
+        p.close();
+    };
+    savemem(0xA000, 0x2000, "C:\\Temp\\basic");
+    savemem(0xE000, 0x2000, "C:\\Temp\\kernal");
+    savemem(0xD000, 0x1000, "C:\\Temp\\chargen");
+#endif
+
+    // TODO: printing the unicode logo to the console adds a character to the end of the line
+    std::string charLogo = Unicode::toUtf8String(U"🌈"); // rainbow - 1F308
+    CMD::CHARDEF(this, {
+                           Value(charLogo),
+                           Value(int64_t(0xbbbbb222LL)), // red
+                           Value(int64_t(0xbbb22888LL)), // orange
+                           Value(int64_t(0xbb288888LL)), // orange
+                           Value(int64_t(0xb2888777LL)), // yellow
+                           Value(int64_t(0xb2887777LL)), // yellow
+                           Value(int64_t(0x22877dddLL)), // green
+                           Value(int64_t(0x287dddeeLL)), // green
+                           Value(int64_t(0x287ddeeeLL)), // blue
+                       });
+
+
+    os->screen.setColors(13, 11);
+    os->screen.setBorderColor(13);
+    os->screen.clear();
+
+    keyShortcuts[1 - 1] = "\"CHDIR\"";
+    keyShortcuts[2 - 1] = "\"LOAD \"";
+    keyShortcuts[3 - 1] = "\"CATALOG \""; // +CHR$(13)
+    keyShortcuts[4 - 1] = "\"SCNCLR \"+CHR$(13)";
+    keyShortcuts[5 - 1] = "\"SAVE \"";
+    keyShortcuts[6 - 1] = "\"RUN \"+CHR$(13)";
+    keyShortcuts[7 - 1] = "\"LIST \"+CHR$(13)";
+    keyShortcuts[9 - 1] = "\"CHDIR \"+CHR$(34)+\"CLOUD\"+CHR$(34)+CHR$(13)+\"CATALOG\"+CHR$(13)";
+
+    size_t centerx =  (os->screen.width - 33)/2; //   3;
     printUtf8String("\n" +
-        std::string(centerx, ' ') + std::string(" ****    BA67 BASIC") + charLogo + " V" + version() + ("   ****\n"));
+        std::string(centerx, ' ') + std::string(" ****   BA67 BASIC") + charLogo + " V" + version() + ("   ****\n"));
 
     std::string strmem = "   " + ValueToString(int64_t(os->getFreeMemoryInBytes()) / (1024 * 1024)) + std::string(" BASIC MBYTES FREE");
     while (strmem.length() < 31) {
