@@ -6,7 +6,7 @@
 set -e
 
 mkdir -p ~/ba67/bin
-rm -f ~/ba67/bin/BA67
+rm -f ~/ba67/bin/BA67 2>/dev/null
 
 # Create build directory if it doesn't exist
 mkdir -p ~/ba67/out/build
@@ -28,7 +28,7 @@ fi
 cp --force --recursive --update ~/ba67/examples/ ~/BASIC/examples/
 
 
-if [ -f ~/ba67/bin/BA67] then
+if [ -f ~/ba67/bin/BA67]; then
     echo build succeeded
     chmod +x ~/ba67/bin/BA67
     

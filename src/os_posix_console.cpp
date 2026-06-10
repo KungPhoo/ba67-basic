@@ -82,29 +82,15 @@ OsPosixConsole::~OsPosixConsole() {
     ansi(ESC "[0m");
     ansi(ESC "[?25h");
 
+    printf(ESC "[?7h"); // enable scrolling
     ansi(ESC "[?1049l"); // leave alternate screen
 
     flushConsole();
 }
 
 // ------------------------------------------------------------
-// Timing
-// ------------------------------------------------------------
-
-uint64_t OsPosixConsole::tick() const {
-    static auto start = std::chrono::steady_clock::now();
-
-    auto now = std::chrono::steady_clock::now();
-
-    return std::chrono::duration_cast<
-               std::chrono::milliseconds>(now - start)
-        .count();
-}
-
-// ------------------------------------------------------------
 // Init
 // ------------------------------------------------------------
-
 bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
     Os::init(basic, ss);
 
@@ -143,15 +129,28 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
 
     printf(ESC "[?1049h"); // enter alternate screen
     printf(ESC "[1 q"); // cursor blinking block
-
+    printf(ESC "[?7l"); // disable scrolling and automatic line wrapping
 
     return true;
 }
 
 // ------------------------------------------------------------
-// Memory
+// Timing
 // ------------------------------------------------------------
 
+uint64_t OsPosixConsole::tick() const {
+    static auto start = std::chrono::steady_clock::now();
+
+    auto now = std::chrono::steady_clock::now();
+
+    return std::chrono::duration_cast<
+               std::chrono::milliseconds>(now - start)
+        .count();
+}
+
+// ------------------------------------------------------------
+// Memory
+// ------------------------------------------------------------
 size_t OsPosixConsole::getFreeMemoryInBytes() {
     long pages     = sysconf(_SC_PHYS_PAGES);
     long page_size = sysconf(_SC_PAGE_SIZE);
@@ -163,7 +162,6 @@ size_t OsPosixConsole::getFreeMemoryInBytes() {
 // ------------------------------------------------------------
 // Rendering
 // ------------------------------------------------------------
-
 void OsPosixConsole::presentScreen() {
     printf("%s", screen.updateScreenTerminal().c_str());
     fflush(stdout);
