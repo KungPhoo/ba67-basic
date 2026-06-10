@@ -28,7 +28,7 @@ fi
 cp --force --recursive --update ~/ba67/examples/ ~/BASIC/examples/
 
 
-if [ -f ~/ba67/bin/BA67]; then
+if [ -f ~/ba67/bin/BA67 ]; then
     echo build succeeded
     chmod +x ~/ba67/bin/BA67
     
