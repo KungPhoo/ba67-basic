@@ -33,8 +33,13 @@ public:
 
     void updateEvents() override;
 
+
 private:
+    void parseInputBuffer();
+    bool parseEscapeSequence(size_t pos, size_t& consumed, Os::KeyPress& key);
+
     mutable bool escPressed=false;
+    std::string m_inputBuffer;
 };
 
 #endif

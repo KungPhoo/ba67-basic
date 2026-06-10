@@ -131,15 +131,15 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
             col = w.ws_col;
         }
         if (w.ws_row <= row) {
-            row = w.ws_row-1;
+            row = w.ws_row - 1;
         }
     }
 
     // GRAPHIC 5
     screen.setSize(col, row);
-    
-    printf(ESC "[2J"); // clear screen
-    printf(ESC "[H"); // home cursor
+
+    // printf(ESC "[2J"); // clear screen
+    // printf(ESC "[H"); // home cursor
 
     printf(ESC "[?1049h"); // enter alternate screen
     printf(ESC "[1 q"); // cursor blinking block
@@ -186,7 +186,7 @@ const bool OsPosixConsole::isKeyPressed(
 
     // find cached (even shifted) escape key in keyboard buffer
     if (index == char32_t(KeyConstant::ESCAPE)) {
-        if (escPressed) { 
+        if (escPressed) {
             escPressed = false;
             return true;
         }
@@ -251,8 +251,21 @@ void OsPosixConsole::setEnv(
 // ------------------------------------------------------------
 // Event handling
 // ------------------------------------------------------------
-void OsPosixConsole::updateEvents() {
+// TODO: insert, home, end, del, UTF-8 sequence (Umlaut)
+//         e5[  7e~
+// home:   5b 48
+// end:    5b 46
+// del:    5b 33 7e
+// insert: 5b 32 7e
+// äÄ, öÖ, üÜ, ß: c3 a4, c3 84, c3 b6, c3 96, c3 bc, c3 9c, c3 9f
+//
+// ansi(ESC "[?1049l"); // leave alternate screen
+// for (ssize_t i = 0; i < n; ++i) {
+//     printf("%X,\n", int(uint8_t(buffer[i])));
+// }
+// exit(0);
 
+void OsPosixConsole::updateEvents() {
     pollfd pfd {};
     pfd.fd     = STDIN_FILENO;
     pfd.events = POLLIN;
@@ -263,73 +276,215 @@ void OsPosixConsole::updateEvents() {
         return;
     }
 
-    char buffer[32] {};
-    ssize_t n = read(STDIN_FILENO, buffer, sizeof(buffer));
+    char tmp[128];
+
+    ssize_t n = read(STDIN_FILENO, tmp, sizeof(tmp));
 
     if (n <= 0) {
         return;
     }
 
-    for (ssize_t i = 0; i < n; ++i) {
+    m_inputBuffer.append(tmp, static_cast<size_t>(n));
 
-        unsigned char ch = buffer[i];
+    parseInputBuffer();
+}
 
+void OsPosixConsole::parseInputBuffer() {
+    size_t pos = 0;
+
+    while (pos < m_inputBuffer.size()) {
         Os::KeyPress key {};
         key.printable = true;
-        key.code      = ch;
 
+        uint8_t ch    = static_cast<uint8_t>(m_inputBuffer[pos]);
 
-        // printf("%.2X,", int(ch));
-
-        // ANSI escape sequences
-        if (ch == 0x1b) {
-
-            // Arrow keys
-            if (i + 2 < n && buffer[i + 1] == '[') {
-
-                switch (buffer[i + 2]) {
-
-                case 'A':
-                    key.code      = uint32_t(Os::KeyConstant::CRSR_UP);
-                    key.printable = false;
-                    break;
-
-                case 'B':
-                    key.code      = uint32_t(Os::KeyConstant::CRSR_DOWN);
-                    key.printable = false;
-                    break;
-
-                case 'C':
-                    key.code      = uint32_t(Os::KeyConstant::CRSR_RIGHT);
-                    key.printable = false;
-                    break;
-
-                case 'D':
-                    key.code      = uint32_t(Os::KeyConstant::CRSR_LEFT);
-                    key.printable = false;
-                    break;
+        // ANSI sequence
+        if (ch == 0x1B) {
+            size_t consumed = 0;
+            if (parseEscapeSequence(pos, consumed, key) && consumed > 0) {
+                pos += consumed;
+                putToKeyboardBuffer(key);
+                continue;
+            }else{
+                // incomplete sequence
+                if (pos+1 == m_inputBuffer.length()) { 
+                    break; // wait for more bytes
                 }
+                ++pos;
+                key.holdAlt=true;
+                key.printable=false;
+                ch = static_cast<uint8_t>(m_inputBuffer[pos]);
 
-                i += 2;
-            } else {
-                key.code      = uint32_t(Os::KeyConstant::ESCAPE);
-                key.printable = false;
-                escPressed=true;
+                if (ch >= 'A' && ch <= 'Z') { 
+                    key.holdShift=true;
+                }
             }
         }
 
+        // control keys
         if (ch == 127) {
+            ++pos;
             key.code      = uint32_t(Os::KeyConstant::BACKSPACE);
             key.printable = false;
+            putToKeyboardBuffer(key);
+            continue;
         }
 
-        if (ch == '\r' || ch == '\n') {
-            key.code      = uint32_t(Os::KeyConstant::RETURN);
-            key.printable = false;
+        // UTF-8 character
+        const char* buf    = m_inputBuffer.c_str() + pos;
+        char32_t codepoint = Unicode::parseNextUtf8(buf);
+        if (codepoint == 0) {
+            // incomplete UTF-8 sequence
+            pos = m_inputBuffer.length();
+            break;
         }
+
+        m_inputBuffer = std::string(buf);
+        pos=0;
+        key.code      = codepoint;
 
         putToKeyboardBuffer(key);
     }
+
+    m_inputBuffer.erase(0, pos);
 }
+
+
+bool OsPosixConsole::parseEscapeSequence(
+    size_t pos,
+    size_t& consumed,
+    Os::KeyPress& key) {
+    const std::string& s = m_inputBuffer;
+
+    if (s[pos] != 0x1B) {
+        return false;
+    }
+
+    // standalone ESC
+    if (pos + 1 >= s.size()) {
+        consumed      = 1;
+        key.code      = uint32_t(Os::KeyConstant::ESCAPE);
+        key.printable = false;
+        escPressed    = true;
+        return true;
+    }
+
+    if (s.length() > pos + 2 && s[pos + 1] == 'O') {
+        switch (s[pos + 2]) {
+        case 'P':
+            key.code      = uint32_t(Os::KeyConstant::F1);
+            key.printable = false;
+            consumed      = 3;
+            return true;
+        case 'Q':
+            key.code      = uint32_t(Os::KeyConstant::F2);
+            key.printable = false;
+            consumed      = 3;
+            return true;
+        case 'R':
+            key.code      = uint32_t(Os::KeyConstant::F3);
+            key.printable = false;
+            consumed      = 3;
+            return true;
+        case 'S':
+            key.code      = uint32_t(Os::KeyConstant::F4);
+            key.printable = false;
+            consumed      = 3;
+            return true;
+        }
+    }
+
+    if (s[pos + 1] != '[') {
+        // terminal sends ESC O for Shift+Alt+O. We would need a timeout to check for more data (F1)
+        return false;
+    }
+
+    size_t p = pos + 2;
+
+    while (p < s.size()) {
+        unsigned char ch = static_cast<unsigned char>(s[p]);
+        if (ch >= '@' && ch <= '~') {
+            // is:  @ A..Z a..z [\]^_{|}~
+            // not: !"#$%&'()*+,-./0..9:;<=>?
+            break;
+        }
+        ++p;
+    }
+
+    // incomplete sequence
+    if (p >= s.size()) {
+        return false;
+    }
+
+    std::string seq = s.substr(pos + 2, p - (pos + 2));
+    char finalChar  = s[p];
+    consumed        = p - pos + 1;
+    key.printable   = false;
+
+    if (seq.length() > 3 && seq[1] == ';') { 
+        int mod = std::atoi(seq.c_str());
+        seq.erase(seq.begin(), seq.begin()+2);
+        switch (mod) { 
+        case 2: key.holdShift = true; break;
+        case 3: key.holdAlt = true; break;
+        case 4: key.holdShift = true; key.holdAlt = true;break;
+        case 5: key.holdCtrl = true; break;
+        case 6: key.holdCtrl = true; key.holdShift = true; break;
+        case 7: key.holdCtrl = true; key.holdAlt = true; break;
+        case 8: key.holdShift = true;key.holdCtrl = true; key.holdAlt = true; break;
+        }
+    }
+
+    // ESC [ A/B/C/D
+    if (seq.empty()) {
+        switch (finalChar) {
+        case 'A':
+            key.code = uint32_t(Os::KeyConstant::CRSR_UP);
+            return true;
+        case 'B':
+            key.code = uint32_t(Os::KeyConstant::CRSR_DOWN);
+            return true;
+        case 'C':
+            key.code = uint32_t(Os::KeyConstant::CRSR_RIGHT);
+            return true;
+        case 'D':
+            key.code = uint32_t(Os::KeyConstant::CRSR_LEFT);
+            return true;
+        case 'F':
+            key.code = uint32_t(Os::KeyConstant::END);
+            return true;
+        case 'H':
+            key.code = uint32_t(Os::KeyConstant::HOME);
+            return true;
+        }
+    }
+
+    // ESC [ n ~
+    if (finalChar == '~') {
+        int value = std::atoi(seq.c_str());
+        switch (value) {
+        case 1: key.code = uint32_t(Os::KeyConstant::HOME); return true;
+        case 2: key.code = uint32_t(Os::KeyConstant::INSERT); return true;
+        case 3: key.code = uint32_t(Os::KeyConstant::DEL); return true;
+        case 4: key.code = uint32_t(Os::KeyConstant::END); return true;
+        case 5: key.code = uint32_t(Os::KeyConstant::PG_UP); return true;
+        case 6: key.code = uint32_t(Os::KeyConstant::PG_DOWN); return true;
+
+        case 15: key.code = uint32_t(Os::KeyConstant::F5); return true;
+        case 16: key.code = uint32_t(Os::KeyConstant::F6); return true;
+        case 17: key.code = uint32_t(Os::KeyConstant::F7); return true;
+        case 18: key.code = uint32_t(Os::KeyConstant::F8); return true;
+        case 19: key.code = uint32_t(Os::KeyConstant::F9); return true;
+        case 20: key.code = uint32_t(Os::KeyConstant::F10); return true;
+        case 21: key.code = uint32_t(Os::KeyConstant::F11); return true;
+        case 22: key.code = uint32_t(Os::KeyConstant::F12); return true;
+        }
+    }
+
+    // Unknown CSI sequence.
+    key.code = uint32_t(Os::KeyConstant::ESCAPE);
+    return true;
+}
+
 
 #endif // !_WIN32

@@ -19,7 +19,6 @@ cmake -DCMAKE_BUILD_TYPE=Release ../..
 make clean
 make
 
-cd ~/ba67
 
 # Optionally install the project
 # sudo make install
@@ -28,13 +27,21 @@ if [ ! -d ~/BASIC ]; then
 fi
 cp --force --recursive --update ~/ba67/examples/ ~/BASIC/examples/
 
-chmod +x ~/ba67/bin/BA67
-echo build finished
 
-cp --force ~/ba67/bin/BA67 /opt/BA67
-
-if [ -d ~/.local/bin ]; then
-    ln -s /opt/BA67 ~/.local/bin/BA67
+if [ -f ~/ba67/bin/BA67] then
+    echo build succeeded
+    chmod +x ~/ba67/bin/BA67
+    
+    cp --force ~/ba67/bin/BA67 /opt/BA67
+    
+    make clean
+    
+    if [ -d ~/.local/bin ]; then
+        ln -s /opt/BA67 ~/.local/bin/BA67 2>/dev/null
+    else
+        ln -s /opt/BA67 /usr/local/BA67   2>/dev/null
+    fi
+    cd ~/ba67
 else
-    ln -s /opt/BA67 /usr/local/BA67
+    echo build failed!
 fi

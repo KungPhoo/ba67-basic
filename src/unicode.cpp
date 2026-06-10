@@ -6,7 +6,7 @@
 
 // parse the next utf8 character sequence from a string pointer.
 // advance the referenced string pointer.
-// return the Unicode character or '?' when it fails.
+// return the Unicode character or 0 when it fails.
 // this stops at a nul character
 char32_t Unicode::parseNextUtf8(const char*& utf8) {
     char32_t codepoint = 0;
@@ -49,7 +49,7 @@ char32_t Unicode::parseNextUtf8(const char*& utf8) {
         if (*utf8 != '\0') {
             ++utf8;
         }
-        return U'?'; // Invalid UTF-8 sequence
+        return 0; // Invalid UTF-8 sequence
     }
 
     return codepoint;

@@ -279,7 +279,9 @@ void OsSDL2::updateEvents() {
             const char* str = event.text.text;
             while (str != nullptr && *str != '\0') {
                 k.code = Unicode::parseNextUtf8(str);
-                putToKeyboardBuffer(k);
+                if (k.code != 0) {
+                    putToKeyboardBuffer(k);
+                }
             }
         } else if (event.type == SDL_KEYDOWN) {
             KeyPress k;

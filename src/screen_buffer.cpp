@@ -232,61 +232,78 @@ std::string& ScreenBuffer::updateScreenTerminal() {
     static std::string buffer;
     buffer.clear();
 
-    // only one "gray" in this mode. Might use RGB mode? ESC[38;2;r;g;bm
-    // static std::vector<std::string> colFg = {
-    //     ESC "[30m", // black
-    //     ESC "[97m", // white
-    //     ESC "[31m", // red
-    //     ESC "[36m", // cyan
-    //     ESC "[35m", // purple
-    //     ESC "[32m", // green
-    //     ESC "[34m", // blue
-    //     ESC "[93m", // yellow
-    //     ESC "[33m", // orange
-    //     ESC "[33m", // *brown
-    //     ESC "[91m", // light red
-    //     ESC "[37m", // dark gray
-    //     ESC "[37m", // medium gray
-    //     ESC "[92m", // light green
-    //     ESC "[94m",// light blue
-    //     ESC "[37m" // light gray
-    // };
-    // static std::vector<std::string> colBg = {
-    //     ESC "[40m",// black
-    //     ESC "[107m",// white
-    //     ESC "[41m",// red
-    //     ESC "[46m",// cyan
-    //     ESC "[45m",// purple
-    //     ESC "[42m",// green
-    //     ESC "[44m",// blue
-    //     ESC "[103m",// yellow
-    //     ESC "[43m",// orange
-    //     ESC "[43m",// *brown
-    //     ESC "[101m",// light red
-    //     ESC "[47m",// dark gray
-    //     ESC "[47m",// medium gray
-    //     ESC "[102m",// light green
-    //     ESC "[104m",// light blue
-    //     ESC "[47m" // light gray
-    // };
-
     static std::vector<std::string> colFg, colBg;
+
+
     if (colFg.empty()) {
-        for (int i = 0; i < 16; ++i) {
-            int r = (palette[i] >> 16) & 0xff;
-            int g = (palette[i] >> 8) & 0xff;
-            int b = (palette[i] >> 0) & 0xff;
-            int id = 16 + 36*(r/51)+6*(g/51)+(b/51);
 
-            if (r == g && r == b) { 
-                id = (r/11) + 232; // grayscales
+        // "xterm-256color" or "linux" for 16 colors
+        bool has256Colors = true;
+#if !defined(_WIN32)
+        if (getenv("TERM") != nullptr) {
+            std::string term = getenv("TERM");
+            if (term.find("256color") == std::string::npos) {
+                has256Colors = false;
             }
+        }
+#endif
 
-            char bf[256];
-            sprintf(bf, ESC "[38;5;%dm", id);
-            colFg.push_back(bf);
-            sprintf(bf, ESC "[48;5;%dm", id);
-            colBg.push_back(bf);
+        if (has256Colors) {
+            for (int i = 0; i < 16; ++i) {
+                int r  = (palette[i] >> 16) & 0xff;
+                int g  = (palette[i] >> 8) & 0xff;
+                int b  = (palette[i] >> 0) & 0xff;
+                int id = 16 + 36 * (r / 51) + 6 * (g / 51) + (b / 51);
+
+                if (r == g && r == b) {
+                    id = (r / 11) + 232; // grayscales
+                }
+
+                char bf[256];
+                sprintf(bf, ESC "[38;5;%dm", id);
+                colFg.push_back(bf);
+                sprintf(bf, ESC "[48;5;%dm", id);
+                colBg.push_back(bf);
+            }
+        } else {
+            // https://en.wikipedia.org/wiki/ANSI_escape_code
+            // only two "gray" in this mode
+            colFg = {
+                ESC "[30m", // black
+                ESC "[97m", // white
+                ESC "[31m", // red
+                ESC "[36m", // cyan
+                ESC "[35m", // purple
+                ESC "[32m", // green
+                ESC "[34m", // blue
+                ESC "[93m", // yellow
+                ESC "[33m", // orange
+                ESC "[31m", // *brown
+                ESC "[91m", // light red
+                ESC "[90m", // dark gray
+                ESC "[37m", // medium gray
+                ESC "[92m", // light green
+                ESC "[94m", // light blue
+                ESC "[37m" // light gray
+            };
+            colBg = {
+                ESC "[40m", // black
+                ESC "[107m", // white
+                ESC "[41m", // red
+                ESC "[46m", // cyan
+                ESC "[45m", // purple
+                ESC "[42m", // green
+                ESC "[44m", // blue
+                ESC "[103m", // yellow
+                ESC "[43m", // orange
+                ESC "[41m", // *brown
+                ESC "[101m", // light red
+                ESC "[100m", // dark gray
+                ESC "[47m", // medium gray
+                ESC "[102m", // light green
+                ESC "[104m", // light blue
+                ESC "[47m" // light gray
+            };
         }
     }
 
@@ -299,6 +316,13 @@ std::string& ScreenBuffer::updateScreenTerminal() {
     // buffer += ESC "[2J"; // erase screen
     buffer += ESC "[H"; // home
     for (size_t y = 0; y < height; ++y) {
+        if (y > 0) {
+            // print newline - but in black
+            // currentColor = 0;
+            // buffer += colFg[1];
+            // buffer += colBg[1];
+            buffer += "\n";
+        }
         // buffer += ESC "[0K"; // erase from cursor to end of line
         const auto* lnCh = memCh + y * width;
         const auto* lnCo = memCl + y * width;
@@ -319,12 +343,6 @@ std::string& ScreenBuffer::updateScreenTerminal() {
             }
             Unicode::appendAsUtf8(buffer, ch);
         }
-
-        // print newline - but in black
-        // currentColor = 0;
-        // buffer += colFg[1];
-        // buffer += colBg[1];
-        buffer += "\n";
     }
 
 
@@ -336,7 +354,7 @@ std::string& ScreenBuffer::updateScreenTerminal() {
     buffer += ESC "[?25h"; // show cursor
 
 
-    #undef ESC
+#undef ESC
     return buffer;
 }
 
@@ -528,9 +546,9 @@ void ScreenBuffer::resetDefaultColors() {
     angles[15] = -1; // Light Grey
 
     //  This is how I remember them (without the CRT emulation)
-    double bri   = 50.0; // brightness
-    double con   = 100.0; // contrast
-    double sat   = 75.0 / 1.25; // saturation /1.25. Max 0.80
+    double bri = 50.0; // brightness
+    double con = 100.0; // contrast
+    double sat = 75.0 / 1.25; // saturation /1.25. Max 0.80
 
     bool invert  = false;
     double phase = 0.0;
@@ -547,9 +565,9 @@ void ScreenBuffer::resetDefaultColors() {
             v = sat * sin(angle(angles[i], phase)) * ((invert == true) ? -1 : 1);
         }
 
-        y *= con/100.0;
-        u *= con/100.0;
-        v *= con/100.0;
+        y *= con / 100.0;
+        u *= con / 100.0;
+        v *= con / 100.0;
         y += bri; // apply brightness and contrast
 
         double r = gamma_pepto(yuv2r(y, v));

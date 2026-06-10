@@ -32,11 +32,11 @@
     #include <iomanip> // std::setprecision()
 #endif
 
-#define ASSERT(a)                                         \
-    {                                                     \
-        if (!(a)) {                                       \
+#define ASSERT(a)                                 \
+    {                                             \
+        if (!(a)) {                               \
             throw BA67::Error(ErrorId::INTERNAL); \
-        }                                                 \
+        }                                         \
     }
 
 
@@ -565,9 +565,9 @@ void CATALOG(Basic* basic, const std::vector<BA67::Value>& values) {
 
 
     basic->os->screen.cleanCurrentLine();
-    basic->printUtf8String(colKW +(const char*)(u8"╔══")  , true, false);
-    basic->printUtf8String(colLN +dirname                 , true, false);
-    basic->printUtf8String(colKW +(const char*)(u8"═══\n"), true, false);
+    basic->printUtf8String(colKW + (const char*)(u8"╔══"), true, false);
+    basic->printUtf8String(colLN + dirname, true, false);
+    basic->printUtf8String(colKW + (const char*)(u8"═══\n"), true, false);
     std::string str;
 
     std::u32string filter32;
@@ -590,7 +590,7 @@ void CATALOG(Basic* basic, const std::vector<BA67::Value>& values) {
         }
 
         // 5 chars+space for file size - space for CHDIR command
-        str = colKW + (const char*)(u8"║") + colLN + sizestrings[i] + colQU +" \"" + f + "\"\n";
+        str = colKW + (const char*)(u8"║") + colLN + sizestrings[i] + colQU + " \"" + f + "\"\n";
         basic->os->screen.cleanCurrentLine();
         basic->printUtf8String(str, true, false);
         basic->handleEscapeKey(true);
@@ -599,7 +599,7 @@ void CATALOG(Basic* basic, const std::vector<BA67::Value>& values) {
         }
     }
     basic->os->screen.cleanCurrentLine();
-    basic->printUtf8String(colKW +(const char*)(u8"╚══Σ") + colLN + niceSize(totalBytes) +colKW + (const char*)(u8"═══"), true, false);
+    basic->printUtf8String(colKW + (const char*)(u8"╚══Σ") + colLN + niceSize(totalBytes) + colKW + (const char*)(u8"═══"), true, false);
 }
 
 void CLOUD(Basic* basic, const std::vector<BA67::Value>& values) {
@@ -703,7 +703,6 @@ void CHARDEF(Basic* basic, const std::vector<BA67::Value>& values) {
             if (!s.empty()) {
                 const char* pc = s.c_str();
                 codePoint      = Unicode::parseNextUtf8(pc);
-                ;
             }
         } else {
             bytes8           = uint64_t(BA67::ValueToInt(v));
@@ -1379,8 +1378,8 @@ void REMODEL(Basic* basic, const std::vector<BA67::Value>& values) {
     int64_t val     = ValueToInt(values[2]);
     if (key == "SPACING") {
         opt.spacingRequired = (val != 0);
-    // } else if (key == "ZERODOT") {
-    //     opt.dotAsZero = (val != 0);
+        // } else if (key == "ZERODOT") {
+        //     opt.dotAsZero = (val != 0);
     } else if (key == "UPPERCASE") {
         opt.uppercaseInput = (val != 0);
     } else if (key == "COLORLIST") {
@@ -1572,7 +1571,7 @@ BA67::Value ENV$(Basic* basic, const std::vector<BA67::Value>& args) {
     if (args.size() != 1) {
         throw BA67::Error(ErrorId::ARGUMENT_COUNT);
     }
-    if (!ValueIsString(args[0])) { 
+    if (!ValueIsString(args[0])) {
         throw BA67::Error(ErrorId::TYPE_MISMATCH);
     }
 
@@ -1925,8 +1924,8 @@ Basic::Basic(Os* os, SoundSystem* ss) {
     moduleVariableStack.push_back(modules.begin());
     moduleListingStack.push_back(modules.begin());
 
-    this->os             = os;
-    time0                = os->tick();
+    this->os = os;
+    time0    = os->tick();
 
     os->init(this, ss);
 
@@ -1937,7 +1936,7 @@ Basic::Basic(Os* os, SoundSystem* ss) {
                  "REM", "RCHARDEF", "READ", "DATA", "RESTORE",
                  "END", "RUN", "DIM", "NETGET", "HELP", "INPUT", "CLR", "ON", "SCNCLR",
                  "NEW", "LIST", "MODULE", "KEY", "GETKEY", "DEF", "DELETE", "USING",
-                 "DUMP" , "CMD"};
+                 "DUMP", "CMD" };
 
     // commands
     commands.insert({
@@ -2042,7 +2041,7 @@ void Basic::init() {
     auto& RAM = cpu.RAM;
     auto& ROM = cpu.ROM;
 
-        // memcellcpy8(&cpu.RAM[0xA000], RomImage::BASIC_V2(), 0x2000);
+    // memcellcpy8(&cpu.RAM[0xA000], RomImage::BASIC_V2(), 0x2000);
     // memcellcpy8(&cpu.RAM[0xE000], RomImage::KERNAL_C64(), 0x2000);
     // memcellcpy8(&cpu.RAM[0x0000], RomImage::LOW_RAM(), 0x1000);
 
@@ -2136,9 +2135,8 @@ void Basic::init() {
     keyShortcuts[7 - 1] = "\"LIST \"+CHR$(13)";
     keyShortcuts[9 - 1] = "\"CHDIR \"+CHR$(34)+\"CLOUD\"+CHR$(34)+CHR$(13)+\"CATALOG\"+CHR$(13)";
 
-    size_t centerx =  (os->screen.width - 33)/2; //   3;
-    printUtf8String("\n" +
-        std::string(centerx, ' ') + std::string(" ****   BA67 BASIC") + charLogo + " V" + version() + ("   ****\n"));
+    size_t centerx = (os->screen.width - 33) / 2; //   3;
+    printUtf8String("\n" + std::string(centerx, ' ') + std::string(" ****   BA67 BASIC") + charLogo + " V" + version() + ("   ****\n"));
 
     std::string strmem = "   " + ValueToString(int64_t(os->getFreeMemoryInBytes()) / (1024 * 1024)) + std::string(" BASIC MBYTES FREE");
     while (strmem.length() < 31) {
@@ -2853,7 +2851,7 @@ std::vector<BA67::Value> Basic::evaluateExpression(const std::vector<Token>& tok
 
     // take operation from stack, execute it and put the result on the value stack
     auto applyOp = [&]() -> void {
-        if (values.empty() || ops.empty()) { 
+        if (values.empty() || ops.empty()) {
             throw Error(ErrorId::SYNTAX);
         }
 
@@ -3320,10 +3318,10 @@ void Basic::doPrintValue(Value& v) {
 
 // Does PRINT and PRINT# commands. Will restore the CMD (change main device)
 void Basic::handlePRINT(const std::vector<Token>& tokens) {
-    size_t istart = 1;
+    size_t istart      = 1;
     bool changedFileNo = false;
     if (tokens.size() > 1 && tokens[1].type == TokenType::FILEHANDLE) {
-        changedFileNo=true;
+        changedFileNo = true;
         currentFileNo = ValueToInt(tokens[1].tv);
 
         if (tokens.size() > 2 && tokens[2].type != TokenType::COMMA) {
@@ -3987,7 +3985,7 @@ void Basic::handleLIST(const std::vector<Token>& tokens) {
     Unicode::appendAsUtf8(colREM, ControlCharacters::charForColor(ScreenBuffer::buddyColor(colForMod)));
 
     // now, that's a hack
-    if (!options.colorzizeListing || currentFileNo!=0) {
+    if (!options.colorzizeListing || currentFileNo != 0) {
         colLN.clear();
         colKW.clear();
         colQU.clear();
@@ -4477,14 +4475,14 @@ void Basic::handleHELP(const std::vector<Token>& tokens) {
 
 void Basic::handleCMD(const std::vector<Token>& intokens) {
     std::vector<Token> copyToken { intokens };
-    if (copyToken.empty()) { 
+    if (copyToken.empty()) {
         throw Error(ErrorId::SYNTAX);
     }
-    
+
     size_t fileNo = 0;
     try {
         fileNo = ValueToInt(copyToken[1].tv);
-    } catch (...) { 
+    } catch (...) {
         throw Error(ErrorId::TYPE_MISMATCH);
     }
 
@@ -5154,6 +5152,9 @@ void Basic::printUtf8String(const char* utf8, const char* pend, bool applyCtrlCo
         if (applyCtrlCodes) {
             while (utf8 < pend) {
                 char32_t c = Unicode::parseNextUtf8(utf8);
+                if (c == 0) { // parse error
+                    c = U'?';
+                }
 
                 if (!ctrlInQuotes) {
                     if (quote == 0) {
