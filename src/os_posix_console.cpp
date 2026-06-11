@@ -100,7 +100,6 @@ OsPosixConsole::~OsPosixConsole() {
 /* may be called with buf==NULL if we only want info */
 /* must not exit - we may have cleanup to do */
 int getfont(int fd, char* buf, int* count, int* width, int* height) {
-    struct consolefontdesc cfd;
     struct console_font_op cfo;
     int i;
     /* First attempt: KDFONTOP */
@@ -126,6 +125,7 @@ int getfont(int fd, char* buf, int* count, int* width, int* height) {
     //     return -1;
     // }
     /* Second attempt: GIO_FONTX */
+    struct consolefontdesc cfd;
     fprintf(stderr, "Method 2\n");
     cfd.charcount  = *count;
     cfd.charheight = 0;
@@ -184,14 +184,13 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
     canUpdateFont=false;
 
 
-    int count=256, width=0, height=0;
-    int rv = getfont(STDOUT_FILENO, nullptr, &count, &width, &height);
-    printf("rv%d. c%d w%d h%d\n", rv, count, width, height);
+    // int count=256, width=0, height=0;
+    // int rv = getfont(STDOUT_FILENO, nullptr, &count, &width, &height);
+    // printf("rv%d. c%d w%d h%d\n", rv, count, width, height);
 
     fontSlotCount = 256;
-    #if 0
 
-    std::vector<unsigned char> kdFontBuf(512 * 32);
+    std::vector<unsigned char> kdFontBuf(256 * 32);
     console_font_op op {};
     op.op        = KD_FONT_OP_GET;
     op.flags=0;
@@ -200,6 +199,7 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
     op.charcount = 256;
     // get font information _and_ font glyphs - no way to just get the count.
     if (ioctl(STDOUT_FILENO, KDFONTOP, &op) == 0) {
+        // 8x16x256
         printf("Linux console. %ux%u, %u glyphs\n",
                op.width,
                op.height,
@@ -213,9 +213,6 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
 
         printf("not a Linux virtual console\n");
     }
-    #endif
-
-
 
 
     slotToCodepoint.resize(fontSlotCount);
