@@ -14,6 +14,7 @@
     #include <sys/ioctl.h>
     #include <termios.h>
     #include <poll.h>
+    #include <cstring>
 
 
     #include <fcntl.h>
@@ -141,6 +142,10 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
         fontSlotCount = op.charcount;
         canUpdateFont=true;
     } else {
+        fprintf(stderr, "KDFONTOP failed: errno=%d (%s)\n", errno, strerror(errno));
+        char* tty = ttyname(STDOUT_FILENO);
+        fprintf(stderr, "ttyname(stdout) = %s\n", tty ? tty : "(null)");
+
         canUpdateFont=false;
         printf("not a Linux virtual console\n");
     }
