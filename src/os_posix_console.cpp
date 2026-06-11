@@ -18,9 +18,9 @@
 
 
     #include <fcntl.h>
-#ifdef __linux__
-    #include <linux/kd.h>
-#endif
+    #ifdef __linux__
+        #include <linux/kd.h>
+    #endif
 
 namespace fs = std::filesystem;
 
@@ -181,22 +181,20 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
     screen.setSize(col, row);
 
     // See, if we can redefine glyphs
-    canUpdateFont=false;
+    canUpdateFont = false;
 
 
     // int count=256, width=0, height=0;
     // int rv = getfont(STDOUT_FILENO, nullptr, &count, &width, &height);
     // printf("rv%d. c%d w%d h%d\n", rv, count, width, height);
 
-    fontSlotCount = 256;
-
-    std::vector<unsigned char> kdFontBuf(256 * 32);
+    fontSlotCount = 512;
     console_font_op op {};
-    op.op        = KD_FONT_OP_GET;
-    op.flags=0;
-    op.width=op.height=32;
-    op.data      = nullptr;
-    op.charcount = 256;
+    op.op    = KD_FONT_OP_GET;
+    op.flags = 0;
+    op.width = op.height = 32;
+    op.data              = nullptr;
+    op.charcount         = 512;
     // get font information _and_ font glyphs - no way to just get the count.
     if (ioctl(STDOUT_FILENO, KDFONTOP, &op) == 0) {
         // 8x16x256
@@ -205,7 +203,7 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
                op.height,
                op.charcount);
         fontSlotCount = op.charcount;
-        canUpdateFont=true;
+        canUpdateFont = true;
     } else {
         fprintf(stderr, "KDFONTOP failed: errno=%d (%s)\n", errno, strerror(errno));
         char* tty = ttyname(STDOUT_FILENO);
@@ -216,10 +214,10 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
 
 
     slotToCodepoint.resize(fontSlotCount);
-    for (int i = 0; i < fontSlotCount; ++i) { 
+    for (int i = 0; i < fontSlotCount; ++i) {
         slotToCodepoint[i] = char32_t(i);
     }
-    nextSlot=128;
+    nextSlot       = 128;
     mustReloadFont = true;
 
     // printf(ESC "[2J"); // clear screen
@@ -243,26 +241,15 @@ void OsPosixConsole::reloadFont() {
     }
 
     static std::vector<uint8_t> fontData;
-    fontData.resize(8*fontSlotCount);
-    for (size_t i = 0; i < fontSlotCount; ++i) { 
+    fontData.resize(32 * fontSlotCount); // each glyph occupies 32 bytes - regardless of the width/height!
+    for (size_t i = 0; i < fontSlotCount; ++i) {
         auto& cd = this->screen.getCharDefinition(slotToCodepoint[i]); // pixels for mapped character
-        for (size_t y = 0; y < 8; ++y) { 
-            fontData[i*8+y] = cd.bits[y];
+        for (size_t y = 0; y < 8; ++y) {
+            fontData[i * 32 + y] = cd.bits[y]; 
         }
     }
 
     // map 16 bit Unicode to font slot for Linux console
-    // our map is Unicode 0..255 = 0..255
-    // The character bitmaps 128..255 are manipulated to represent the Unicode
-    // characters in unimap[].
-    // struct unipair {
-    //     uint16_t unicode;
-    //     uint16_t fontpos;
-    // };
-    // struct unimapdesc {
-    //     uint16_t entry_ct;
-    //     struct unipair* entries;
-    // };
     static std::vector<unipair> pairs;
     pairs.resize(fontSlotCount);
     for (size_t i = 0; i < fontSlotCount; ++i) {
@@ -271,12 +258,12 @@ void OsPosixConsole::reloadFont() {
     }
 
 
-#ifdef __linux__
+    #ifdef __linux__
     static const char* devname = ttyname(STDOUT_FILENO);
-    if (devname == NULL) { 
+    if (devname == NULL) {
         devname = "/dev/tty"; // /dev/tty means "the controlling terminal of this process"
     }
-    int fd = open(devname, O_RDWR); 
+    int fd = open(devname, O_RDWR);
     if (fd < 0) {
         return;
     }
@@ -296,37 +283,43 @@ void OsPosixConsole::reloadFont() {
 
     // mapping
     unimapinit advise {};
-    advice.advised_hashsize  = 0;
-    advice.advised_hashstep  = 0;
-    advice.advised_hashlevel = 0;
+    advise.advised_hashsize  = 0;
+    advise.advised_hashstep  = 0;
+    advise.advised_hashlevel = 0;
     ioctl(fd, PIO_UNIMAPCLR, &advise);
-    
+
     unimapdesc umapd {};
     umapd.entry_ct = uint16_t(fontSlotCount);
     umapd.entries  = &pairs[0];
 
-    if (ioctl(fd, PIO_UNIMAP, &umapd)) { 
+    if (ioctl(fd, PIO_UNIMAP, &umapd)) {
         fprintf(stderr, "PIO_UNIMAP %d\n", errno);
         exit(0);
     }
 
     close(fd);
-#endif
+    #endif
 }
 
 
-char32_t OsPosixConsole::mapUnicodeToFontpos(char32_t c) { 
-    if (!canUpdateFont) { return c;}
+char32_t OsPosixConsole::mapUnicodeToFontpos(char32_t c) {
+    if (!canUpdateFont) {
+        return c;
+    }
+
+    if (c < 128) {
+        return c;
+    }
 
     // we use the font slots [128 .. 255] for variable Unicode font characters
-    for (size_t i = 127; i < fontSlotCount; ++i) { 
-        if (slotToCodepoint[i] == c) { 
+    for (size_t i = 128; i < fontSlotCount; ++i) {
+        if (slotToCodepoint[i] == c) {
             return char32_t(i);
         }
     }
     // not found, add
-    mustReloadFont=true;
-    char32_t ret = char32_t(nextSlot);
+    mustReloadFont       = true;
+    char32_t ret         = char32_t(nextSlot);
     slotToCodepoint[ret] = c;
     if (++nextSlot >= fontSlotCount) {
         nextSlot = 128;
@@ -363,11 +356,10 @@ size_t OsPosixConsole::getFreeMemoryInBytes() {
 // ------------------------------------------------------------
 void OsPosixConsole::presentScreen() {
     printf("%s", screen.updateScreenTerminal(
-        [this](char32_t c)
-    {
-        return mapUnicodeToFontpos(c);
-    }
-    ).c_str());
+                           [this](char32_t c) {
+                               return mapUnicodeToFontpos(c);
+                           })
+                     .c_str());
     fflush(stdout);
     reloadFont();
 }
@@ -495,7 +487,7 @@ void OsPosixConsole::parseInputBuffer() {
         Os::KeyPress key {};
         key.printable = true;
 
-        uint8_t ch    = static_cast<uint8_t>(inputBuffer[pos]);
+        uint8_t ch = static_cast<uint8_t>(inputBuffer[pos]);
 
         // ANSI sequence
         if (ch == 0x1B) {
@@ -504,18 +496,18 @@ void OsPosixConsole::parseInputBuffer() {
                 pos += consumed;
                 putToKeyboardBuffer(key);
                 continue;
-            }else{
+            } else {
                 // incomplete sequence
-                if (pos+1 == inputBuffer.length()) { 
+                if (pos + 1 == inputBuffer.length()) {
                     break; // wait for more bytes
                 }
                 ++pos;
-                key.holdAlt=true;
-                key.printable=false;
-                ch = static_cast<uint8_t>(inputBuffer[pos]);
+                key.holdAlt   = true;
+                key.printable = false;
+                ch            = static_cast<uint8_t>(inputBuffer[pos]);
 
-                if (ch >= 'A' && ch <= 'Z') { 
-                    key.holdShift=true;
+                if (ch >= 'A' && ch <= 'Z') {
+                    key.holdShift = true;
                 }
             }
         }
@@ -539,8 +531,8 @@ void OsPosixConsole::parseInputBuffer() {
         }
 
         inputBuffer = std::string(buf);
-        pos=0;
-        key.code      = codepoint;
+        pos         = 0;
+        key.code    = codepoint;
 
         putToKeyboardBuffer(key);
     }
@@ -620,17 +612,30 @@ bool OsPosixConsole::parseEscapeSequence(
     consumed        = p - pos + 1;
     key.printable   = false;
 
-    if (seq.length() > 3 && seq[1] == ';') { 
+    if (seq.length() > 3 && seq[1] == ';') {
         int mod = std::atoi(seq.c_str());
-        seq.erase(seq.begin(), seq.begin()+2);
-        switch (mod) { 
+        seq.erase(seq.begin(), seq.begin() + 2);
+        switch (mod) {
         case 2: key.holdShift = true; break;
         case 3: key.holdAlt = true; break;
-        case 4: key.holdShift = true; key.holdAlt = true;break;
+        case 4:
+            key.holdShift = true;
+            key.holdAlt   = true;
+            break;
         case 5: key.holdCtrl = true; break;
-        case 6: key.holdCtrl = true; key.holdShift = true; break;
-        case 7: key.holdCtrl = true; key.holdAlt = true; break;
-        case 8: key.holdShift = true;key.holdCtrl = true; key.holdAlt = true; break;
+        case 6:
+            key.holdCtrl  = true;
+            key.holdShift = true;
+            break;
+        case 7:
+            key.holdCtrl = true;
+            key.holdAlt  = true;
+            break;
+        case 8:
+            key.holdShift = true;
+            key.holdCtrl  = true;
+            key.holdAlt   = true;
+            break;
         }
     }
 
