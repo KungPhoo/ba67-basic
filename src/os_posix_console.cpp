@@ -132,8 +132,13 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
     screen.setSize(col, row);
 
     // See, if we can redefine glyphs
+
+    std::vector<unsigned char> kdFontBuf(512 * 32);
     console_font_op op {};
-    op.op = KD_FONT_OP_GET;
+    op.op        = KD_FONT_OP_GET;
+    op.data      = kdFontBuf.data();
+    op.charcount = 512;
+    // get font information _and_ font glyphs - no way to just get the count.
     if (ioctl(STDOUT_FILENO, KDFONTOP, &op) == 0) {
         printf("Linux console. %ux%u, %u glyphs\n",
                op.width,
