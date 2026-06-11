@@ -15,6 +15,12 @@
     #include <termios.h>
     #include <poll.h>
 
+
+    #include <fcntl.h>
+#ifdef __linux__
+    #include <linux/kd.h>
+#endif
+
 namespace fs = std::filesystem;
 
     #define ESC "\x1b"
@@ -97,7 +103,7 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
     enableRawMode();
 
     // UTF-8 terminal
-    setenv("LANG", "en_US.UTF-8", 1);
+    this->setEnv("LANG", "en_US.UTF-8");
 
     // Create ~/Documents/BASIC
     std::string home = getHomeDirectory();
@@ -124,6 +130,13 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
     // GRAPHIC 5
     screen.setSize(col, row);
 
+    slotToCodepoint.resize(fontSlotCount);
+    for (size_t i = 0; i < fontSlotCount; ++i) { 
+        slotToCodepoint[i] = char32_t(i);
+    }
+    nextSlot=128;
+    mustReloadFont = true;
+
     // printf(ESC "[2J"); // clear screen
     // printf(ESC "[H"); // home cursor
 
@@ -134,6 +147,91 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
     return true;
 }
 
+void OsPosixConsole::reloadFont() {
+    mustReloadFont = false;
+
+    static std::vector<uint8_t> fontData;
+    fontData.resize(8*fontSlotCount);
+    for (size_t i = 0; i < fontSlotCount; ++i) { 
+        auto& cd = this->screen.getCharDefinition(slotToCodepoint[i]); // pixels for mapped character
+        for (size_t y = 0; y < 8; ++y) { 
+            fontData[i*8+y] = cd.bits[y];
+        }
+    }
+
+    // map 16 bit Unicode to font slot for Linux console
+    // our map is Unicode 0..255 = 0..255
+    // The character bitmaps 128..255 are manipulated to represent the Unicode
+    // characters in unimap[].
+    // struct unipair {
+    //     uint16_t unicode;
+    //     uint16_t fontpos;
+    // };
+    // struct unimapdesc {
+    //     uint16_t entry_ct;
+    //     struct unipair* entries;
+    // };
+    static std::vector<unipair> pairs;
+    pairs.resize(fontSlotCount);
+    for (size_t i = 0; i < fontSlotCount; ++i) {
+        pairs[i].unicode = uint16_t(i);
+        pairs[i].fontpos = uint16_t(i);
+    }
+
+    unimapdesc umapd {};
+    umapd.entry_ct = uint16_t(pairs.size());
+    umapd.entries  = &pairs[0];
+
+#ifdef __linux__
+    static const char* devname = ttyname(STDOUT_FILENO);
+    if (devname == NULL) { 
+        devname = "/dev/tty"; // /dev/tty means "the controlling terminal of this process"
+    }
+    int fd = open(devname, O_RDWR); 
+    if (fd < 0) {
+        return;
+    }
+
+    // glyphs
+    console_font_op op {};
+    op.op        = KD_FONT_OP_SET;
+    op.width     = 8;
+    op.height    = 8;
+    op.charcount = fontSlotCount;
+    op.data      = const_cast<unsigned char*>(&fontData[0]);
+
+    if (ioctl(fd, KDFONTOP, &op) < 0) {
+        fprintf(stderr, "KDFONTOP");
+    }
+
+    // mapping
+    struct unimapinit advise {};
+    ioctl(fd, PIO_UNIMAPCLR, &advise);
+    ioctl(fd, PIO_UNIMAP, &umapd);
+
+    close(fd);
+#endif
+}
+
+
+uint16_t OsPosixConsole::mapUnicodeToFontpos(char32_t c) { 
+    // we use the font slots [128 .. 255] for variable Unicode font characters
+    for (size_t i = 127; i < fontSlotCount; ++i) { 
+        if (slotToCodepoint[i] == c) { 
+            return uint16_t(i);
+        }
+    }
+    // not found, add
+    mustReloadFont=true;
+    uint16_t ret = nextSlot;
+    slotToCodepoint[ret] = c;
+    if (++nextSlot >= fontSlotCount) {
+        nextSlot = 128;
+    }
+    return ret;
+}
+
+
 // ------------------------------------------------------------
 // Timing
 // ------------------------------------------------------------
@@ -143,9 +241,7 @@ uint64_t OsPosixConsole::tick() const {
 
     auto now = std::chrono::steady_clock::now();
 
-    return std::chrono::duration_cast<
-               std::chrono::milliseconds>(now - start)
-        .count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
 }
 
 // ------------------------------------------------------------
@@ -163,7 +259,7 @@ size_t OsPosixConsole::getFreeMemoryInBytes() {
 // Rendering
 // ------------------------------------------------------------
 void OsPosixConsole::presentScreen() {
-    printf("%s", screen.updateScreenTerminal().c_str());
+    printf("%s", screen.updateScreenTerminal(slotToCodepoint).c_str());
     fflush(stdout);
 }
 
@@ -239,10 +335,7 @@ std::string OsPosixConsole::getEnv(
     return v;
 }
 
-void OsPosixConsole::setEnv(
-    const std::string& name,
-    const std::string& value) {
-
+void OsPosixConsole::setEnv(const std::string& name, const std::string& value) {
     setenv(name.c_str(), value.c_str(), 1);
 }
 
@@ -275,14 +368,13 @@ void OsPosixConsole::updateEvents() {
     }
 
     char tmp[128];
-
     ssize_t n = read(STDIN_FILENO, tmp, sizeof(tmp));
 
     if (n <= 0) {
         return;
     }
 
-    m_inputBuffer.append(tmp, static_cast<size_t>(n));
+    inputBuffer.append(tmp, static_cast<size_t>(n));
 
     parseInputBuffer();
 }
@@ -290,11 +382,11 @@ void OsPosixConsole::updateEvents() {
 void OsPosixConsole::parseInputBuffer() {
     size_t pos = 0;
 
-    while (pos < m_inputBuffer.size()) {
+    while (pos < inputBuffer.size()) {
         Os::KeyPress key {};
         key.printable = true;
 
-        uint8_t ch    = static_cast<uint8_t>(m_inputBuffer[pos]);
+        uint8_t ch    = static_cast<uint8_t>(inputBuffer[pos]);
 
         // ANSI sequence
         if (ch == 0x1B) {
@@ -305,13 +397,13 @@ void OsPosixConsole::parseInputBuffer() {
                 continue;
             }else{
                 // incomplete sequence
-                if (pos+1 == m_inputBuffer.length()) { 
+                if (pos+1 == inputBuffer.length()) { 
                     break; // wait for more bytes
                 }
                 ++pos;
                 key.holdAlt=true;
                 key.printable=false;
-                ch = static_cast<uint8_t>(m_inputBuffer[pos]);
+                ch = static_cast<uint8_t>(inputBuffer[pos]);
 
                 if (ch >= 'A' && ch <= 'Z') { 
                     key.holdShift=true;
@@ -329,22 +421,22 @@ void OsPosixConsole::parseInputBuffer() {
         }
 
         // UTF-8 character
-        const char* buf    = m_inputBuffer.c_str() + pos;
+        const char* buf    = inputBuffer.c_str() + pos;
         char32_t codepoint = Unicode::parseNextUtf8(buf);
         if (codepoint == 0) {
             // incomplete UTF-8 sequence
-            pos = m_inputBuffer.length();
+            pos = inputBuffer.length();
             break;
         }
 
-        m_inputBuffer = std::string(buf);
+        inputBuffer = std::string(buf);
         pos=0;
         key.code      = codepoint;
 
         putToKeyboardBuffer(key);
     }
 
-    m_inputBuffer.erase(0, pos);
+    inputBuffer.erase(0, pos);
 }
 
 
@@ -352,7 +444,7 @@ bool OsPosixConsole::parseEscapeSequence(
     size_t pos,
     size_t& consumed,
     Os::KeyPress& key) {
-    const std::string& s = m_inputBuffer;
+    const std::string& s = inputBuffer;
 
     if (s[pos] != 0x1B) {
         return false;

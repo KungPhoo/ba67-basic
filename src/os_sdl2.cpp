@@ -124,8 +124,13 @@ std::string OsSDL2::getEnv(const std::string& name) {
 }
 
 void OsSDL2::setEnv(const std::string& name, const std::string& value) {
-    std::string cmd(name + "=" + value);
-    putenv(cmd.data());
+    std::string all(name + "=" + value);
+
+    static std::map<std::string, std::string> pairs;
+    pairs[name] = all;
+    // putenv does not make an internal copy. The passed string must stay in memory.
+    ::putenv(pairs[name].data());
+
     // SDL3 : SDL_SetEnvironmentVariable(SDL_GetEnvironment(), name.c_str(), value.c_str(), true);
 }
 

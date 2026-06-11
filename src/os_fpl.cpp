@@ -172,9 +172,10 @@ void OsFPL::setEnv(const std::string& name, const std::string& value) {
         Unicode::toU16String(value.c_str(), v16);
     ::SetEnvironmentVariableW((const wchar_t*)n16.c_str(), (const wchar_t*)v16.c_str());
     #else
-
-        ::putenv(all.data());
-
+        static std::map<std::string, std::string> pairs;
+        pairs[name] = all;
+        // putenv does not make an internal copy. The passed string must stay in memory.
+        ::putenv(pairs[name].data());
     #endif
 }
 
