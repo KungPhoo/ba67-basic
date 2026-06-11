@@ -10,6 +10,7 @@
 #include "charmap.h"
 #include "kernal.h"
 #include "rom.h"
+#include <functional>
 
 class Sprite {
 public:
@@ -117,7 +118,7 @@ public:
     // buffer to draw on a bitmap.
     void updateScreenBitmap(std::vector<uint8_t>& pixelsPal, std::vector<uint32_t>& pixelsRGB);
     // buffer to print on console
-    std::string& updateScreenTerminal(const std::vector<char32_t>& slotToCodepoint);
+    std::string& updateScreenTerminal(std::function<char32_t(char32_t)> mapping = nullptr);
 
 
     std::u32string getSelectedText(Cursor start, Cursor end) const;

@@ -150,7 +150,7 @@ size_t OsWindowsConsole::getFreeMemoryInBytes() {
 
 
 void OsWindowsConsole::presentScreen() {
-    printf("%s", screen.updateScreenTerminal({}).c_str());
+    printf("%s", screen.updateScreenTerminal().c_str());
     fflush(stdout);
 }
 

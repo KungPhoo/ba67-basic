@@ -42,13 +42,14 @@ private:
     mutable bool escPressed=false;
     std::string inputBuffer;
 
-    const size_t fontSlotCount = 256;
+    bool canUpdateFont=false;
+    size_t fontSlotCount = 256;
     std::vector<char32_t> slotToCodepoint; // [glyph slot] = real Unicode
     size_t nextSlot = 128;
     bool   mustReloadFont=true;
 
     void reloadFont();
-    uint16_t mapUnicodeToFontpos(char32_t c);
+    char32_t mapUnicodeToFontpos(char32_t c);
 };
 
 #endif

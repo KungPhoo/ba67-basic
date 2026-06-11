@@ -114,21 +114,36 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
     }
 
 
+    // GRAPHIC 5
     int col = 80;
     int row = 25;
     struct winsize w {};
-    ioctl(0, TIOCGWINSZ, &w);
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
     if (w.ws_row * w.ws_col > 64) {
         if (w.ws_col < col) {
             col = w.ws_col;
         }
-        if (w.ws_row <= row) {
-            row = w.ws_row - 1;
+        if (w.ws_row < row) {
+            row = w.ws_row;
         }
     }
-
-    // GRAPHIC 5
+    printf("terminal size is %dx%d\n", col, row);
     screen.setSize(col, row);
+
+    // See, if we can redefine glyphs
+    console_font_op op {};
+    op.op = KD_FONT_OP_GET;
+    if (ioctl(STDOUT_FILENO, KDFONTOP, &op) == 0) {
+        printf("Linux console. %ux%u, %u glyphs\n",
+               op.width,
+               op.height,
+               op.charcount);
+        fontSlotCount = op.charcount;
+        canUpdateFont=true;
+    } else {
+        canUpdateFont=false;
+        printf("not a Linux virtual console\n");
+    }
 
     slotToCodepoint.resize(fontSlotCount);
     for (size_t i = 0; i < fontSlotCount; ++i) { 
@@ -148,7 +163,14 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
 }
 
 void OsPosixConsole::reloadFont() {
+    if (!mustReloadFont) {
+        return;
+    }
     mustReloadFont = false;
+
+    if (!canUpdateFont) {
+        return;
+    }
 
     static std::vector<uint8_t> fontData;
     fontData.resize(8*fontSlotCount);
@@ -214,16 +236,18 @@ void OsPosixConsole::reloadFont() {
 }
 
 
-uint16_t OsPosixConsole::mapUnicodeToFontpos(char32_t c) { 
+char32_t OsPosixConsole::mapUnicodeToFontpos(char32_t c) { 
+    if (!canUpdateFont) { return c;}
+
     // we use the font slots [128 .. 255] for variable Unicode font characters
     for (size_t i = 127; i < fontSlotCount; ++i) { 
         if (slotToCodepoint[i] == c) { 
-            return uint16_t(i);
+            return char32_t(i);
         }
     }
     // not found, add
     mustReloadFont=true;
-    uint16_t ret = nextSlot;
+    char32_t ret = char32_t(nextSlot);
     slotToCodepoint[ret] = c;
     if (++nextSlot >= fontSlotCount) {
         nextSlot = 128;
@@ -259,8 +283,14 @@ size_t OsPosixConsole::getFreeMemoryInBytes() {
 // Rendering
 // ------------------------------------------------------------
 void OsPosixConsole::presentScreen() {
-    printf("%s", screen.updateScreenTerminal(slotToCodepoint).c_str());
+    printf("%s", screen.updateScreenTerminal(
+        [this](char32_t c)
+    {
+        return mapUnicodeToFontpos(c);
+    }
+    ).c_str());
     fflush(stdout);
+    reloadFont();
 }
 
 // ------------------------------------------------------------

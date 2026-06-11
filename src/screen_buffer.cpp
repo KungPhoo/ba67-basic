@@ -228,7 +228,7 @@ void ScreenBuffer::updateScreenBitmap(std::vector<uint8_t>& pixelsPal, std::vect
 // in case you re-mapped the Unicode characters, provide the mapping
 // as an argument here. Otherwise just pass an empty array.
 // Characters > 127 are mapped, then.
-std::string& ScreenBuffer::updateScreenTerminal(const std::vector<char32_t>& slotToCodepoint) {
+std::string& ScreenBuffer::updateScreenTerminal(std::function<char32_t(char32_t)> mapping) {
     // uses ESC-codes for Windows and Liunx: https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
 #define ESC "\x1b"
 
@@ -347,15 +347,9 @@ std::string& ScreenBuffer::updateScreenTerminal(const std::vector<char32_t>& slo
             }
 
             // apply mapping to Linux console glyphs
-            if (ch > 127) {
-                for (size_t isl = 0; isl < slotToCodepoint.size(); ++isl) {
-                    if (slotToCodepoint[isl] == ch) {
-                        ch = isl;
-                        break;
-                    }
-                }
+            if (ch > 127 && mapping) {
+                ch = mapping(ch);
             }
-
             Unicode::appendAsUtf8(buffer, ch);
         }
     }
