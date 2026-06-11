@@ -42,9 +42,9 @@ private:
     std::string inputBuffer;
 
     bool canUpdateFont=false;
-    size_t fontSlotCount = 256;
+    int fontSlotCount = 256;
     std::vector<char32_t> slotToCodepoint; // [glyph slot] = real Unicode
-    size_t nextSlot = 128;
+    int nextSlot = 128;
     bool   mustReloadFont=true;
 
     void reloadFont();

@@ -216,7 +216,7 @@ bool OsPosixConsole::init(Basic* basic, SoundSystem* ss) {
 
 
     slotToCodepoint.resize(fontSlotCount);
-    for (size_t i = 0; i < fontSlotCount; ++i) { 
+    for (int i = 0; i < fontSlotCount; ++i) { 
         slotToCodepoint[i] = char32_t(i);
     }
     nextSlot=128;
@@ -270,9 +270,6 @@ void OsPosixConsole::reloadFont() {
         pairs[i].fontpos = uint16_t(i);
     }
 
-    unimapdesc umapd {};
-    umapd.entry_ct = uint16_t(pairs.size());
-    umapd.entries  = &pairs[0];
 
 #ifdef __linux__
     static const char* devname = ttyname(STDOUT_FILENO);
@@ -293,13 +290,25 @@ void OsPosixConsole::reloadFont() {
     op.data      = const_cast<unsigned char*>(&fontData[0]);
 
     if (ioctl(fd, KDFONTOP, &op) < 0) {
-        fprintf(stderr, "KDFONTOP");
+        fprintf(stderr, "KDFONTOP %d", errno);
+        exit(0);
     }
 
     // mapping
-    struct unimapinit advise {};
+    unimapinit advise {};
+    advice.advised_hashsize  = 0;
+    advice.advised_hashstep  = 0;
+    advice.advised_hashlevel = 0;
     ioctl(fd, PIO_UNIMAPCLR, &advise);
-    ioctl(fd, PIO_UNIMAP, &umapd);
+    
+    unimapdesc umapd {};
+    umapd.entry_ct = uint16_t(fontSlotCount);
+    umapd.entries  = &pairs[0];
+
+    if (ioctl(fd, PIO_UNIMAP, &umapd)) { 
+        fprintf(stderr, "PIO_UNIMAP %d\n", errno);
+        exit(0);
+    }
 
     close(fd);
 #endif
