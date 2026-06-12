@@ -16,7 +16,7 @@ cd ~/ba67/out/build
 cmake -DCMAKE_BUILD_TYPE=Release ../..
 
 # Build the project
-make clean
+# make clean
 make
 
 
@@ -34,7 +34,7 @@ if [ -f ~/ba67/bin/BA67 ]; then
     
     cp --force ~/ba67/bin/BA67 /opt/BA67
     
-    make clean
+    # make clean
     
     if [ -d ~/.local/bin ]; then
         ln -s /opt/BA67 ~/.local/bin/BA67 2>/dev/null

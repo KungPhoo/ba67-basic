@@ -348,6 +348,12 @@ std::string& ScreenBuffer::updateScreenTerminal(std::function<char32_t(char32_t)
 
             // apply mapping to Linux console glyphs
             if (ch > 127 && mapping) {
+                // HACK: Linux only supports Unicode mapping in 16 bits.
+                //       Just use the final 3 bytes and put them im "Private Use Area Block" U+E000..U+F8FF
+                if (ch > 0xFFFF) { 
+                    ch = (ch & 0x07FF) + 0xE000;
+                }
+
                 ch = mapping(ch);
             }
             Unicode::appendAsUtf8(buffer, ch);
