@@ -248,7 +248,7 @@ std::string& ScreenBuffer::updateScreenTerminal(std::function<char32_t(char32_t)
         // 13 is unused. It's a bright purple, but we overwrite with brown.
         // 14 (light cyan) use reused as a light gray.
         static const std::vector<int> c64term = { 0, 15, 1, 6, 5, 2, 4, 11,    3, 13 /*lt purple=brown*/, 9, 8, 7, 10, 12, 14 /*lt.cyan=lt gray*/ };
-        for (int i = 0; i < 15; ++i) {
+        for (int i = 0; i < 16; ++i) {
             uint32_t c = palette[i];
             int r = (c >> 16) & 0xff;
             int g = (c >> 8) & 0xff;
@@ -258,22 +258,22 @@ std::string& ScreenBuffer::updateScreenTerminal(std::function<char32_t(char32_t)
         // https://en.wikipedia.org/wiki/ANSI_escape_code
         // only two "gray" in this mode
         colFg = {
-            ESC "[30m", // black
-            ESC "[97m", // white
-            ESC "[31m", // red
-            ESC "[36m", // cyan
-            ESC "[35m", // purple
-            ESC "[32m", // green
-            ESC "[34m", // blue
-            ESC "[93m", // yellow
-            ESC "[33m", // orange
-            ESC "[31m", // *brown
-            ESC "[91m", // light red
-            ESC "[90m", // dark gray
-            ESC "[37m", // medium gray
-            ESC "[92m", // light green
-            ESC "[94m", // light blue
-            ESC "[95m"  // light gray
+            ESC "[30m", //  1 black
+            ESC "[97m", //  2 white
+            ESC "[31m", //  3 red
+            ESC "[36m", //  4 cyan
+            ESC "[35m", //  5 purple
+            ESC "[32m", //  6 green
+            ESC "[34m", //  7 blue
+            ESC "[93m", //  8 yellow
+            ESC "[33m", //  9 orange
+            ESC "[95m", // 10 *brown
+            ESC "[91m", // 11 light red
+            ESC "[90m", // 12 dark gray
+            ESC "[37m", // 13 medium gray
+            ESC "[92m", // 14 light green
+            ESC "[94m", // 15 light blue
+            ESC "[96m"  // 16 *light gray
         };
         colBg = {
             ESC "[40m", // black
@@ -285,13 +285,13 @@ std::string& ScreenBuffer::updateScreenTerminal(std::function<char32_t(char32_t)
             ESC "[44m", // blue
             ESC "[103m", // yellow
             ESC "[43m", // orange
-            ESC "[41m", // *brown
+            ESC "[105m", // *brown
             ESC "[101m", // light red
             ESC "[100m", // dark gray
             ESC "[47m", // medium gray
             ESC "[102m", // light green
             ESC "[104m", // light blue
-            ESC "[105m" // light gray
+            ESC "[106m" // *light gray
         };
 
         #else // use default colors
