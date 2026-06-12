@@ -241,6 +241,61 @@ std::string& ScreenBuffer::updateScreenTerminal(std::function<char32_t(char32_t)
 
     if (colFg.empty()) {
 
+
+        #if 1 // redefine the 16 colors
+        static char tmp[1024];
+        // [c64] = console color index
+        // 13 is unused. It's a bright purple, but we overwrite with brown.
+        // 14 (light cyan) use reused as a light gray.
+        static const std::vector<int> c64term = { 0, 15, 1, 6, 5, 2, 4, 11,    3, 13 /*lt purple=brown*/, 9, 8, 7, 10, 12, 14 /*lt.cyan=lt gray*/ };
+        for (int i = 0; i < 15; ++i) {
+            int r = (palette[i] >> 16) & 0xff;
+            int g = (palette[i] >> 8) & 0xff;
+            int b = (palette[i] >> 0) & 0xff;
+            printf(ESC "]P%.1X%.2X%.2X%.2X\n", i, r, g, b);
+        }
+        // https://en.wikipedia.org/wiki/ANSI_escape_code
+        // only two "gray" in this mode
+        colFg = {
+            ESC "[30m", // black
+            ESC "[97m", // white
+            ESC "[31m", // red
+            ESC "[36m", // cyan
+            ESC "[35m", // purple
+            ESC "[32m", // green
+            ESC "[34m", // blue
+            ESC "[93m", // yellow
+            ESC "[33m", // orange
+            ESC "[31m", // *brown
+            ESC "[91m", // light red
+            ESC "[90m", // dark gray
+            ESC "[37m", // medium gray
+            ESC "[92m", // light green
+            ESC "[94m", // light blue
+            ESC "[95m"  // light gray
+        };
+        colBg = {
+            ESC "[40m", // black
+            ESC "[107m", // white
+            ESC "[41m", // red
+            ESC "[46m", // cyan
+            ESC "[45m", // purple
+            ESC "[42m", // green
+            ESC "[44m", // blue
+            ESC "[103m", // yellow
+            ESC "[43m", // orange
+            ESC "[41m", // *brown
+            ESC "[101m", // light red
+            ESC "[100m", // dark gray
+            ESC "[47m", // medium gray
+            ESC "[102m", // light green
+            ESC "[104m", // light blue
+            ESC "[105m" // light gray
+        };
+
+        #else // use default colors
+
+
         // "xterm-256color" or "linux" for 16 colors
         bool has256Colors = true;
 #if !defined(_WIN32)
@@ -288,7 +343,7 @@ std::string& ScreenBuffer::updateScreenTerminal(std::function<char32_t(char32_t)
                 ESC "[37m", // medium gray
                 ESC "[92m", // light green
                 ESC "[94m", // light blue
-                ESC "[37m" // light gray
+                ESC "[37m"  // light gray
             };
             colBg = {
                 ESC "[40m", // black
@@ -309,6 +364,8 @@ std::string& ScreenBuffer::updateScreenTerminal(std::function<char32_t(char32_t)
                 ESC "[47m" // light gray
             };
         }
+
+        #endif
     }
 
     MEMCELL currentColor = MEMCELL(0xffff);
@@ -350,7 +407,7 @@ std::string& ScreenBuffer::updateScreenTerminal(std::function<char32_t(char32_t)
             if (ch > 127 && mapping) {
                 // HACK: Linux only supports Unicode mapping in 16 bits.
                 //       Just use the final 3 bytes and put them im "Private Use Area Block" U+E000..U+F8FF
-                if (ch > 0xFFFF) { 
+                if (ch > 0xFFFF) {
                     ch = (ch & 0x07FF) + 0xE000;
                 }
 
