@@ -597,7 +597,7 @@ Closes a file handle.
 Clears all variables.
 
 ### COLOR
-**Usage:** `COLOR source405, color1`
+**Usage:** `COLOR tx5_bg0_bo4, color1_16`
 
 Set text or background color. The `source` is an indicator
 what color to change.

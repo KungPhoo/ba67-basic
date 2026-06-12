@@ -249,9 +249,10 @@ std::string& ScreenBuffer::updateScreenTerminal(std::function<char32_t(char32_t)
         // 14 (light cyan) use reused as a light gray.
         static const std::vector<int> c64term = { 0, 15, 1, 6, 5, 2, 4, 11,    3, 13 /*lt purple=brown*/, 9, 8, 7, 10, 12, 14 /*lt.cyan=lt gray*/ };
         for (int i = 0; i < 15; ++i) {
-            int r = (palette[i] >> 16) & 0xff;
-            int g = (palette[i] >> 8) & 0xff;
-            int b = (palette[i] >> 0) & 0xff;
+            uint32_t c = palette[c64term[i]];
+            int r = (c >> 16) & 0xff;
+            int g = (c >> 8) & 0xff;
+            int b = (c >> 0) & 0xff;
             printf(ESC "]P%.1X%.2X%.2X%.2X\n", i, r, g, b);
         }
         // https://en.wikipedia.org/wiki/ANSI_escape_code

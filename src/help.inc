@@ -10,7 +10,7 @@
 ,{"CATALOG", R"RAW(CATALOG [filter$])RAW"}
 ,{"CLOSE", R"RAW(CLOSE fileno)RAW"}
 ,{"CLR", R"RAW(CLR)RAW"}
-,{"COLOR", R"RAW(COLOR source405, color1)RAW"}
+,{"COLOR", R"RAW(COLOR tx5_bg0_bo4, color1_16)RAW"}
 ,{"CHAR", R"RAW(CHAR color, column0, line0, text$[, inverse])RAW"}
 ,{"CHARDEF", R"RAW(CHARDEF char$, bytes [, more bytes])RAW"}
 ,{"CHDIR", R"RAW(CHDIR directory$)RAW"}
