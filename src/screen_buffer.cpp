@@ -242,10 +242,10 @@ std::string& ScreenBuffer::updateScreenTerminal(std::function<char32_t(char32_t)
     if (colFg.empty()) {
 
 
-        #if 0 // redefine the 16 colors
-        // this does not work. My Linux console changes either foreground
-        // or background color based on this to have better contrast.
-        // Clever, but unwanted.
+        #if 1 // redefine the 16 colors
+        // this does not work. The colors 8..15 are "bight" and used by the "blink" flag.
+        // Linux console ensures background is darker than foreground.
+        // thus, only 8 colors can be defined.
         static char tmp[1024];
         // [c64] = console color index
         // 13 is unused. It's a bright purple, but we overwrite with brown.
