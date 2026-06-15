@@ -251,23 +251,8 @@ void OsPosixConsole::reloadFont() {
 
         if (fontX2) {
             for (size_t y = 0; y < 8; ++y) {
-                uint8_t src = cd.bits[y];
-
-                uint16_t expanded = 0;
-
-                // Expand 8 bits -> 16 bits
-                for (int x = 0; x < 8; ++x) {
-                    if (src & (0x80 >> x)) {
-                        expanded |= (0b11 << (14 - 2 * x));
-                    }
-                }
-
-                // Store row twice (vertical 2× scaling)
-                glyph[y * 4 + 0] = expanded >> 8;
-                glyph[y * 4 + 1] = expanded & 0xFF;
-
-                glyph[y * 4 + 2] = expanded >> 8;
-                glyph[y * 4 + 3] = expanded & 0xFF;
+                glyph[y*2] = cd.bits[y];
+                glyph[y*2+1] = cd.bits[y];
             }
         } else {
             for (size_t y = 0; y < 8; ++y) {
@@ -299,7 +284,7 @@ void OsPosixConsole::reloadFont() {
     console_font_op op {};
     op.op = KD_FONT_OP_SET;
     if (fontX2) {
-        op.width  = 16;
+        op.width  = 8; // 16x16 is not supported by Linux console
         op.height = 16;
     } else {
         op.width  = 8;
