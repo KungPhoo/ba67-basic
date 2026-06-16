@@ -39,6 +39,9 @@ bool OsFPL::init(Basic* basic, SoundSystem* sound) {
     fplSettings settings;
     fplSetDefaultSettings(&settings);
 
+    // fplSetMaxLogLevel(fplLogLevel_All);
+
+
     const int border            = 64;
     settings.window.isResizable = true;
     settings.window.windowSize  = { 640 + 2 * border, 400 + 2 * border };

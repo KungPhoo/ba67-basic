@@ -988,7 +988,9 @@ void ScreenBuffer::scrollUpOne() {
         lineLinkTable[r] = lineLinkTable[r + 1];
     }
 
-    if (!overflowBottom.empty()) {
+    if (overflowBottom.empty()) { 
+        lineLinkTable[height - 1] = 0x80;
+    }else{
         lineLinkTable[height - 1] = overflowBottom.back().lineLink;
         overflowBottom.pop_back();
     }
